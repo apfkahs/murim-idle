@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pandoc \"D:/newidle/무림_방치형_게임_기획서_MVP.docx\" -o \"D:/newidle/기획서.md\")",
+      "Bash(python \"C:/Users/user/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/d1d63173-f48f-4589-b87d-d83ae8c6d563/450ade40-c940-4b7e-96f8-4f7a06af0a3f/skills/docx/scripts/office/unpack.py\" \"D:/newidle/무림_방치형_게임_기획서_MVP.docx\" \"D:/newidle/unpacked/\")",
+      "Bash(where python)",
+      "Bash(py --version)",
+      "Bash(py \"C:/Users/user/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/d1d63173-f48f-4589-b87d-d83ae8c6d563/450ade40-c940-4b7e-96f8-4f7a06af0a3f/skills/docx/scripts/office/unpack.py\" \"D:/newidle/무림_방치형_게임_기획서_MVP.docx\" \"D:/newidle/unpacked/\")",
+      "Bash(py -c \":*)",
+      "Bash(node --version)",
+      "Bash(npm --version)",
+      "Bash(npm create vite@latest . -- --template react-ts)",
+      "Bash(npm create vite@latest app -- --template react-ts)",
+      "Bash(npm install)",
+      "Bash(npm install zustand)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npm run build)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npx vite --host --port 5173)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //F //PID 28144)",
+      "Bash(taskkill //F //PID 37556)",
+      "Bash(npx vite build)",
+      "Bash(npm install openai)",
+      "Bash(npx tsx scripts/generate-assets.ts)",
+      "Bash(ls -la /d/newidle/*.docx)"
+    ]
+  }
+}

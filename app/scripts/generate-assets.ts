@@ -1,0 +1,236 @@
+/**
+ * 무림 방치록 - 이미지 에셋 생성 스크립트 (v0.2)
+ *
+ * 사용법:
+ *   1) .env 파일에 OPENAI_API_KEY=sk-... 추가
+ *   2) npx tsx scripts/generate-assets.ts
+ *
+ * gpt-image-1 (DALL-E) 모델을 사용하여 게임 에셋을 생성합니다.
+ * 이미 파일이 존재하면 스킵합니다.
+ */
+
+import OpenAI from 'openai';
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// .env 파일에서 OPENAI_API_KEY 읽기
+function loadEnv() {
+  const envPath = path.resolve(__dirname, '..', '.env');
+  if (!fs.existsSync(envPath)) {
+    console.error('❌ .env 파일이 없습니다. 프로젝트 루트에 .env 파일을 만들고 OPENAI_API_KEY를 설정하세요.');
+    process.exit(1);
+  }
+  const content = fs.readFileSync(envPath, 'utf-8');
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx === -1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    const value = trimmed.slice(eqIdx + 1).trim();
+    process.env[key] = value;
+  }
+}
+
+loadEnv();
+
+if (!process.env.OPENAI_API_KEY) {
+  console.error('❌ OPENAI_API_KEY가 설정되지 않았습니다.');
+  process.exit(1);
+}
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const ASSETS_DIR = path.resolve(__dirname, '..', 'src', 'assets');
+
+// 공통 스타일 프리픽스
+const STYLE_PREFIX =
+  'Korean traditional ink wash painting style (수묵화), dark moody background, muted earthy colors with gold accents, game asset, clean edges, no text, no watermark';
+const ICON_SUFFIX = 'icon style, centered, simple composition, square format';
+const CHARACTER_SUFFIX = 'full body character, dynamic pose, detailed';
+const BACKGROUND_SUFFIX = 'wide landscape, atmospheric, parallax-ready';
+
+// 에셋 목록 (22개)
+interface AssetEntry {
+  file: string;        // src/assets/ 하위 경로
+  prompt: string;      // DALL-E 프롬프트 (스타일 프리픽스 제외)
+  category: 'icon' | 'character' | 'background';
+  size: '1024x1024' | '1536x1024'; // 아이콘/캐릭터: 정사각, 배경: 와이드
+}
+
+const ASSETS: AssetEntry[] = [
+  // 적 일러스트 (12) — v1.0
+  { file: 'enemies/training_wood.png', category: 'character', size: '1024x1024',
+    prompt: 'wooden training dummy, humanoid' },
+  { file: 'enemies/training_iron.png', category: 'character', size: '1024x1024',
+    prompt: 'iron training dummy, metallic, dented' },
+  { file: 'enemies/squirrel.png', category: 'character', size: '1024x1024',
+    prompt: 'wild mountain squirrel, fierce' },
+  { file: 'enemies/rabbit.png', category: 'character', size: '1024x1024',
+    prompt: 'wild mountain rabbit, alert' },
+  { file: 'enemies/fox.png', category: 'character', size: '1024x1024',
+    prompt: 'cunning mountain fox, sharp eyes' },
+  { file: 'enemies/deer.png', category: 'character', size: '1024x1024',
+    prompt: 'large mountain deer, antlers' },
+  { file: 'enemies/boar.png', category: 'character', size: '1024x1024',
+    prompt: 'wild boar, tusks, charging' },
+  { file: 'enemies/wolf.png', category: 'character', size: '1024x1024',
+    prompt: 'mountain wolf, snarling' },
+  { file: 'enemies/bear.png', category: 'character', size: '1024x1024',
+    prompt: 'massive mountain bear, roar' },
+  { file: 'enemies/feiyi.png', category: 'character', size: '1024x1024',
+    prompt: 'mythical Fei Yi serpent, six legs four wings' },
+  { file: 'enemies/dangkang.png', category: 'character', size: '1024x1024',
+    prompt: 'mythical Dang Kang boar, single horn jade tusks' },
+  { file: 'enemies/tiger_boss.png', category: 'character', size: '1024x1024',
+    prompt: 'mountain tiger king, boss aura' },
+
+  // 무공 아이콘 (9)
+  { file: 'arts/basic_sword.png', category: 'icon', size: '1024x1024',
+    prompt: 'simple iron sword icon, basic martial arts, glowing faintly' },
+  { file: 'arts/taichi_sword.png', category: 'icon', size: '1024x1024',
+    prompt: 'taichi sword with yin-yang energy swirl, elegant blade' },
+  { file: 'arts/taichi_divine.png', category: 'icon', size: '1024x1024',
+    prompt: 'divine celestial sword, golden light, heavenly aura' },
+  { file: 'arts/basic_palm.png', category: 'icon', size: '1024x1024',
+    prompt: 'open palm with faint qi energy, basic palm strike' },
+  { file: 'arts/heat_palm.png', category: 'icon', size: '1024x1024',
+    prompt: 'burning palm strike, fire and heat waves emanating' },
+  { file: 'arts/storm_palm.png', category: 'icon', size: '1024x1024',
+    prompt: 'storm palm strike, lightning and wind vortex' },
+  { file: 'arts/basic_footwork.png', category: 'icon', size: '1024x1024',
+    prompt: 'simple footwork diagram, light movement trails' },
+  { file: 'arts/swallow_step.png', category: 'icon', size: '1024x1024',
+    prompt: 'swift swallow in flight, graceful movement trails' },
+  { file: 'arts/void_step.png', category: 'icon', size: '1024x1024',
+    prompt: 'figure walking on air, ethereal footsteps in void' },
+
+  // 수련법 아이콘 (4)
+  { file: 'methods/basic_breathing.png', category: 'icon', size: '1024x1024',
+    prompt: 'meditation breathing exercise, faint qi flow around seated figure' },
+  { file: 'methods/deep_breathing.png', category: 'icon', size: '1024x1024',
+    prompt: 'deep meditation, stronger qi circulation, glowing meridians' },
+  { file: 'methods/qi_condensing.png', category: 'icon', size: '1024x1024',
+    prompt: 'condensing qi into core, bright energy sphere at dantian' },
+  { file: 'methods/origin_heart.png', category: 'icon', size: '1024x1024',
+    prompt: 'transcendent heart method, cosmic energy flowing into body, enlightenment' },
+
+  // 챕터 배경 (3)
+  { file: 'backgrounds/ch1_forest.png', category: 'background', size: '1536x1024',
+    prompt: 'mountain forest bandit hideout, misty bamboo forest, wooden fortress in distance' },
+  { file: 'backgrounds/ch2_mountain.png', category: 'background', size: '1536x1024',
+    prompt: 'dark mountain fortress at night, rocky peaks, ominous clouds, torchlight' },
+  { file: 'backgrounds/ch3_temple.png', category: 'background', size: '1536x1024',
+    prompt: 'evil sect dark temple, ancient architecture, purple dark energy, foreboding atmosphere' },
+
+  // 전투 장면 배경 (UI개편)
+  { file: 'backgrounds/training_ground.png', category: 'background', size: '1536x1024',
+    prompt: 'martial arts training ground, wooden dummies, stone courtyard, peaceful mountain temple backdrop, morning mist' },
+  { file: 'backgrounds/mountain_forest.png', category: 'background', size: '1536x1024',
+    prompt: 'wild mountain forest path, dense trees, dappled sunlight, rocky terrain, mysterious atmosphere, adventure setting' },
+
+  // 플레이어 캐릭터 (4단계 진화)
+  { file: 'player/tier0_hucheon.png', category: 'character', size: '1024x1024',
+    prompt: 'young martial artist beginner, simple white hanbok, wooden training sword, humble stance' },
+  { file: 'player/tier1_seongcheon.png', category: 'character', size: '1024x1024',
+    prompt: 'skilled martial artist, blue and white robes, steel sword, confident stance, faint qi aura' },
+  { file: 'player/tier2_jeoljeong.png', category: 'character', size: '1024x1024',
+    prompt: 'martial arts master, ornate dark robes with gold trim, glowing sword, powerful qi whirlwind' },
+  { file: 'player/tier3_hwagyeong.png', category: 'character', size: '1024x1024',
+    prompt: 'transcendent martial arts grandmaster, celestial white and gold robes, radiant aura, floating, divine energy' },
+];
+
+function buildFullPrompt(entry: AssetEntry): string {
+  const suffix =
+    entry.category === 'icon' ? ICON_SUFFIX :
+    entry.category === 'character' ? CHARACTER_SUFFIX :
+    BACKGROUND_SUFFIX;
+  return `${STYLE_PREFIX}, ${suffix}, ${entry.prompt}`;
+}
+
+async function generateAsset(entry: AssetEntry): Promise<void> {
+  const outPath = path.join(ASSETS_DIR, entry.file);
+
+  // 이미 존재하면 스킵
+  if (fs.existsSync(outPath)) {
+    console.log(`⏭️  스킵 (이미 존재): ${entry.file}`);
+    return;
+  }
+
+  // 출력 디렉터리 확인
+  const dir = path.dirname(outPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  const fullPrompt = buildFullPrompt(entry);
+  console.log(`🎨 생성 중: ${entry.file}`);
+  console.log(`   프롬프트: ${fullPrompt.slice(0, 100)}...`);
+
+  try {
+    const response = await openai.images.generate({
+      model: 'gpt-image-1',
+      prompt: fullPrompt,
+      n: 1,
+      size: entry.size,
+    });
+
+    // gpt-image-1은 b64_json으로 반환
+    const b64 = response.data?.[0]?.b64_json;
+    if (!b64) {
+      console.error(`❌ 이미지 데이터 없음: ${entry.file}`);
+      return;
+    }
+
+    const buffer = Buffer.from(b64, 'base64');
+    fs.writeFileSync(outPath, buffer);
+    console.log(`✅ 저장 완료: ${entry.file} (${(buffer.length / 1024).toFixed(1)} KB)`);
+  } catch (err: any) {
+    console.error(`❌ 생성 실패: ${entry.file} - ${err.message ?? err}`);
+  }
+}
+
+async function main() {
+  console.log('='.repeat(60));
+  console.log('무림 방치록 - 이미지 에셋 생성 스크립트');
+  console.log(`총 ${ASSETS.length}개 에셋을 생성합니다.`);
+  console.log('='.repeat(60));
+  console.log('');
+
+  let generated = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const entry of ASSETS) {
+    const outPath = path.join(ASSETS_DIR, entry.file);
+    if (fs.existsSync(outPath)) {
+      skipped++;
+      console.log(`⏭️  스킵: ${entry.file}`);
+      continue;
+    }
+
+    try {
+      await generateAsset(entry);
+      generated++;
+    } catch {
+      failed++;
+    }
+
+    // API 레이트 리밋 방지: 요청 간 1초 대기
+    await new Promise(r => setTimeout(r, 1000));
+  }
+
+  console.log('');
+  console.log('='.repeat(60));
+  console.log(`완료! 생성: ${generated}, 스킵: ${skipped}, 실패: ${failed}`);
+  console.log('='.repeat(60));
+}
+
+main().catch(err => {
+  console.error('스크립트 실행 오류:', err);
+  process.exit(1);
+});
