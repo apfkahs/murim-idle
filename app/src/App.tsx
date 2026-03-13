@@ -8,8 +8,8 @@ import AchievementTab from './components/AchievementTab';
 type TabId = 'neigong' | 'arts' | 'battle' | 'achievement';
 
 const TABS: { id: TabId; icon: string; label: string }[] = [
-  { id: 'neigong', icon: '☯', label: '내공' },
-  { id: 'arts', icon: '⚔', label: '무공' },
+  { id: 'neigong', icon: '☯', label: '내공/경맥' },
+  { id: 'arts', icon: '⚔', label: '무공/능력' },
   { id: 'battle', icon: '⛰', label: '전장' },
   { id: 'achievement', icon: '★', label: '업적' },
 ];

@@ -72,10 +72,10 @@ export default function NeigongTab() {
             <span style={{ fontSize: 40 }}>{player.emoji}</span>
           )}
         </div>
-        <div style={{ fontSize: 32, fontWeight: 600, color: 'var(--text-primary)' }}>
+        <div className="neigong-value">
           {formatNumber(Math.floor(neigong))}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--green)', marginTop: 4 }}>
+        <div className="neigong-rate">
           {battling ? '전투 중 생산 중단' : `+${neigongRate.toFixed(1)}/초`}
         </div>
       </div>
@@ -90,11 +90,7 @@ export default function NeigongTab() {
           <div className="hp-bar-fill" style={{ width: `${(hp / maxHp) * 100}%` }} />
         </div>
         <div
-          style={{
-            fontSize: 11, color: 'var(--blue)', marginTop: 8,
-            cursor: (battling || hp >= maxHp || neigong < 1) ? 'default' : 'pointer',
-            opacity: (battling || hp >= maxHp || neigong < 1) ? 0.3 : 1,
-          }}
+          className={`heal-link ${(battling || hp >= maxHp || neigong < 1) ? 'disabled' : ''}`}
           onClick={() => { if (!battling && hp < maxHp && neigong >= 1) healWithNeigong(); }}
         >
           내공으로 회복 →
@@ -103,7 +99,7 @@ export default function NeigongTab() {
 
       {/* 경지 카드 */}
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="tier-row">
           <span className="badge badge-gold">{tierDef.name}</span>
           {nextTier && (
             <button
@@ -116,7 +112,7 @@ export default function NeigongTab() {
           )}
         </div>
         {nextTier?.requirements && (
-          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 8 }}>
+          <div className="tier-requirements">
             {nextTier.requirements.totalStats && (
               <span>경맥합 {totalStats}/{nextTier.requirements.totalStats}</span>
             )}

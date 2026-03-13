@@ -17,7 +17,7 @@ export default function AchievementTab() {
       {/* 상단 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <span className="card-label" style={{ marginBottom: 0 }}>업적</span>
-        <span style={{ color: 'var(--gold)', fontSize: 13 }}>무공 포인트: {artPoints}</span>
+        <span className="points-display" style={{ color: 'var(--gold)' }}>무공 포인트: {artPoints}</span>
       </div>
 
       {ACHIEVEMENTS.map(ach => {

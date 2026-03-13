@@ -129,7 +129,7 @@ export default function ArtsTab() {
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <span className="card-label" style={{ marginBottom: 0 }}>장착 중</span>
-          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+          <span className="points-display">
             포인트 {usedPoints}/{artPoints}
           </span>
         </div>
@@ -233,7 +233,7 @@ export default function ArtsTab() {
       </div>
 
       {battling && (
-        <div style={{ fontSize: 12, color: 'var(--red)', textAlign: 'center', marginTop: 8 }}>
+        <div className="battle-warning">
           전투 중에는 교체할 수 없습니다
         </div>
       )}

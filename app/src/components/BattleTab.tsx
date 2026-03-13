@@ -47,8 +47,7 @@ function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
 
       {/* 수련장 */}
       <div
-        className="card"
-        style={{ cursor: 'pointer' }}
+        className="card field-card"
         onClick={() => onSelect('training')}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -63,8 +62,7 @@ function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
       {/* 야산 */}
       {tutorialFlags.yasanUnlocked ? (
         <div
-          className="card"
-          style={{ cursor: 'pointer' }}
+          className="card field-card"
           onClick={() => onSelect('yasan')}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -82,8 +80,8 @@ function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
           </div>
         </div>
       ) : (
-        <div className="card" style={{ opacity: 0.4 }}>
-          <span style={{ fontWeight: 500, fontSize: 13 }}>야산</span>
+        <div className="card field-card locked">
+          <span style={{ fontWeight: 500, fontSize: 13 }}>🔒 야산</span>
           <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
             삼재검법과 삼재심법을 장착해야 해금됩니다
           </div>
@@ -116,14 +114,9 @@ function FieldDetailScreen({ fieldId, onBack }: { fieldId: string; onBack: () =>
   return (
     <div>
       {/* 헤더 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, padding: '0 4px' }}>
+      <div className="field-detail-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span
-            style={{ fontSize: 14, cursor: 'pointer', opacity: 0.6 }}
-            onClick={onBack}
-          >
-            ←
-          </span>
+          <button className="field-back-btn" onClick={onBack}>←</button>
           <span style={{ fontWeight: 500, fontSize: 14 }}>{fieldName}</span>
         </div>
         {field.canExplore && (
@@ -263,9 +256,9 @@ function BattleScreen() {
   const isExplore = battleMode === 'explore';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
+    <div className="battle-layout">
       {/* 상단 바 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, padding: '0 4px' }}>
+      <div className="battle-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 14, fontWeight: 500 }}>
             {currentField === 'training' ? '수련장' : '야산'}
@@ -431,13 +424,8 @@ function BattleResultScreen() {
   const isDeath = battleResult.type === 'death';
 
   return (
-    <div className="card" style={{ textAlign: 'center', padding: 32 }}>
-      <div style={{
-        fontSize: 24,
-        fontWeight: 600,
-        color: isWin ? 'var(--gold)' : isDeath ? 'var(--red)' : 'var(--text-primary)',
-        marginBottom: 16,
-      }}>
+    <div className="card battle-result">
+      <div className={`battle-result-title ${isWin ? 'win' : isDeath ? 'lose' : ''}`}>
         {isWin ? '승리!' : isDeath ? '패배...' : '전투 종료'}
       </div>
 
@@ -472,7 +460,7 @@ function BattleResultScreen() {
         </div>
       )}
 
-      <button className="btn" onClick={dismissBattleResult} style={{ marginTop: 8 }}>돌아가기</button>
+      <button className="btn battle-result-actions" onClick={dismissBattleResult}>돌아가기</button>
     </div>
   );
 }
