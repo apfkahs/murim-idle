@@ -147,6 +147,7 @@ export interface GameActions {
   saveGame: (slot?: number) => void;
   loadGame: (slot: number) => void;
   resetGame: (slot?: number) => void;
+  deleteSlot: (slot: number) => void;
   getSaveSlots: () => (SaveMeta | null)[];
 
   setGameSpeed: (speed: number) => void;
@@ -641,6 +642,11 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
           }
         }
 
+        // 곰 처치 시 inn 해금
+        if (monDef.id === 'bear' && !fieldUnlocks.inn) {
+          fieldUnlocks.inn = true;
+        }
+
         if (battleMode === 'explore') {
           explorePendingRewards.simdeuk += simdeuk;
           explorePendingRewards.drops.push(...drops);
@@ -692,10 +698,7 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
               hp = Math.min(hp + maxHp * 0.05, maxHp);
             }
 
-            // 산군 첫 클리어 → inn 해금
-            if (monDef.id === 'tiger_boss' && bossKillCounts['tiger_boss'] === 1) {
-              fieldUnlocks.inn = true;
-            }
+            // 산군 첫 클리어 (기존 inn 해금 조건이었으나 곰 처치로 완화됨)
           }
         } else if (battleMode === 'hunt') {
           totalSimdeuk += simdeuk;
@@ -1392,7 +1395,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (typeof window !== 'undefined' && window.localStorage) {
       localStorage.removeItem(`murim_save_slot_${targetSlot}`);
     }
-    set(createInitialState());
+    const initialState = createInitialState();
+    initialState.currentSaveSlot = targetSlot;
+    set(initialState);
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem('murim_save_current', String(targetSlot));
+    }
+  },
+
+  deleteSlot: (slot: number) => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.removeItem(`murim_save_slot_${slot}`);
+    }
   },
 
   getSaveSlots: (): (SaveMeta | null)[] => {

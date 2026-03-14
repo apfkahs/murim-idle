@@ -106,7 +106,7 @@ function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
         <div className="card field-card locked">
           <span style={{ fontWeight: 500, fontSize: 13 }}>🔒 허름한 객잔</span>
           <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
-            산군 처치 시 해금
+            곰 처치 시 해금
           </div>
         </div>
       ) : null}

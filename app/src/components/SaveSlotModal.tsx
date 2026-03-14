@@ -15,7 +15,10 @@ export default function SaveSlotModal({ onClose }: Props) {
   const resetGame = useGameStore(s => s.resetGame);
   const currentSaveSlot = useGameStore(s => s.currentSaveSlot);
 
+  const deleteSlot = useGameStore(s => s.deleteSlot);
+
   const [confirmSlot, setConfirmSlot] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
 
   const slots = getSaveSlots();
 
@@ -80,7 +83,16 @@ export default function SaveSlotModal({ onClose }: Props) {
               >
                 <div className="save-slot-header">
                   <span className="save-slot-name">슬롯 {i + 1}</span>
-                  {isCurrent && <span className="save-slot-badge">현재</span>}
+                  <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    {isCurrent && <span className="save-slot-badge">현재</span>}
+                    {meta && !isCurrent && (
+                      <span
+                        className="save-slot-delete"
+                        onClick={e => { e.stopPropagation(); setDeleteTarget(i); }}
+                        title="슬롯 삭제"
+                      >✕</span>
+                    )}
+                  </span>
                 </div>
                 {meta ? (
                   <div className="save-slot-info">
@@ -112,7 +124,26 @@ export default function SaveSlotModal({ onClose }: Props) {
           </div>
         )}
 
-        {confirmSlot === null && (
+        {deleteTarget !== null && (
+          <div className="save-slot-confirm">
+            <div className="save-slot-confirm-text">
+              슬롯 {deleteTarget + 1}의 저장 데이터를 삭제하시겠습니까?
+            </div>
+            <div className="save-slot-confirm-actions">
+              <button className="btn btn-small btn-danger" onClick={() => {
+                deleteSlot(deleteTarget);
+                setDeleteTarget(null);
+              }}>
+                삭제
+              </button>
+              <button className="btn btn-small" onClick={() => setDeleteTarget(null)}>
+                취소
+              </button>
+            </div>
+          </div>
+        )}
+
+        {confirmSlot === null && deleteTarget === null && (
           <button className="btn" onClick={onClose} style={{ marginTop: 16, width: '100%' }}>
             취소
           </button>

@@ -1071,6 +1071,19 @@ body {
   color: var(--text-dim);
 }
 
+.save-slot-delete {
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.2s, background 0.2s;
+}
+.save-slot-delete:hover {
+  color: #ff6b6b;
+  background: rgba(255,107,107,0.1);
+}
+
 .save-slot-confirm {
   margin-top: 12px;
   padding: 12px;
