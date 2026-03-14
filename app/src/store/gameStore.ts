@@ -350,6 +350,7 @@ function buildAchievementContext(state: GameState): AchievementContext {
     tier: state.tier,
     achievements: state.achievements,
     hiddenEncountered: state.hiddenEncountered,
+    fieldUnlocks: state.fieldUnlocks,
   };
 }
 
@@ -883,7 +884,7 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
   const ctx = buildAchievementContext({
     ...state, killCounts, bossKillCounts, ownedArts,
     totalSimdeuk, achievements, hiddenEncountered,
-    totalYasanKills,
+    totalYasanKills, fieldUnlocks,
   });
 
   for (const ach of ACHIEVEMENTS) {

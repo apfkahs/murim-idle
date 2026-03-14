@@ -5,8 +5,20 @@
  */
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { getArtDef, getArtStats, getMasteryDefsForArt, getMasteryDef, type MasteryDef } from '../data/arts';
+import { getArtDef, getArtStats, getMasteryDefsForArt, getMasteryDef, type ArtDef, type MasteryDef } from '../data/arts';
 import { getMaxSimdeuk, getTierDef } from '../data/tiers';
+
+function getArtEffectText(def: ArtDef, totalSimdeuk: number): string {
+  const stats = getArtStats(def, totalSimdeuk);
+  const g = def.growth;
+  const parts: string[] = [];
+  if (g.basePower != null) parts.push(`위력 ${stats.power}`);
+  if (g.baseTriggerRate != null) parts.push(`발동률 ${(stats.triggerRate * 100).toFixed(0)}%`);
+  if (g.baseNeigongPerSec != null) parts.push(`내공 ${stats.neigongPerSec.toFixed(1)}/초`);
+  if (g.baseDodge != null) parts.push(`회피 ${stats.dodge.toFixed(1)}%`);
+  if (g.baseHpBonus != null) parts.push(`체력 +${stats.hpBonus}`);
+  return parts.join(' · ');
+}
 
 function getArtDescription(artId: string, totalSimdeuk: number): string {
   const descriptions: Record<string, { min: number; desc: string }[]> = {
@@ -121,6 +133,7 @@ export default function ArtsTab() {
           const maxSd = getMaxSimdeuk(tier);
           const progress = owned.totalSimdeuk < maxSd ? owned.totalSimdeuk / maxSd : 1;
           const desc = getArtDescription(def.id, owned.totalSimdeuk);
+          const effectText = getArtEffectText(def, owned.totalSimdeuk);
           const isExpanded = expandedArt === def.id;
 
           return (
@@ -134,15 +147,8 @@ export default function ArtsTab() {
                   <div style={{ fontSize: 13, color: 'var(--blue)' }}>
                     {def.name}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{desc}</div>
-                  <div style={{ marginTop: 4 }}>
-                    <div className="progress-bar" style={{ marginBottom: 2 }}>
-                      <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
-                    </div>
-                    <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>
-                      수련도 {owned.totalSimdeuk}/{maxSd}
-                    </div>
-                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 2 }}>{effectText}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 1 }}>{desc}</div>
                 </div>
                 <button
                   className="btn btn-small"
@@ -216,6 +222,7 @@ export default function ArtsTab() {
         {equippedArtData.map(({ owned, def }) => {
           if (!owned || !def) return null;
           const desc = getArtDescription(def.id, owned.totalSimdeuk);
+          const effectText = getArtEffectText(def, owned.totalSimdeuk);
           const isExpanded = expandedArt === def.id;
 
           return (
@@ -233,8 +240,9 @@ export default function ArtsTab() {
                       {def.artType === 'active' ? '액티브' : '패시브'}
                     </span>
                   </div>
-                  <div style={{ marginTop: 2 }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{desc}</span>
+                  <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 2 }}>{effectText}</div>
+                  <div style={{ marginTop: 1 }}>
+                    <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>{desc}</span>
                   </div>
                 </div>
                 <button
@@ -265,6 +273,7 @@ export default function ArtsTab() {
           const def = getArtDef(owned.id);
           if (!def) return null;
           const desc = getArtDescription(def.id, owned.totalSimdeuk);
+          const effectText = getArtEffectText(def, owned.totalSimdeuk);
           const isExpanded = expandedArt === def.id;
 
           return (
@@ -285,8 +294,9 @@ export default function ArtsTab() {
                     </span>
                     <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>비용{def.cost}</span>
                   </div>
-                  <div style={{ marginTop: 2 }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{desc}</span>
+                  <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 2 }}>{effectText}</div>
+                  <div style={{ marginTop: 1 }}>
+                    <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>{desc}</span>
                   </div>
                 </div>
                 <button
@@ -431,20 +441,8 @@ function ArtDetail({ artId, totalSimdeuk, tier, discoveredMasteries }: { artId: 
         </div>
       )}
 
-      {/* 수련 진행도 */}
-      {totalSimdeuk < maxSd ? (
-        <div style={{ marginTop: 8 }}>
-          <div style={{ color: 'var(--text-secondary)', marginBottom: 4, fontSize: 11 }}>
-            수련 진행도
-          </div>
-          <div className="progress-bar" style={{ marginBottom: 4 }}>
-            <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
-          </div>
-          <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
-            심득 {totalSimdeuk}/{maxSd}
-          </div>
-        </div>
-      ) : (
+      {/* 심득 상한 도달 시에만 안내 */}
+      {totalSimdeuk >= maxSd && (
         <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>경지 돌파 필요 (수련 상한)</div>
       )}
     </div>

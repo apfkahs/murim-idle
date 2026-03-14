@@ -41,6 +41,16 @@ const ENEMY_EMOJI: Record<string, string> = {
   feiyi: '🐉',
   dangkang: '🦏',
   tiger_boss: '🐯',
+  drunk_thug: '🍺',
+  peddler: '🎒',
+  troublemaker: '👊',
+  wanderer: '⚔️',
+  bounty_hunter: '🎯',
+  ronin: '🗡️',
+  bandit_chief: '💀',
+  masked_swordsman: '🎭',
+  innkeeper_true: '👤',
+  bandit_leader: '⚔️',
 };
 
 export function getEnemyImage(key: string): string | null {
@@ -66,6 +76,7 @@ export function getPlayerByTier(tier: number): { url: string | null; emoji: stri
 const FIELD_BG_MAP: Record<string, string> = {
   training: 'training_ground',
   yasan: 'mountain_forest',
+  inn: 'inn_interior',
 };
 
 export function getFieldBackground(fieldId: string): string | null {

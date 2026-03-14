@@ -21,6 +21,7 @@ export interface AchievementContext {
   tier: number;
   achievements: string[];
   hiddenEncountered: boolean;
+  fieldUnlocks: Record<string, boolean>;
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -40,6 +41,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
       return yasanIds.some(id => (ctx.killCounts[id] ?? 0) >= 1);
     },
     prerequisite: 'training_graduate',
+  },
+  {
+    id: 'field_inn', name: '허름한 객잔 발견',
+    description: '야산의 곰을 처치하여 새로운 전장을 발견했다',
+    check: ctx => ctx.fieldUnlocks['inn'] === true,
+    prerequisite: 'yasan_entry',
   },
   {
     id: 'hunter_10', name: '사냥꾼', description: '야산 10마리',

@@ -6,11 +6,17 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useGameStore, getMonsterRevealLevel } from '../store/gameStore';
-import { getMonsterDef, YASAN_MONSTERS, type MonsterDef } from '../data/monsters';
+import { getMonsterDef, YASAN_MONSTERS, INN_MONSTERS, type MonsterDef } from '../data/monsters';
 import { getArtDef } from '../data/arts';
 import { formatNumber } from '../utils/format';
 import { getEnemyImage, getEnemyEmoji, getPlayerByTier, getFieldBackground } from '../assets';
 import { getFieldDef } from '../data/fields';
+
+const FIELD_DESCRIPTIONS: Record<string, string> = {
+  training: '스승이 세워둔 수련 인형들이 묵묵히 서 있다.',
+  yasan: '야생의 기운이 감도는 울창한 산길. 무엇이 나올지 모른다.',
+  inn: '삐걱거리는 나무 바닥, 수상한 눈빛들. 방심하면 안 된다.',
+};
 
 export default function BattleTab() {
   const battleMode = useGameStore(s => s.battleMode);
@@ -52,7 +58,7 @@ function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <span style={{ fontWeight: 500, fontSize: 13 }}>수련장</span>
-            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>답파불가 · 지정사냥</div>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>무공의 기초를 다지는 곳 · 지정사냥</div>
           </div>
           <span style={{ fontSize: 14, opacity: 0.3 }}>→</span>
         </div>
@@ -68,7 +74,7 @@ function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
             <div>
               <span style={{ fontWeight: 500, fontSize: 13 }}>야산</span>
               <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
-                {Object.keys(killCounts).filter(id =>
+                수련장 너머 펼쳐진 야산 · {Object.keys(killCounts).filter(id =>
                   YASAN_MONSTERS.some(m => m.id === id) && killCounts[id] > 0
                 ).length > 0 ? (
                   `${YASAN_MONSTERS.filter(m => (killCounts[m.id] ?? 0) > 0).length}종 발견`
@@ -96,16 +102,20 @@ function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <span style={{ fontWeight: 500, fontSize: 13 }}>허름한 객잔</span>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>???</div>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                산길 끝 허름한 주막 · {INN_MONSTERS.filter(m => (killCounts[m.id] ?? 0) > 0).length > 0
+                  ? `${INN_MONSTERS.filter(m => (killCounts[m.id] ?? 0) > 0).length}종 발견`
+                  : '???'}
+              </div>
             </div>
             <span style={{ fontSize: 14, opacity: 0.3 }}>→</span>
           </div>
         </div>
       ) : fieldUnlocks.yasan ? (
         <div className="card field-card locked">
-          <span style={{ fontWeight: 500, fontSize: 13 }}>🔒 허름한 객잔</span>
+          <span style={{ fontWeight: 500, fontSize: 13 }}>🔒 ???</span>
           <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
-            곰 처치 시 해금
+            아직 발견하지 못한 전장
           </div>
         </div>
       ) : null}
@@ -137,6 +147,8 @@ function FieldDetailScreen({ fieldId, onBack }: { fieldId: string; onBack: () =>
 
   const isTraining = field.isTraining;
   const fieldName = field.name;
+  const fieldDesc = FIELD_DESCRIPTIONS[fieldId] ?? '';
+  const bgUrl = getFieldBackground(fieldId);
 
   // 전장의 몬스터 목록
   const monsters = field.monsters.map(id => getMonsterDef(id)).filter(Boolean) as MonsterDef[];
@@ -146,15 +158,20 @@ function FieldDetailScreen({ fieldId, onBack }: { fieldId: string; onBack: () =>
 
   return (
     <div>
-      {/* 헤더 */}
-      <div className="field-detail-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button className="field-back-btn" onClick={onBack}>←</button>
-          <span style={{ fontWeight: 500, fontSize: 14 }}>{fieldName}</span>
+      {/* 배경 배너 헤더 */}
+      <div className="field-detail-banner" style={bgUrl ? { backgroundImage: `url(${bgUrl})` } : {}}>
+        <div className="field-detail-banner-overlay">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="field-back-btn" onClick={onBack}>←</button>
+            <div>
+              <div style={{ fontWeight: 500, fontSize: 14 }}>{fieldName}</div>
+              {fieldDesc && <div style={{ fontSize: 11, opacity: 0.7 }}>{fieldDesc}</div>}
+            </div>
+          </div>
+          {field.canExplore && (
+            <button className="btn btn-small btn-gold" onClick={() => startExplore(fieldId)}>답파</button>
+          )}
         </div>
-        {field.canExplore && (
-          <button className="btn btn-small btn-gold" onClick={() => startExplore(fieldId)}>답파</button>
-        )}
       </div>
 
       {/* 몬스터 목록 */}
@@ -162,48 +179,61 @@ function FieldDetailScreen({ fieldId, onBack }: { fieldId: string; onBack: () =>
         {monsters.map(mon => {
           const kills = killCounts[mon.id] ?? 0;
           const reveal = getMonsterRevealLevel(kills);
+          const enemyImg = getEnemyImage(mon.imageKey);
 
           // 수련장도 서술형 설명 사용
           if (isTraining) {
-            const hint = mon.hp <= 10 ? '가벼운 연습 상대' : '단단한 수련 상대';
+            const hint = mon.hp <= 10 ? '반격하지 않는 나무 허수아비' : '스스로 회복하는 단단한 수련 인형';
             return (
-              <div key={mon.id} className="stat-row">
-                <div>
-                  <span style={{ fontSize: 13 }}>{mon.name}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 8 }}>
-                    {hint}
-                  </span>
-                  {kills > 0 && (
-                    <span style={{ fontSize: 11, color: 'var(--green)', marginLeft: 6 }}>처치완료</span>
+              <div key={mon.id} className="stat-row" style={{ alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {enemyImg ? (
+                    <img src={enemyImg} alt={mon.name} className="monster-thumb" />
+                  ) : (
+                    <div className="monster-emoji-thumb">{getEnemyEmoji(mon.id)}</div>
                   )}
+                  <div>
+                    <span style={{ fontSize: 13 }}>{mon.name}</span>
+                    {kills > 0 && (
+                      <span style={{ fontSize: 11, color: 'var(--green)', marginLeft: 6 }}>처치완료</span>
+                    )}
+                    <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>{hint}</div>
+                  </div>
                 </div>
                 <button className="btn btn-small" onClick={() => startHunt(fieldId, mon.id)}>사냥</button>
               </div>
             );
           }
 
-          // 야산: 정보 숨김 적용
+          // 미조우
           if (reveal === 0) {
-            // 미조우
             return (
-              <div key={mon.id} className="stat-row" style={{ opacity: 0.3 }}>
-                <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>???</span>
+              <div key={mon.id} className="stat-row" style={{ opacity: 0.3, alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="monster-emoji-thumb" style={{ opacity: 0.3 }}>?</div>
+                  <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>???</span>
+                </div>
               </div>
             );
           }
 
           return (
-            <div key={mon.id} className="stat-row">
-              <div>
-                <span style={{ fontSize: 13 }}>{mon.name}</span>
-                <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 8 }}>
-                  {getMonsterHint(mon, reveal)}
-                </span>
-                {reveal >= 5 && mon.drops.length > 0 && (
-                  <span style={{ fontSize: 11, color: 'var(--gold)', marginLeft: 6 }}>
-                    무언가를 지니고 있는 듯하다
-                  </span>
+            <div key={mon.id} className="stat-row" style={{ alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {enemyImg ? (
+                  <img src={enemyImg} alt={mon.name} className="monster-thumb" />
+                ) : (
+                  <div className="monster-emoji-thumb">{getEnemyEmoji(mon.id)}</div>
                 )}
+                <div>
+                  <span style={{ fontSize: 13 }}>{mon.name}</span>
+                  {reveal >= 5 && mon.drops.length > 0 && (
+                    <span style={{ fontSize: 11, color: 'var(--gold)', marginLeft: 6 }}>
+                      무언가를 지니고 있는 듯하다
+                    </span>
+                  )}
+                  <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>{getMonsterHint(mon, reveal)}</div>
+                </div>
               </div>
               <button className="btn btn-small" onClick={() => startHunt(fieldId, mon.id)}>사냥</button>
             </div>
@@ -216,10 +246,22 @@ function FieldDetailScreen({ fieldId, onBack }: { fieldId: string; onBack: () =>
             {(() => {
               const bossKills = killCounts[boss.id] ?? 0;
               const bossReveal = getMonsterRevealLevel(bossKills);
+              const bossImg = getEnemyImage(boss.imageKey);
               return (
-                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                  보스: {bossReveal >= 1 ? boss.name : '???'}
-                  {bossReveal >= 1 ? ` — ${getMonsterHint(boss, bossReveal)}` : ''}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {bossReveal >= 1 ? (
+                    bossImg ? (
+                      <img src={bossImg} alt={boss.name} className="monster-thumb" />
+                    ) : (
+                      <div className="monster-emoji-thumb">{getEnemyEmoji(boss.id)}</div>
+                    )
+                  ) : (
+                    <div className="monster-emoji-thumb" style={{ opacity: 0.3 }}>?</div>
+                  )}
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                    보스: {bossReveal >= 1 ? boss.name : '???'}
+                    {bossReveal >= 1 ? ` — ${getMonsterHint(boss, bossReveal)}` : ''}
+                  </div>
                 </div>
               );
             })()}
