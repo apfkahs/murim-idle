@@ -1285,6 +1285,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       fieldUnlocks: state.fieldUnlocks,
       moraleBuff: state.moraleBuff,
       currentSaveSlot: targetSlot,
+      lastTickTime: Date.now(),
+      savedAt: Date.now(),
     };
 
     if (typeof window !== 'undefined' && window.localStorage) {
