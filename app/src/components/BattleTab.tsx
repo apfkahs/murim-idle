@@ -38,7 +38,7 @@ function FieldNavigation() {
 // 1단계: 전장 목록 (4장)
 // ─────────────────────────────────────────────
 function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
-  const tutorialFlags = useGameStore(s => s.tutorialFlags);
+  const fieldUnlocks = useGameStore(s => s.fieldUnlocks);
   const killCounts = useGameStore(s => s.killCounts);
 
   return (
@@ -60,7 +60,7 @@ function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
       </div>
 
       {/* 야산 */}
-      {tutorialFlags.yasanUnlocked ? (
+      {fieldUnlocks.yasan ? (
         <div
           className="card field-card"
           onClick={() => onSelect('yasan')}
@@ -87,6 +87,29 @@ function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
           </div>
         </div>
       )}
+
+      {/* 허름한 객잔 */}
+      {fieldUnlocks.inn ? (
+        <div
+          className="card field-card"
+          onClick={() => onSelect('inn')}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ fontWeight: 500, fontSize: 13 }}>허름한 객잔</span>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>???</div>
+            </div>
+            <span style={{ fontSize: 14, opacity: 0.3 }}>→</span>
+          </div>
+        </div>
+      ) : fieldUnlocks.yasan ? (
+        <div className="card field-card locked">
+          <span style={{ fontWeight: 500, fontSize: 13 }}>🔒 허름한 객잔</span>
+          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+            산군 처치 시 해금
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -261,7 +284,7 @@ function BattleScreen() {
       <div className="battle-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 14, fontWeight: 500 }}>
-            {currentField === 'training' ? '수련장' : '야산'}
+            {currentField === 'training' ? '수련장' : currentField === 'inn' ? '허름한 객잔' : '야산'}
           </span>
           {isExplore && (
             <span className="badge badge-gold" style={{ fontSize: 11, padding: '2px 8px' }}>

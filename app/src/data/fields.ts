@@ -31,6 +31,18 @@ export const FIELDS: FieldDef[] = [
     bossTimer: 60,
     canExplore: true,
   },
+  {
+    id: 'inn',
+    name: '허름한 객잔',
+    monsters: [
+      'drunk_thug', 'peddler', 'troublemaker', 'wanderer',
+      'bounty_hunter', 'ronin', 'bandit_chief',
+    ],
+    hiddenMonsters: ['masked_swordsman', 'innkeeper_true'],
+    boss: 'bandit_leader',
+    bossTimer: 60,
+    canExplore: true,
+  },
 ];
 
 export function getFieldDef(id: string): FieldDef | undefined {

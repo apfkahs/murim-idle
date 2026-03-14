@@ -76,7 +76,21 @@ export default function NeigongTab() {
           {formatNumber(Math.floor(neigong))}
         </div>
         <div className="neigong-rate">
-          {battling ? '전투 중 생산 중단' : `+${neigongRate.toFixed(1)}/초`}
+          {battling ? (
+            (() => {
+              const s = useGameStore.getState();
+              const am = s.activeMasteries;
+              const hasCombatMastery = Object.entries(am).some(([artId, ids]) =>
+                ids.some(id => id === 'samjae_simbeop_combat' || id === 'heupgong_combat') &&
+                (s.equippedArts.includes(artId) || s.equippedSimbeop === artId)
+              );
+              if (hasCombatMastery) {
+                const combatRate = neigongRate * 0.25;
+                return `+${combatRate.toFixed(1)}/초 (전투 수련)`;
+              }
+              return '전투 중 생산 중단';
+            })()
+          ) : `+${neigongRate.toFixed(1)}/초`}
         </div>
       </div>
 

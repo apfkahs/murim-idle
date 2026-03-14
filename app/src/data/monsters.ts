@@ -101,6 +101,96 @@ export const HIDDEN_MONSTERS: MonsterDef[] = [
   },
 ];
 
+// 객잔 일반 몬스터
+export const INN_MONSTERS: MonsterDef[] = [
+  {
+    id: 'drunk_thug', name: '취한 건달',
+    hp: 80, attackPower: 6, attackInterval: 3.0, regen: 0,
+    simdeuk: 18,
+    drops: [], // TODO: 기획자 설계 후 반영
+    imageKey: 'drunk_thug',
+    attackMessages: ['건달이 비틀거리며 주먹을 휘둘렀다!', '건달이 술병을 내던졌다!'],
+  },
+  {
+    id: 'peddler', name: '떠돌이 행상',
+    hp: 120, attackPower: 9, attackInterval: 2.8, regen: 0,
+    simdeuk: 20,
+    drops: [], // TODO: 기획자 설계 후 반영
+    imageKey: 'peddler',
+    attackMessages: ['행상이 짐짝을 휘둘렀다!', '행상이 지팡이로 내리쳤다!'],
+  },
+  {
+    id: 'troublemaker', name: '객잔 말썽꾼',
+    hp: 100, attackPower: 12, attackInterval: 2.5, regen: 0,
+    simdeuk: 22,
+    drops: [], // TODO: 기획자 설계 후 반영
+    imageKey: 'troublemaker',
+    attackMessages: ['말썽꾼이 의자를 집어 던졌다!', '말썽꾼의 거친 주먹이 날아온다!'],
+  },
+  {
+    id: 'wanderer', name: '떠돌이 무사',
+    hp: 180, attackPower: 14, attackInterval: 2.4, regen: 0,
+    simdeuk: 35,
+    drops: [], // TODO: 기획자 설계 후 반영
+    imageKey: 'wanderer',
+    attackMessages: ['무사가 빠르게 검을 뽑아 베었다!', '무사의 날카로운 일격!'],
+  },
+  {
+    id: 'bounty_hunter', name: '현상금 사냥꾼',
+    hp: 150, attackPower: 18, attackInterval: 2.2, regen: 0,
+    simdeuk: 40,
+    drops: [], // TODO: 기획자 설계 후 반영
+    imageKey: 'bounty_hunter',
+    attackMessages: ['사냥꾼이 단검을 던졌다!', '사냥꾼의 정확한 급소 공격!'],
+  },
+  {
+    id: 'ronin', name: '흑도 낭인',
+    hp: 250, attackPower: 16, attackInterval: 2.0, regen: 0,
+    simdeuk: 55,
+    drops: [], // TODO: 기획자 설계 후 반영
+    imageKey: 'ronin',
+    attackMessages: ['낭인이 묵직한 도를 내리쳤다!', '낭인이 어둠 속에서 베어냈다!'],
+  },
+  {
+    id: 'bandit_chief', name: '삼류 도적 두목',
+    hp: 320, attackPower: 24, attackInterval: 2.0, regen: 0,
+    simdeuk: 80,
+    drops: [], // TODO: 기획자 설계 후 반영
+    imageKey: 'bandit_chief',
+    attackMessages: ['두목이 쌍도를 휘둘렀다!', '두목의 기합과 함께 강타!'],
+  },
+];
+
+// 객잔 히든 몬스터
+export const INN_HIDDEN_MONSTERS: MonsterDef[] = [
+  {
+    id: 'masked_swordsman', name: '가면 쓴 검객',
+    hp: 600, attackPower: 28, attackInterval: 1.8, regen: 0,
+    simdeuk: 120,
+    drops: [], // TODO: 기획자 설계 후 반영
+    isHidden: true, imageKey: 'masked_swordsman',
+    attackMessages: ['검객의 검이 섬광처럼 스쳤다!', '가면 뒤에서 살기가 뿜어져 나왔다!'],
+  },
+  {
+    id: 'innkeeper_true', name: '객잔 주인 (본모습)',
+    hp: 900, attackPower: 20, attackInterval: 1.5, regen: 0,
+    simdeuk: 160,
+    drops: [], // TODO: 기획자 설계 후 반영
+    isHidden: true, imageKey: 'innkeeper_true',
+    attackMessages: ['주인의 손가락이 번개처럼 혈도를 찔렀다!', '주인이 가볍게 손을 뻗었는데 엄청난 장력이!'],
+  },
+];
+
+// 객잔 보스
+export const INN_BOSS: MonsterDef = {
+  id: 'bandit_leader', name: '흑풍채 채주',
+  hp: 800, attackPower: 32, attackInterval: 1.6, regen: 0,
+  simdeuk: 200,
+  drops: [], // TODO: 기획자 설계 후 반영
+  isBoss: true, imageKey: 'bandit_leader',
+  attackMessages: ['채주의 대도가 바람을 가르며 내려왔다!', '채주가 포효하며 흑풍을 일으켰다!'],
+};
+
 // 야산 보스 (v1.1 수치)
 export const YASAN_BOSS: MonsterDef = {
   id: 'tiger_boss', name: '산군',
@@ -111,7 +201,8 @@ export const YASAN_BOSS: MonsterDef = {
 };
 
 export function getMonsterDef(id: string): MonsterDef | undefined {
-  return [...TRAINING_MONSTERS, ...YASAN_MONSTERS, ...HIDDEN_MONSTERS, YASAN_BOSS]
+  return [...TRAINING_MONSTERS, ...YASAN_MONSTERS, ...HIDDEN_MONSTERS, YASAN_BOSS,
+          ...INN_MONSTERS, ...INN_HIDDEN_MONSTERS, INN_BOSS]
     .find(m => m.id === id);
 }
 

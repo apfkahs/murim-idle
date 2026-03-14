@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { useGameStore } from './store/gameStore';
+import { useGameStore, type OfflineResult } from './store/gameStore';
 import NeigongTab from './components/NeigongTab';
 import ArtsTab from './components/ArtsTab';
 import BattleTab from './components/BattleTab';
 import AchievementTab from './components/AchievementTab';
+import SaveSlotModal from './components/SaveSlotModal';
+import OfflineResultModal from './components/OfflineResultModal';
 
 type TabId = 'neigong' | 'arts' | 'battle' | 'achievement';
 
@@ -16,41 +18,78 @@ const TABS: { id: TabId; icon: string; label: string }[] = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('neigong');
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [offlineResult, setOfflineResult] = useState<OfflineResult | null>(null);
+
   const tick = useGameStore(s => s.tick);
   const saveGame = useGameStore(s => s.saveGame);
   const loadGame = useGameStore(s => s.loadGame);
-  const resetGame = useGameStore(s => s.resetGame);
+  const gameSpeed = useGameStore(s => s.gameSpeed);
+  const setGameSpeed = useGameStore(s => s.setGameSpeed);
+  const processOfflineProgress = useGameStore(s => s.processOfflineProgress);
   const saveTimerRef = useRef(0);
 
-  // Load game on mount
+  // Load game on mount + offline progress
   useEffect(() => {
-    loadGame();
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const currentSlot = parseInt(localStorage.getItem('murim_save_current') ?? '0', 10);
+      loadGame(currentSlot);
+
+      // 오프라인 진행 계산
+      const raw = localStorage.getItem(`murim_save_slot_${currentSlot}`);
+      if (raw) {
+        try {
+          const data = JSON.parse(raw);
+          const lastTick = data.lastTickTime ?? Date.now();
+          const elapsed = (Date.now() - lastTick) / 1000;
+          if (elapsed >= 5) {
+            const result = useGameStore.getState().processOfflineProgress(elapsed);
+            setOfflineResult(result);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
   }, [loadGame]);
 
-  // Game loop: ~200ms ticks
+  // Game loop: 1s ticks
   useEffect(() => {
     const interval = setInterval(() => {
       tick();
       saveTimerRef.current++;
-      if (saveTimerRef.current >= 30) { // ~30 seconds (30 x 1s)
+      if (saveTimerRef.current >= 30) {
         saveGame();
         saveTimerRef.current = 0;
       }
-    }, 1000); // v1.1: 1초 틱
+    }, 1000);
     return () => clearInterval(interval);
   }, [tick, saveGame]);
+
+  function handleSpeedToggle() {
+    const current = useGameStore.getState().gameSpeed;
+    setGameSpeed(current === 1 ? 2 : 1);
+  }
 
   return (
     <div className="app-container">
       <header className="app-header">
         <h1 className="app-title">무림 방치록</h1>
         <div className="header-buttons">
-          <button className="icon-btn" onClick={saveGame} title="저장">💾</button>
-          <button className="icon-btn" onClick={() => {
-            if (confirm('정말 초기화하시겠습니까? 모든 진행이 삭제됩니다.')) {
-              resetGame();
-            }
-          }} title="초기화">🗑️</button>
+          <button
+            className="icon-btn speed-btn"
+            onClick={handleSpeedToggle}
+            title="배속 전환"
+          >
+            {gameSpeed === 1 ? '\u25B6 1x' : '\u25B6\u25B6 2x'}
+          </button>
+          <button
+            className="icon-btn"
+            onClick={() => setShowSaveModal(true)}
+            title="저장/불러오기"
+          >
+            💾
+          </button>
         </div>
       </header>
 
@@ -73,6 +112,17 @@ export default function App() {
           </button>
         ))}
       </nav>
+
+      {showSaveModal && (
+        <SaveSlotModal onClose={() => setShowSaveModal(false)} />
+      )}
+
+      {offlineResult && (
+        <OfflineResultModal
+          result={offlineResult}
+          onClose={() => setOfflineResult(null)}
+        />
+      )}
     </div>
   );
 }

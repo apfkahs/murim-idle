@@ -1,11 +1,11 @@
 /**
- * 무공/능력 탭 — v1.1
- * 최상단 심법 섹션 + 액티브/패시브 태그
+ * 무공/능력 탭 — v2.0
+ * 심화학습 패널, 포인트 합산, 전체 초기화
  */
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { getArtDef, getArtGrade, getAllPassives, getSimdeukForGrade } from '../data/arts';
-import { getMaxGrade } from '../data/tiers';
+import { getArtDef, getArtGrade, getSimdeukForGrade, getMasteryDefsForArt, getMasteryDef, type MasteryDef } from '../data/arts';
+import { getMaxGrade, getTierDef } from '../data/tiers';
 import Stars from './Stars';
 
 export default function ArtsTab() {
@@ -15,10 +15,12 @@ export default function ArtsTab() {
   const artPoints = useGameStore(s => s.artPoints);
   const tier = useGameStore(s => s.tier);
   const battleMode = useGameStore(s => s.battleMode);
+  const activeMasteries = useGameStore(s => s.activeMasteries);
   const equipArt = useGameStore(s => s.equipArt);
   const unequipArt = useGameStore(s => s.unequipArt);
   const equipSimbeop = useGameStore(s => s.equipSimbeop);
   const unequipSimbeop = useGameStore(s => s.unequipSimbeop);
+  const resetAllMasteries = useGameStore(s => s.resetAllMasteries);
   const getUsedPoints = useGameStore(s => s.getUsedPoints);
   const getAvailablePoints = useGameStore(s => s.getAvailablePoints);
 
@@ -28,6 +30,18 @@ export default function ArtsTab() {
   const usedPoints = getUsedPoints();
   const availablePoints = getAvailablePoints();
   const maxGrade = getMaxGrade(tier);
+
+  // 미장착 무공에 할당된 심화 포인트 계산
+  const unequippedMasteryPoints = Object.entries(activeMasteries).reduce((sum, [artId, mIds]) => {
+    const isEquipped = equippedArts.includes(artId) || equippedSimbeop === artId;
+    if (isEquipped) return sum;
+    let pts = 0;
+    for (const mId of mIds) {
+      const mDef = getMasteryDef(artId, mId);
+      if (mDef) pts += mDef.pointCost;
+    }
+    return sum + pts;
+  }, 0);
 
   // 심법 데이터
   const simbeopArts = ownedArts.filter(a => getArtDef(a.id)?.isSimbeop);
@@ -49,9 +63,15 @@ export default function ArtsTab() {
     return def && !def.isSimbeop && !equippedArts.includes(a.id);
   });
 
+  function handleResetAllMasteries() {
+    if (confirm('모든 심화학습을 초기화하시겠습니까?')) {
+      resetAllMasteries();
+    }
+  }
+
   return (
     <div>
-      {/* 심법 섹션 (5.2장) */}
+      {/* 심법 섹션 */}
       <div className="card">
         <div className="card-label">심법</div>
         {equippedSimbeopData ? (() => {
@@ -129,10 +149,27 @@ export default function ArtsTab() {
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <span className="card-label" style={{ marginBottom: 0 }}>장착 중</span>
-          <span className="points-display">
-            포인트 {usedPoints}/{artPoints}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="points-display">
+              포인트 {usedPoints}/{artPoints}
+            </span>
+            {Object.keys(activeMasteries).length > 0 && (
+              <button
+                className="btn btn-small btn-danger"
+                onClick={handleResetAllMasteries}
+                disabled={battling}
+              >
+                초기화
+              </button>
+            )}
+          </div>
         </div>
+
+        {unequippedMasteryPoints > 0 && (
+          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8 }}>
+            (미장착 심화 {unequippedMasteryPoints} pt 포함)
+          </div>
+        )}
 
         {equippedArtData.length === 0 && (
           <div style={{ color: 'var(--text-dim)', fontSize: 13 }}>장착된 무공이 없습니다</div>
@@ -241,33 +278,128 @@ export default function ArtsTab() {
   );
 }
 
+/** 심화학습 개별 항목의 상태 */
+type MasteryStatus = 'active' | 'unlocked' | 'locked-grade' | 'locked-tier';
+
+function getMasteryStatus(
+  mDef: MasteryDef,
+  grade: number,
+  tier: number,
+): MasteryStatus {
+  if (mDef.requiredGrade > grade) return 'locked-grade';
+  if (mDef.requiredTier > 0 && tier < mDef.requiredTier) return 'locked-tier';
+  return 'unlocked';
+}
+
 function ArtDetail({ artId, grade, proficiency, tier }: { artId: string; grade: number; proficiency: number; tier: number }) {
   const def = getArtDef(artId);
+  const activeMasteries = useGameStore(s => s.activeMasteries);
+  const activateMastery = useGameStore(s => s.activateMastery);
+  const deactivateMastery = useGameStore(s => s.deactivateMastery);
+  const equippedArts = useGameStore(s => s.equippedArts);
+  const equippedSimbeop = useGameStore(s => s.equippedSimbeop);
+  const battleMode = useGameStore(s => s.battleMode);
+  const getAvailablePoints = useGameStore(s => s.getAvailablePoints);
+
   if (!def) return null;
 
+  const battling = battleMode !== 'none';
   const maxGrade = getMaxGrade(tier);
   const nextGrade = grade + 1;
   const nextGradeData = nextGrade <= 5 ? getArtGrade(def, nextGrade) : null;
   const neededSimdeuk = nextGrade <= 5 ? getSimdeukForGrade(def.baseSimdeukCost, nextGrade) : 0;
   const progress = neededSimdeuk > 0 ? Math.min(proficiency / neededSimdeuk, 1) : 1;
-  const allPassives = getAllPassives(artId, grade);
+  const masteries = getMasteryDefsForArt(artId);
+  const currentActive = activeMasteries[artId] ?? [];
+  const isEquipped = equippedArts.includes(artId) || equippedSimbeop === artId;
 
   return (
     <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.03)', fontSize: 12 }}>
-      {allPassives.length > 0 && (
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ color: 'var(--text-secondary)', marginBottom: 4, fontSize: 11 }}>패시브</div>
-          {allPassives.map(p => (
-            <div key={p.passive} style={{ color: 'var(--gold)', paddingLeft: 8, lineHeight: 1.6 }}>{p.passiveDesc}</div>
-          ))}
+      {/* 심화학습 패널 */}
+      {masteries.length > 0 && (
+        <div className="mastery-panel">
+          <div className="mastery-panel-title">심화학습</div>
+
+          {!isEquipped && currentActive.length > 0 && (
+            <div className="mastery-unequipped-warn">효과 비활성 중 (미장착)</div>
+          )}
+
+          {masteries.map(m => {
+            const isActive = currentActive.includes(m.id);
+            const baseStatus = getMasteryStatus(m, grade, tier);
+            const status: MasteryStatus = isActive ? 'active' : baseStatus;
+            const availPts = getAvailablePoints();
+
+            // 전제 조건 미충족 표시
+            const requiresUnmet = m.requires
+              ? m.requires.filter(reqId => !currentActive.includes(reqId))
+              : [];
+
+            // 해금은 되었지만 전제 조건 미충족이면 투자 불가
+            const prereqMet = requiresUnmet.length === 0;
+            const canActivate = status === 'unlocked' && prereqMet && availPts >= m.pointCost && isEquipped;
+
+            return (
+              <div key={m.id} className={`mastery-item mastery-${status}`}>
+                <div className="mastery-item-header">
+                  <div className="mastery-item-left">
+                    <span className="mastery-icon">
+                      {status === 'active' ? '☯' : status === 'unlocked' ? '☐' : '🔒'}
+                    </span>
+                    <span className={`mastery-name ${status === 'active' ? 'mastery-name-active' : ''}`}>
+                      {m.name}
+                    </span>
+                    <span className="mastery-cost">({m.pointCost}pt)</span>
+                  </div>
+                  <div className="mastery-item-right">
+                    {status === 'active' && (
+                      <button
+                        className="btn btn-small btn-danger"
+                        onClick={(e) => { e.stopPropagation(); deactivateMastery(artId, m.id); }}
+                        disabled={battling}
+                      >
+                        해제
+                      </button>
+                    )}
+                    {status === 'unlocked' && (
+                      <button
+                        className="btn btn-small btn-gold"
+                        onClick={(e) => { e.stopPropagation(); activateMastery(artId, m.id); }}
+                        disabled={battling || !canActivate}
+                      >
+                        투자
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className={`mastery-desc ${status === 'active' ? 'mastery-desc-active' : ''}`}>
+                  {status === 'locked-grade' && (
+                    <span className="mastery-lock-reason">{m.requiredGrade}성 필요 | </span>
+                  )}
+                  {status === 'locked-tier' && (
+                    <span className="mastery-lock-reason">{getTierDef(m.requiredTier).name} 필요 | </span>
+                  )}
+                  {m.description}
+                </div>
+                {requiresUnmet.length > 0 && status !== 'active' && (
+                  <div className="mastery-prereq-warn">
+                    {requiresUnmet.map(reqId => {
+                      const reqDef = getMasteryDef(artId, reqId);
+                      return reqDef ? `${reqDef.name} 필요` : '';
+                    }).filter(Boolean).join(', ')}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
+      {/* 다음 성급 */}
       {nextGradeData && grade < maxGrade ? (
-        <div>
+        <div style={{ marginTop: 8 }}>
           <div style={{ color: 'var(--text-secondary)', marginBottom: 4, fontSize: 11 }}>
             다음 성급 ({nextGrade}성): {nextGradeData.effect}
-            {nextGradeData.passiveDesc && ` + ${nextGradeData.passiveDesc}`}
           </div>
           <div className="progress-bar" style={{ marginBottom: 4 }}>
             <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
@@ -277,9 +409,9 @@ function ArtDetail({ artId, grade, proficiency, tier }: { artId: string; grade: 
           </div>
         </div>
       ) : grade >= maxGrade ? (
-        <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>경지 돌파 필요 (성급 상한)</div>
+        <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>경지 돌파 필요 (성급 상한)</div>
       ) : (
-        <div style={{ color: 'var(--gold)', fontSize: 11 }}>최대 성급 달성!</div>
+        <div style={{ color: 'var(--gold)', fontSize: 11, marginTop: 8 }}>최대 성급 달성!</div>
       )}
     </div>
   );
