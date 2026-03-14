@@ -26,7 +26,6 @@ export default function App() {
   const loadGame = useGameStore(s => s.loadGame);
   const gameSpeed = useGameStore(s => s.gameSpeed);
   const setGameSpeed = useGameStore(s => s.setGameSpeed);
-  const processOfflineProgress = useGameStore(s => s.processOfflineProgress);
   const saveTimerRef = useRef(0);
 
   // Load game on mount + offline progress

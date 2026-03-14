@@ -6,11 +6,11 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useGameStore, getMonsterRevealLevel } from '../store/gameStore';
-import { getMonsterDef, TRAINING_MONSTERS, YASAN_MONSTERS, YASAN_BOSS, type MonsterDef } from '../data/monsters';
-import { getArtDef, getArtGrade } from '../data/arts';
+import { getMonsterDef, YASAN_MONSTERS, type MonsterDef } from '../data/monsters';
+import { getArtDef } from '../data/arts';
 import { formatNumber } from '../utils/format';
 import { getEnemyImage, getEnemyEmoji, getPlayerByTier, getFieldBackground } from '../assets';
-import { getFieldDef, FIELDS } from '../data/fields';
+import { getFieldDef } from '../data/fields';
 import Stars from './Stars';
 
 export default function BattleTab() {

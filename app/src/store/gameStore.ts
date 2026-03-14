@@ -4,10 +4,10 @@
  */
 import { create } from 'zustand';
 import {
-  ARTS, getArtDef, getArtGrade, getMasteryDef, getMasteryDefsForArt, getSimdeukForGrade,
-  type ArtDef, type MasteryDef,
+  getArtDef, getArtGrade, getMasteryDef, getMasteryDefsForArt, getSimdeukForGrade,
+  type ArtDef,
 } from '../data/arts';
-import { getMonsterDef, getMonsterAttackMsg, type MonsterDef, TRAINING_MONSTERS } from '../data/monsters';
+import { getMonsterDef, getMonsterAttackMsg, type MonsterDef } from '../data/monsters';
 import { TIERS, getTierDef, getMaxGrade } from '../data/tiers';
 import { getFieldDef, generateExploreOrder } from '../data/fields';
 import { ACHIEVEMENTS, type AchievementContext } from '../data/achievements';
@@ -357,7 +357,7 @@ function calcUsedPoints(state: GameState): number {
  */
 function executeAttack(
   state: GameState,
-  enemyId: string,
+  _enemyId: string,
 ): { artDef: ArtDef | null; damage: number; isCritical: boolean; isDouble: boolean; artName: string; isResidual: boolean; usedMorale: boolean } {
   // 장착 액티브 무공 후보 수집
   const candidates: { artDef: ArtDef; owned: { grade: number } }[] = [];
