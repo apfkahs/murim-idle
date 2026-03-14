@@ -1,12 +1,54 @@
 /**
- * 무공/능력 탭 — v2.0
+ * 무공/능력 탭 — v3.0
+ * 성급(grade) 제거, 점진적 성장(totalSimdeuk) 기반
  * 심화학습 패널, 포인트 합산, 전체 초기화
  */
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { getArtDef, getArtGrade, getSimdeukForGrade, getMasteryDefsForArt, getMasteryDef, type MasteryDef } from '../data/arts';
-import { getMaxGrade, getTierDef } from '../data/tiers';
-import Stars from './Stars';
+import { getArtDef, getArtStats, getMasteryDefsForArt, getMasteryDef, type MasteryDef } from '../data/arts';
+import { getMaxSimdeuk, getTierDef } from '../data/tiers';
+
+function getArtDescription(artId: string, totalSimdeuk: number): string {
+  const descriptions: Record<string, { min: number; desc: string }[]> = {
+    samjae_sword: [
+      { min: 800, desc: '삼재의 오의에 가까워지고 있다' },
+      { min: 400, desc: '삼재의 이치가 검에 스며들었다' },
+      { min: 150, desc: '검기가 검 끝에 어리기 시작한다' },
+      { min: 50, desc: '검초에 힘이 실리기 시작한다' },
+      { min: 0, desc: '기초적인 검법의 틀을 익혔다' },
+    ],
+    samjae_simbeop: [
+      { min: 500, desc: '심법의 깊은 이치를 터득해가고 있다' },
+      { min: 200, desc: '내공의 흐름이 안정되어 간다' },
+      { min: 50, desc: '기초적인 심법 운용이 가능하다' },
+      { min: 0, desc: '심법의 기초를 닦고 있다' },
+    ],
+    mudang_step: [
+      { min: 800, desc: '보법이 무아지경에 가까워지고 있다' },
+      { min: 300, desc: '발놀림에 무당의 기운이 서린다' },
+      { min: 100, desc: '몸놀림이 가벼워지고 있다' },
+      { min: 0, desc: '어설프지만 보법의 형태를 익혔다' },
+    ],
+    heupgong: [
+      { min: 1500, desc: '흡공의 깊은 경지에 이르고 있다' },
+      { min: 600, desc: '기운을 흡수하는 속도가 빨라졌다' },
+      { min: 200, desc: '주변의 기운을 느낄 수 있다' },
+      { min: 0, desc: '조악하지만 흡공의 기초를 익혔다' },
+    ],
+    gangche: [
+      { min: 1200, desc: '철벽과 같은 육체를 갖추어 가고 있다' },
+      { min: 500, desc: '단련된 육체가 점차 강해지고 있다' },
+      { min: 150, desc: '육체가 서서히 단단해지고 있다' },
+      { min: 0, desc: '기초적인 체술을 수련하고 있다' },
+    ],
+  };
+  const list = descriptions[artId];
+  if (!list) return '수련 중...';
+  for (const entry of list) {
+    if (totalSimdeuk >= entry.min) return entry.desc;
+  }
+  return '수련 중...';
+}
 
 export default function ArtsTab() {
   const ownedArts = useGameStore(s => s.ownedArts);
@@ -16,6 +58,7 @@ export default function ArtsTab() {
   const tier = useGameStore(s => s.tier);
   const battleMode = useGameStore(s => s.battleMode);
   const activeMasteries = useGameStore(s => s.activeMasteries);
+  const discoveredMasteries = useGameStore(s => s.discoveredMasteries);
   const equipArt = useGameStore(s => s.equipArt);
   const unequipArt = useGameStore(s => s.unequipArt);
   const equipSimbeop = useGameStore(s => s.equipSimbeop);
@@ -29,7 +72,6 @@ export default function ArtsTab() {
   const battling = battleMode !== 'none';
   const usedPoints = getUsedPoints();
   const availablePoints = getAvailablePoints();
-  const maxGrade = getMaxGrade(tier);
 
   // 미장착 무공에 할당된 심화 포인트 계산
   const unequippedMasteryPoints = Object.entries(activeMasteries).reduce((sum, [artId, mIds]) => {
@@ -76,10 +118,10 @@ export default function ArtsTab() {
         <div className="card-label">심법</div>
         {equippedSimbeopData ? (() => {
           const { owned, def } = equippedSimbeopData;
-          const gradeData = getArtGrade(def, owned.grade);
+          const maxSd = getMaxSimdeuk(tier);
+          const progress = owned.totalSimdeuk < maxSd ? owned.totalSimdeuk / maxSd : 1;
+          const desc = getArtDescription(def.id, owned.totalSimdeuk);
           const isExpanded = expandedArt === def.id;
-          const neededSimdeuk = owned.grade < 5 ? getSimdeukForGrade(def.baseSimdeukCost, owned.grade + 1) : 0;
-          const progress = neededSimdeuk > 0 ? Math.min(owned.proficiency / neededSimdeuk, 1) : 1;
 
           return (
             <div
@@ -90,21 +132,17 @@ export default function ArtsTab() {
                 <div className="simbeop-icon">☯</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, color: 'var(--blue)' }}>
-                    {def.name} <Stars grade={owned.grade} maxGrade={5} />
+                    {def.name}
                   </div>
-                  {gradeData && (
-                    <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{gradeData.effect}</div>
-                  )}
-                  {neededSimdeuk > 0 && (
-                    <div style={{ marginTop: 4 }}>
-                      <div className="progress-bar" style={{ marginBottom: 2 }}>
-                        <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
-                      </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>
-                        숙련도 {owned.proficiency}/{neededSimdeuk}
-                      </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{desc}</div>
+                  <div style={{ marginTop: 4 }}>
+                    <div className="progress-bar" style={{ marginBottom: 2 }}>
+                      <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
                     </div>
-                  )}
+                    <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+                      수련도 {owned.totalSimdeuk}/{maxSd}
+                    </div>
+                  </div>
                 </div>
                 <button
                   className="btn btn-small"
@@ -115,7 +153,7 @@ export default function ArtsTab() {
                 </button>
               </div>
               {isExpanded && (
-                <ArtDetail artId={def.id} grade={owned.grade} proficiency={owned.proficiency} tier={tier} />
+                <ArtDetail artId={def.id} totalSimdeuk={owned.totalSimdeuk} tier={tier} discoveredMasteries={discoveredMasteries} />
               )}
             </div>
           );
@@ -177,7 +215,7 @@ export default function ArtsTab() {
 
         {equippedArtData.map(({ owned, def }) => {
           if (!owned || !def) return null;
-          const gradeData = getArtGrade(def, owned.grade);
+          const desc = getArtDescription(def.id, owned.totalSimdeuk);
           const isExpanded = expandedArt === def.id;
 
           return (
@@ -196,8 +234,7 @@ export default function ArtsTab() {
                     </span>
                   </div>
                   <div style={{ marginTop: 2 }}>
-                    <Stars grade={owned.grade} maxGrade={maxGrade} />{' '}
-                    <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{gradeData?.effect}</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{desc}</span>
                   </div>
                 </div>
                 <button
@@ -209,7 +246,7 @@ export default function ArtsTab() {
                 </button>
               </div>
               {isExpanded && (
-                <ArtDetail artId={def.id} grade={owned.grade} proficiency={owned.proficiency} tier={tier} />
+                <ArtDetail artId={def.id} totalSimdeuk={owned.totalSimdeuk} tier={tier} discoveredMasteries={discoveredMasteries} />
               )}
             </div>
           );
@@ -227,7 +264,7 @@ export default function ArtsTab() {
         {unequippedArts.map(owned => {
           const def = getArtDef(owned.id);
           if (!def) return null;
-          const gradeData = getArtGrade(def, owned.grade);
+          const desc = getArtDescription(def.id, owned.totalSimdeuk);
           const isExpanded = expandedArt === def.id;
 
           return (
@@ -249,8 +286,7 @@ export default function ArtsTab() {
                     <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>비용{def.cost}</span>
                   </div>
                   <div style={{ marginTop: 2 }}>
-                    <Stars grade={owned.grade} maxGrade={maxGrade} />{' '}
-                    <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{gradeData?.effect}</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{desc}</span>
                   </div>
                 </div>
                 <button
@@ -262,7 +298,7 @@ export default function ArtsTab() {
                 </button>
               </div>
               {isExpanded && (
-                <ArtDetail artId={def.id} grade={owned.grade} proficiency={owned.proficiency} tier={tier} />
+                <ArtDetail artId={def.id} totalSimdeuk={owned.totalSimdeuk} tier={tier} discoveredMasteries={discoveredMasteries} />
               )}
             </div>
           );
@@ -283,15 +319,15 @@ type MasteryStatus = 'active' | 'unlocked' | 'locked-grade' | 'locked-tier';
 
 function getMasteryStatus(
   mDef: MasteryDef,
-  grade: number,
+  totalSimdeuk: number,
   tier: number,
 ): MasteryStatus {
-  if (mDef.requiredGrade > grade) return 'locked-grade';
+  if (mDef.requiredSimdeuk > totalSimdeuk) return 'locked-grade';
   if (mDef.requiredTier > 0 && tier < mDef.requiredTier) return 'locked-tier';
   return 'unlocked';
 }
 
-function ArtDetail({ artId, grade, proficiency, tier }: { artId: string; grade: number; proficiency: number; tier: number }) {
+function ArtDetail({ artId, totalSimdeuk, tier, discoveredMasteries }: { artId: string; totalSimdeuk: number; tier: number; discoveredMasteries: string[] }) {
   const def = getArtDef(artId);
   const activeMasteries = useGameStore(s => s.activeMasteries);
   const activateMastery = useGameStore(s => s.activateMastery);
@@ -304,19 +340,19 @@ function ArtDetail({ artId, grade, proficiency, tier }: { artId: string; grade: 
   if (!def) return null;
 
   const battling = battleMode !== 'none';
-  const maxGrade = getMaxGrade(tier);
-  const nextGrade = grade + 1;
-  const nextGradeData = nextGrade <= 5 ? getArtGrade(def, nextGrade) : null;
-  const neededSimdeuk = nextGrade <= 5 ? getSimdeukForGrade(def.baseSimdeukCost, nextGrade) : 0;
-  const progress = neededSimdeuk > 0 ? Math.min(proficiency / neededSimdeuk, 1) : 1;
+  const maxSd = getMaxSimdeuk(tier);
+  const progress = totalSimdeuk < maxSd ? totalSimdeuk / maxSd : 1;
   const masteries = getMasteryDefsForArt(artId);
   const currentActive = activeMasteries[artId] ?? [];
   const isEquipped = equippedArts.includes(artId) || equippedSimbeop === artId;
 
+  // discovery 조건이 없는 마스터리는 항상 표시, 있는 것은 discovered된 것만 표시
+  const visibleMasteries = masteries.filter(m => !m.discovery || discoveredMasteries.includes(m.id));
+
   return (
     <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.03)', fontSize: 12 }}>
       {/* 심화학습 패널 */}
-      {masteries.length > 0 && (
+      {visibleMasteries.length > 0 && (
         <div className="mastery-panel">
           <div className="mastery-panel-title">심화학습</div>
 
@@ -324,9 +360,9 @@ function ArtDetail({ artId, grade, proficiency, tier }: { artId: string; grade: 
             <div className="mastery-unequipped-warn">효과 비활성 중 (미장착)</div>
           )}
 
-          {masteries.map(m => {
+          {visibleMasteries.map(m => {
             const isActive = currentActive.includes(m.id);
-            const baseStatus = getMasteryStatus(m, grade, tier);
+            const baseStatus = getMasteryStatus(m, totalSimdeuk, tier);
             const status: MasteryStatus = isActive ? 'active' : baseStatus;
             const availPts = getAvailablePoints();
 
@@ -374,7 +410,7 @@ function ArtDetail({ artId, grade, proficiency, tier }: { artId: string; grade: 
                 </div>
                 <div className={`mastery-desc ${status === 'active' ? 'mastery-desc-active' : ''}`}>
                   {status === 'locked-grade' && (
-                    <span className="mastery-lock-reason">{m.requiredGrade}성 필요 | </span>
+                    <span className="mastery-lock-reason">수련이 더 필요합니다 | </span>
                   )}
                   {status === 'locked-tier' && (
                     <span className="mastery-lock-reason">{getTierDef(m.requiredTier).name} 필요 | </span>
@@ -395,23 +431,21 @@ function ArtDetail({ artId, grade, proficiency, tier }: { artId: string; grade: 
         </div>
       )}
 
-      {/* 다음 성급 */}
-      {nextGradeData && grade < maxGrade ? (
+      {/* 수련 진행도 */}
+      {totalSimdeuk < maxSd ? (
         <div style={{ marginTop: 8 }}>
           <div style={{ color: 'var(--text-secondary)', marginBottom: 4, fontSize: 11 }}>
-            다음 성급 ({nextGrade}성): {nextGradeData.effect}
+            수련 진행도
           </div>
           <div className="progress-bar" style={{ marginBottom: 4 }}>
             <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
           </div>
           <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
-            심득 {proficiency}/{neededSimdeuk}
+            심득 {totalSimdeuk}/{maxSd}
           </div>
         </div>
-      ) : grade >= maxGrade ? (
-        <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>경지 돌파 필요 (성급 상한)</div>
       ) : (
-        <div style={{ color: 'var(--gold)', fontSize: 11, marginTop: 8 }}>최대 성급 달성!</div>
+        <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>경지 돌파 필요 (수련 상한)</div>
       )}
     </div>
   );

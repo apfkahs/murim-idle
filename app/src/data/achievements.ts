@@ -15,7 +15,7 @@ export interface AchievementContext {
   killCounts: Record<string, number>;
   bossKillCounts: Record<string, number>;
   ownedArts: string[];
-  artGrades: Record<string, number>;
+  artSimdeuks: Record<string, number>;
   totalStats: number;
   totalSimdeuk: number;
   tier: number;
@@ -77,13 +77,13 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     prerequisite: 'yasan_entry',
   },
   {
-    id: 'grade_2', name: '성급 입문', description: '아무 무공 2성',
-    check: ctx => Object.values(ctx.artGrades).some(g => g >= 2),
+    id: 'grade_2', name: '무공 숙련', description: '아무 무공 심득 100 이상',
+    check: ctx => Object.values(ctx.artSimdeuks).some(s => s >= 100),
     prerequisite: 'first_step',
   },
   {
-    id: 'grade_3', name: '성급 성장', description: '아무 무공 3성',
-    check: ctx => Object.values(ctx.artGrades).some(g => g >= 3),
+    id: 'grade_3', name: '무공 성장', description: '아무 무공 심득 300 이상',
+    check: ctx => Object.values(ctx.artSimdeuks).some(s => s >= 300),
     prerequisite: 'grade_2',
   },
   {

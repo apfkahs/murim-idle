@@ -1,33 +1,41 @@
 /**
- * 무림 방치록 v2.0 — 게임 스토어 (Zustand)
+ * 무림 방치록 v3.0 — 게임 스토어 (Zustand)
  * simulateTick 순수 함수 분리. 심화학습 시스템. 저장 슬롯. 오프라인 진행.
+ * v3.0: grade/proficiency → totalSimdeuk 점진 성장. 인벤토리. 심화학습 발견.
  */
 import { create } from 'zustand';
 import {
-  getArtDef, getArtGrade, getMasteryDef, getMasteryDefsForArt, getSimdeukForGrade,
+  getArtDef, getArtStats, getMasteryDef, getMasteryDefsForArt, migrateGradeToSimdeuk,
   type ArtDef,
 } from '../data/arts';
 import { getMonsterDef, getMonsterAttackMsg, type MonsterDef } from '../data/monsters';
-import { TIERS, getTierDef, getMaxGrade } from '../data/tiers';
+import { TIERS, getTierDef, getMaxSimdeuk } from '../data/tiers';
 import { getFieldDef, generateExploreOrder } from '../data/fields';
 import { ACHIEVEMENTS, type AchievementContext } from '../data/achievements';
 
 // ============================================================
 // Constants
 // ============================================================
-const RESIDUAL_RATIOS: Record<number, number> = {
-  1: 0.35,
-  2: 0.35,
-  3: 0.38,
-  4: 0.42,
-  5: 0.45,
-};
+function getResidualRatio(totalSimdeuk: number): number {
+  if (totalSimdeuk >= 1500) return 0.45;
+  if (totalSimdeuk >= 500) return 0.42;
+  if (totalSimdeuk >= 100) return 0.38;
+  return 0.35;
+}
 const COMBAT_NEIGONG_RATIO = 0.25;
 const COMBAT_NEIGONG_MASTERY_BONUS = 0.1;
 
 // ============================================================
 // State interface
 // ============================================================
+export interface InventoryItem {
+  id: string;
+  itemType: 'art_scroll';
+  artId?: string;
+  obtainedFrom: string;
+  obtainedAt: number;
+}
+
 export interface GameState {
   neigong: number;
   totalSimdeuk: number;
@@ -38,7 +46,7 @@ export interface GameState {
   tier: number;
 
   equippedSimbeop: string | null;
-  ownedArts: { id: string; grade: number; proficiency: number }[];
+  ownedArts: { id: string; totalSimdeuk: number }[];
   equippedArts: string[];
   artPoints: number;
 
@@ -88,6 +96,9 @@ export interface GameState {
   gameSpeed: number;
   currentSaveSlot: number;
   fieldUnlocks: Record<string, boolean>;
+  inventory: InventoryItem[];
+  discoveredMasteries: string[];
+  pendingEnlightenments: { artId: string; masteryId: string; masteryName: string }[];
   moraleBuff: number; // 사기충천 보너스 데미지 (0이면 미적용)
 }
 
@@ -158,6 +169,10 @@ export interface GameActions {
 
   processOfflineProgress: (elapsedSeconds: number) => OfflineResult;
 
+  learnScroll: (itemId: string) => void;
+  discardItem: (itemId: string) => void;
+  dismissEnlightenment: () => void;
+
   getNeigongPerSec: () => number;
   getAttackInterval: () => number;
   getEvasion: () => number;
@@ -222,6 +237,9 @@ function createInitialState(): GameState {
     gameSpeed: 1,
     currentSaveSlot: 0,
     fieldUnlocks: { training: true, yasan: false, inn: false },
+    inventory: [],
+    discoveredMasteries: [],
+    pendingEnlightenments: [],
     moraleBuff: 0,
   };
 }
@@ -240,8 +258,8 @@ function calcMaxHp(totalSpentNeigong: number, state?: GameState): number {
       const owned = state.ownedArts.find(a => a.id === artId);
       const artDef = getArtDef(artId);
       if (!owned || !artDef) continue;
-      const gradeData = getArtGrade(artDef, owned.grade);
-      if (gradeData?.hpBonus) hpBonusTotal += gradeData.hpBonus;
+      const stats = getArtStats(artDef, owned.totalSimdeuk);
+      if (stats.hpBonus) hpBonusTotal += stats.hpBonus;
     }
     if (hpBonusTotal > 0 && hasMastery(state, 'gangche_reinforce')) {
       hpBonusTotal = Math.floor(hpBonusTotal * 1.5);
@@ -269,8 +287,8 @@ function calcEvasion(stateParam: GameState): number {
     const owned = stateParam.ownedArts.find(a => a.id === artId);
     const artDef = getArtDef(artId);
     if (!owned || !artDef) continue;
-    const gradeData = getArtGrade(artDef, owned.grade);
-    if (gradeData?.dodge) dodge += gradeData.dodge;
+    const stats = getArtStats(artDef, owned.totalSimdeuk);
+    if (stats.dodge) dodge += stats.dodge;
   }
   let cap = 25;
   if (hasMastery(stateParam, 'mudang_step_dodge')) cap = 30;
@@ -283,9 +301,9 @@ function calcNeigongPerSec(state: GameState): number {
     const artDef = getArtDef(state.equippedSimbeop);
     const owned = state.ownedArts.find(a => a.id === state.equippedSimbeop);
     if (artDef && owned) {
-      const gradeData = getArtGrade(artDef, owned.grade);
-      if (gradeData?.neigongPerSec) {
-        base += gradeData.neigongPerSec;
+      const stats = getArtStats(artDef, owned.totalSimdeuk);
+      if (stats.neigongPerSec) {
+        base += stats.neigongPerSec;
       }
     }
   }
@@ -320,13 +338,13 @@ function spawnEnemy(monDef: MonsterDef): GameState['currentEnemy'] {
 }
 
 function buildAchievementContext(state: GameState): AchievementContext {
-  const artGrades: Record<string, number> = {};
-  for (const a of state.ownedArts) artGrades[a.id] = a.grade;
+  const artSimdeuks: Record<string, number> = {};
+  for (const a of state.ownedArts) artSimdeuks[a.id] = a.totalSimdeuk;
   return {
     killCounts: state.killCounts,
     bossKillCounts: state.bossKillCounts,
     ownedArts: state.ownedArts.map(a => a.id),
-    artGrades,
+    artSimdeuks,
     totalStats: state.stats.sungi + state.stats.gyeongsin + state.stats.magi,
     totalSimdeuk: state.totalSimdeuk,
     tier: state.tier,
@@ -361,7 +379,7 @@ function executeAttack(
   _enemyId: string,
 ): { artDef: ArtDef | null; damage: number; isCritical: boolean; isDouble: boolean; artName: string; isResidual: boolean; usedMorale: boolean } {
   // 장착 액티브 무공 후보 수집
-  const candidates: { artDef: ArtDef; owned: { grade: number } }[] = [];
+  const candidates: { artDef: ArtDef; owned: { totalSimdeuk: number } }[] = [];
   for (const artId of state.equippedArts) {
     const artDef = getArtDef(artId);
     const owned = state.ownedArts.find(a => a.id === artId);
@@ -383,11 +401,11 @@ function executeAttack(
   while (pool.length > 0 && !fired) {
     const idx = Math.floor(Math.random() * pool.length);
     const { artDef, owned } = pool.splice(idx, 1)[0];
-    const gradeData = getArtGrade(artDef, owned.grade);
-    if (!gradeData?.triggerRate || !gradeData?.power) continue;
+    const artStats = getArtStats(artDef, owned.totalSimdeuk);
+    if (!artStats.triggerRate || !artStats.power) continue;
 
-    if (Math.random() < gradeData.triggerRate) {
-      damage = gradeData.power;
+    if (Math.random() < artStats.triggerRate) {
+      damage = artStats.power;
 
       // 진영 배율
       if (artDef.faction === 'righteous') {
@@ -410,10 +428,10 @@ function executeAttack(
       const swordOwned = state.ownedArts.find(a => a.id === 'samjae_sword');
       const swordDef = getArtDef('samjae_sword');
       if (swordOwned && swordDef) {
-        const gradeData = getArtGrade(swordDef, swordOwned.grade);
-        if (gradeData?.power) {
-          const ratio = RESIDUAL_RATIOS[swordOwned.grade] ?? 0.35;
-          damage = Math.floor(gradeData.power * ratio);
+        const swordStats = getArtStats(swordDef, swordOwned.totalSimdeuk);
+        if (swordStats.power) {
+          const ratio = getResidualRatio(swordOwned.totalSimdeuk);
+          damage = Math.floor(swordStats.power * ratio);
           artName = '검기 잔류';
           isResidual = true;
         }
@@ -458,7 +476,9 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
     huntTarget, totalSpentNeigong,
     playerAttackTimer, enemyAttackTimer,
     floatingTexts, nextFloatingId, playerAnim, enemyAnim,
-    fieldUnlocks, moraleBuff,
+    fieldUnlocks, inventory,
+    discoveredMasteries, pendingEnlightenments,
+    moraleBuff,
   } = state;
   const stats = { ...state.stats };
 
@@ -477,6 +497,9 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
     if (battleLog.length > 100) battleLog = battleLog.slice(-40);
   }
   fieldUnlocks = { ...fieldUnlocks };
+  inventory = [...inventory];
+  discoveredMasteries = [...discoveredMasteries];
+  pendingEnlightenments = [...pendingEnlightenments];
 
   if (!isSimulating) {
     floatingTexts = [...floatingTexts];
@@ -617,10 +640,39 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
         const drops: string[] = [];
         for (const drop of monDef.drops) {
           if (Math.random() < drop.chance) {
-            if (!ownedArts.some(a => a.id === drop.artId)) {
+            if (!ownedArts.some(a => a.id === drop.artId) && !inventory.some(i => i.artId === drop.artId)) {
               drops.push(drop.artId);
-              ownedArts.push({ id: drop.artId, grade: 1, proficiency: 0 });
-              battleLog.push(`${getArtDef(drop.artId)?.name ?? drop.artId} 비급을 발견했다!`);
+              inventory.push({
+                id: `${Date.now()}_${drop.artId}`,
+                itemType: 'art_scroll',
+                artId: drop.artId,
+                obtainedFrom: monDef.id,
+                obtainedAt: Date.now(),
+              });
+              battleLog.push(`${getArtDef(drop.artId)?.name ?? drop.artId} 비급이 전낭에 담겼다!`);
+            }
+          }
+        }
+
+        // 심화학습 발견 체크
+        const allArts = [...new Set([...equippedArts, ...(equippedSimbeop ? [equippedSimbeop] : [])])];
+        for (const artId of allArts) {
+          const artDef = getArtDef(artId);
+          const artOwned = ownedArts.find(a => a.id === artId);
+          if (!artDef || !artOwned) continue;
+          for (const m of artDef.masteries) {
+            if (!m.discovery) continue;
+            if (discoveredMasteries.includes(m.id)) continue;
+            let discovered = false;
+            if (m.discovery.type === 'art_simdeuk' && m.discovery.artSimdeuk != null) {
+              if (artOwned.totalSimdeuk >= m.discovery.artSimdeuk) discovered = true;
+            } else if (m.discovery.type === 'monster_kill' && m.discovery.monsterId) {
+              if ((killCounts[m.discovery.monsterId] ?? 0) >= (m.discovery.monsterKillCount ?? 1)) discovered = true;
+            }
+            if (discovered) {
+              discoveredMasteries.push(m.id);
+              pendingEnlightenments.push({ artId, masteryId: m.id, masteryName: m.name });
+              battleLog.push(`깨달음! ${artDef.name}의 오의 '${m.name}'을(를) 깨우쳤다!`);
             }
           }
         }
@@ -862,7 +914,9 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
     achievements, artPoints, hiddenEncountered,
     tutorialFlags, totalSpentNeigong,
     playerAttackTimer, enemyAttackTimer,
-    fieldUnlocks, moraleBuff,
+    fieldUnlocks, inventory,
+    discoveredMasteries, pendingEnlightenments,
+    moraleBuff,
   };
 
   if (!isSimulating) {
@@ -1178,8 +1232,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const currentMasteries = state.activeMasteries[artId] ?? [];
     if (currentMasteries.includes(masteryId)) return;
 
-    // 성급 확인
-    if (owned.grade < mDef.requiredGrade) return;
+    // 심득 확인
+    if (owned.totalSimdeuk < mDef.requiredSimdeuk) return;
 
     // 경지 확인
     if (mDef.requiredTier > 0 && state.tier < mDef.requiredTier) return;
@@ -1247,6 +1301,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   // ─────────────────────────────────────────────
+  // Inventory & Enlightenment
+  // ─────────────────────────────────────────────
+  learnScroll: (itemId: string) => {
+    const state = get();
+    const item = state.inventory.find(i => i.id === itemId);
+    if (!item || item.itemType !== 'art_scroll' || !item.artId) return;
+    if (state.ownedArts.some(a => a.id === item.artId)) return; // 이미 보유
+    set({
+      ownedArts: [...state.ownedArts, { id: item.artId!, totalSimdeuk: 0 }],
+      inventory: state.inventory.filter(i => i.id !== itemId),
+    });
+  },
+  discardItem: (itemId: string) => {
+    const state = get();
+    set({ inventory: state.inventory.filter(i => i.id !== itemId) });
+  },
+  dismissEnlightenment: () => {
+    const state = get();
+    set({ pendingEnlightenments: state.pendingEnlightenments.slice(1) });
+  },
+
+  // ─────────────────────────────────────────────
   // Save / Load / Reset (v2.0: 3슬롯)
   // ─────────────────────────────────────────────
   saveGame: (slot?: number) => {
@@ -1254,7 +1330,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const targetSlot = slot ?? state.currentSaveSlot;
 
     const saveData = {
-      version: '2.0',
+      version: '3.0',
       neigong: state.neigong,
       totalSimdeuk: state.totalSimdeuk,
       totalSpentNeigong: state.totalSpentNeigong,
@@ -1286,6 +1362,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       enemyAttackTimer: state.enemyAttackTimer,
       activeMasteries: state.activeMasteries,
       fieldUnlocks: state.fieldUnlocks,
+      inventory: state.inventory,
+      discoveredMasteries: state.discoveredMasteries,
       moraleBuff: state.moraleBuff,
       currentSaveSlot: targetSlot,
       lastTickTime: Date.now(),
@@ -1331,8 +1409,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
         totalSpentNeigong = s;
       }
 
+      // v2 → v3 마이그레이션: grade/proficiency → totalSimdeuk
+      let loadedOwnedArts = data.ownedArts ?? [];
+      if (loadedOwnedArts.length > 0 && loadedOwnedArts[0].grade !== undefined) {
+        loadedOwnedArts = loadedOwnedArts.map((a: any) => ({
+          id: a.id,
+          totalSimdeuk: migrateGradeToSimdeuk(a.id, a.grade ?? 1, a.proficiency ?? 0),
+        }));
+      }
+
+      // discoveredMasteries 마이그레이션
+      let discoveredMasteries = data.discoveredMasteries;
+      if (!discoveredMasteries) {
+        // 기존 활성화된 마스터리 + requiredSimdeuk가 낮은 기본 마스터리 자동 발견
+        discoveredMasteries = [];
+        const loadedActiveMasteries = data.activeMasteries ?? {};
+        for (const [_artId, mIds] of Object.entries(loadedActiveMasteries)) {
+          discoveredMasteries.push(...(mIds as string[]));
+        }
+      }
+
       // Build a temporary state-like object for calcMaxHp (needs equippedArts, ownedArts, activeMasteries)
-      const loadedOwnedArts = data.ownedArts ?? [];
       const loadedEquippedArts = data.equippedArts ?? [];
       const loadedEquippedSimbeop = data.equippedSimbeop ?? null;
       const loadedActiveMasteries = data.activeMasteries ?? {};
@@ -1352,7 +1449,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         maxHp,
         tier: data.tier ?? 0,
         equippedSimbeop: data.equippedSimbeop ?? null,
-        ownedArts: data.ownedArts ?? [],
+        ownedArts: loadedOwnedArts,
         equippedArts: data.equippedArts ?? [],
         artPoints: data.artPoints ?? 3,
         achievements: data.achievements ?? [],
@@ -1377,6 +1474,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         enemyAttackTimer: data.enemyAttackTimer ?? 0,
         activeMasteries: data.activeMasteries ?? {},
         fieldUnlocks: data.fieldUnlocks ?? { training: true, yasan: false, inn: false },
+        inventory: data.inventory ?? [],
+        discoveredMasteries,
+        pendingEnlightenments: data.pendingEnlightenments ?? [],
         moraleBuff: data.moraleBuff ?? 0,
         currentSaveSlot: slot,
         // 전투 결과/로그는 저장하지 않으므로 초기화
@@ -1459,6 +1559,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     currentState.tutorialFlags = { ...currentState.tutorialFlags };
     currentState.activeMasteries = { ...currentState.activeMasteries };
     currentState.fieldUnlocks = { ...currentState.fieldUnlocks };
+    currentState.inventory = [...currentState.inventory];
+    currentState.discoveredMasteries = [...currentState.discoveredMasteries];
+    currentState.pendingEnlightenments = [...currentState.pendingEnlightenments];
     currentState.floatingTexts = [];
 
     const startNeigong = currentState.neigong;
@@ -1508,11 +1611,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
       }
 
-      // 드롭 감지
-      if (changes.ownedArts) {
-        for (const art of changes.ownedArts) {
-          if (!currentState.ownedArts.some(a => a.id === art.id)) {
-            dropsGained.push(art.id);
+      // 드롭 감지 (inventory 기반)
+      if (changes.inventory) {
+        for (const item of changes.inventory) {
+          if (!currentState.inventory.some(i => i.id === item.id)) {
+            const artDef = item.artId ? getArtDef(item.artId) : null;
+            dropsGained.push(artDef?.name ?? item.artId ?? '???');
           }
         }
       }
@@ -1582,28 +1686,14 @@ function applySimdeuk(
   tier: number,
 ) {
   if (amount <= 0) return;
-
+  const maxSd = getMaxSimdeuk(tier);
   const allEquipped = [...equippedArts];
   if (equippedSimbeop) allEquipped.push(equippedSimbeop);
-
-  const maxGrade = getMaxGrade(tier);
-
   for (const artId of allEquipped) {
     const owned = ownedArts.find(a => a.id === artId);
     if (!owned) continue;
-    if (owned.grade >= maxGrade) continue;
-
-    const artDef = getArtDef(artId);
-    if (!artDef) continue;
-
-    owned.proficiency += amount;
-
-    const nextGrade = owned.grade + 1;
-    const needed = getSimdeukForGrade(artDef.baseSimdeukCost, nextGrade);
-    if (needed > 0 && owned.proficiency >= needed) {
-      owned.proficiency -= needed;
-      owned.grade = nextGrade;
-    }
+    if (owned.totalSimdeuk >= maxSd) continue;
+    owned.totalSimdeuk = Math.min(owned.totalSimdeuk + amount, maxSd);
   }
 }
 

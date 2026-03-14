@@ -5,10 +5,9 @@
  */
 import { useGameStore } from '../store/gameStore';
 import { getTierDef, TIERS } from '../data/tiers';
-import { getArtDef, getArtGrade } from '../data/arts';
+import { getArtDef, getArtStats } from '../data/arts';
 import { getPlayerByTier } from '../assets';
 import { formatNumber } from '../utils/format';
-import Stars from './Stars';
 
 export default function NeigongTab() {
   const neigong = useGameStore(s => s.neigong);
@@ -188,17 +187,17 @@ export default function NeigongTab() {
           const artDef = getArtDef(equippedSimbeop);
           const owned = ownedArts.find(a => a.id === equippedSimbeop);
           if (!artDef || !owned) return null;
-          const gradeData = getArtGrade(artDef, owned.grade);
+          const artStats = getArtStats(artDef, owned.totalSimdeuk);
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div className="simbeop-icon">📖</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, color: 'var(--blue)' }}>
-                  {artDef.name} <Stars grade={owned.grade} maxGrade={5} />
+                  {artDef.name}
                 </div>
-                {gradeData && (
-                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{gradeData.effect}</div>
-                )}
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                  내공 +{artStats.neigongPerSec.toFixed(1)}/초
+                </div>
               </div>
               <button className="btn btn-small" onClick={unequipSimbeop} disabled={battling}>교체</button>
             </div>

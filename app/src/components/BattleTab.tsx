@@ -11,7 +11,6 @@ import { getArtDef } from '../data/arts';
 import { formatNumber } from '../utils/format';
 import { getEnemyImage, getEnemyEmoji, getPlayerByTier, getFieldBackground } from '../assets';
 import { getFieldDef } from '../data/fields';
-import Stars from './Stars';
 
 export default function BattleTab() {
   const battleMode = useGameStore(s => s.battleMode);
@@ -114,6 +113,17 @@ function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
   );
 }
 
+function getMonsterHint(mon: MonsterDef, revealLevel: number): string {
+  if (revealLevel < 1) return '';
+  const power = mon.hp * mon.attackPower / mon.attackInterval;
+  if (power > 8000) return '압도적인 위압감이 느껴진다';
+  if (power > 3000) return '상당히 위험해 보인다';
+  if (power > 1000) return '만만치 않은 상대다';
+  if (power > 300) return '위협적이다';
+  if (power > 100) return '조심해야 한다';
+  return '약해 보인다';
+}
+
 // ─────────────────────────────────────────────
 // 2단계: 전장 상세 (4장 + 3장 정보 숨김)
 // ─────────────────────────────────────────────
@@ -153,14 +163,15 @@ function FieldDetailScreen({ fieldId, onBack }: { fieldId: string; onBack: () =>
           const kills = killCounts[mon.id] ?? 0;
           const reveal = getMonsterRevealLevel(kills);
 
-          // 수련장은 정보 숨김 없음
+          // 수련장도 서술형 설명 사용
           if (isTraining) {
+            const hint = mon.hp <= 10 ? '가벼운 연습 상대' : '단단한 수련 상대';
             return (
               <div key={mon.id} className="stat-row">
                 <div>
                   <span style={{ fontSize: 13 }}>{mon.name}</span>
                   <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 8 }}>
-                    HP{mon.hp} {mon.regen > 0 ? `회복${mon.regen}/초` : ''}
+                    {hint}
                   </span>
                   {kills > 0 && (
                     <span style={{ fontSize: 11, color: 'var(--green)', marginLeft: 6 }}>처치완료</span>
@@ -184,27 +195,17 @@ function FieldDetailScreen({ fieldId, onBack }: { fieldId: string; onBack: () =>
           return (
             <div key={mon.id} className="stat-row">
               <div>
-                <span style={{ fontSize: 13 }}>{reveal >= 1 ? mon.name : '???'}</span>
+                <span style={{ fontSize: 13 }}>{mon.name}</span>
                 <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 8 }}>
-                  HP{reveal >= 2 ? mon.hp : '???'}{' '}
-                  공{reveal >= 3 ? mon.attackPower : '???'}
-                  {reveal >= 4 ? ` 간격${mon.attackInterval}초` : ''}
+                  {getMonsterHint(mon, reveal)}
                 </span>
                 {reveal >= 5 && mon.drops.length > 0 && (
                   <span style={{ fontSize: 11, color: 'var(--gold)', marginLeft: 6 }}>
-                    드롭:{mon.drops.map(d => {
-                      const a = getArtDef(d.artId);
-                      return `${a?.name ?? d.artId} ${Math.round(d.chance * 100)}%`;
-                    }).join(', ')}
+                    무언가를 지니고 있는 듯하다
                   </span>
                 )}
-                {reveal >= 5 && mon.drops.length === 0 && (
-                  <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 6 }}>드롭:없음</span>
-                )}
               </div>
-              {reveal >= 1 && (
-                <button className="btn btn-small" onClick={() => startHunt(fieldId, mon.id)}>사냥</button>
-              )}
+              <button className="btn btn-small" onClick={() => startHunt(fieldId, mon.id)}>사냥</button>
             </div>
           );
         })}
@@ -218,9 +219,7 @@ function FieldDetailScreen({ fieldId, onBack }: { fieldId: string; onBack: () =>
               return (
                 <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
                   보스: {bossReveal >= 1 ? boss.name : '???'}
-                  {bossReveal >= 2 ? ` HP${boss.hp}` : ''}
-                  {bossReveal >= 3 ? ` 공${boss.attackPower}` : ''}
-                  {field.bossTimer ? ` / ${field.bossTimer}초` : ''}
+                  {bossReveal >= 1 ? ` — ${getMonsterHint(boss, bossReveal)}` : ''}
                 </div>
               );
             })()}
@@ -411,7 +410,7 @@ function BattleScreen() {
           if (!def || !owned) return null;
           return (
             <span key={artId} className="chip">
-              {def.artType === 'active' ? '⚔' : '🛡'} {def.name} <Stars grade={owned.grade} maxGrade={5} />
+              {def.artType === 'active' ? '⚔' : '🛡'} {def.name}
             </span>
           );
         })}
@@ -421,7 +420,7 @@ function BattleScreen() {
           if (!def || !owned) return null;
           return (
             <span className="chip chip-simbeop">
-              {def.name} <Stars grade={owned.grade} maxGrade={5} />
+              {def.name}
             </span>
           );
         })()}
@@ -464,7 +463,7 @@ function BattleResultScreen() {
 
       {battleResult.drops.length > 0 && (
         <div style={{ color: 'var(--gold)', marginBottom: 8, fontSize: 13 }}>
-          {battleResult.drops.map(id => getArtDef(id)?.name ?? id).join(', ')} 획득!
+          {battleResult.drops.map(id => getArtDef(id)?.name ?? id).join(', ')} 획득! 전낭에 담겼습니다.
         </div>
       )}
 

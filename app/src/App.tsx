@@ -3,15 +3,18 @@ import { useGameStore, type OfflineResult } from './store/gameStore';
 import NeigongTab from './components/NeigongTab';
 import ArtsTab from './components/ArtsTab';
 import BattleTab from './components/BattleTab';
+import InventoryTab from './components/InventoryTab';
 import AchievementTab from './components/AchievementTab';
 import SaveSlotModal from './components/SaveSlotModal';
 import OfflineResultModal from './components/OfflineResultModal';
+import EnlightenmentModal from './components/EnlightenmentModal';
 
-type TabId = 'neigong' | 'arts' | 'battle' | 'achievement';
+type TabId = 'neigong' | 'arts' | 'inventory' | 'battle' | 'achievement';
 
 const TABS: { id: TabId; icon: string; label: string }[] = [
   { id: 'neigong', icon: '☯', label: '내공/경맥' },
   { id: 'arts', icon: '⚔', label: '무공/능력' },
+  { id: 'inventory', icon: '📜', label: '전낭' },
   { id: 'battle', icon: '⛰', label: '전장' },
   { id: 'achievement', icon: '★', label: '업적' },
 ];
@@ -26,6 +29,7 @@ export default function App() {
   const loadGame = useGameStore(s => s.loadGame);
   const gameSpeed = useGameStore(s => s.gameSpeed);
   const setGameSpeed = useGameStore(s => s.setGameSpeed);
+  const inventoryCount = useGameStore(s => s.inventory.length);
   const saveTimerRef = useRef(0);
 
   // Load game on mount + offline progress
@@ -76,7 +80,7 @@ export default function App() {
         <h1 className="app-title">무림 방치록</h1>
         <div className="header-buttons">
           <button
-            className="icon-btn speed-btn"
+            className={`icon-btn speed-btn${gameSpeed === 2 ? ' active' : ''}`}
             onClick={handleSpeedToggle}
             title="배속 전환"
           >
@@ -95,6 +99,7 @@ export default function App() {
       <main className="app-content">
         {activeTab === 'neigong' && <NeigongTab />}
         {activeTab === 'arts' && <ArtsTab />}
+        {activeTab === 'inventory' && <InventoryTab />}
         {activeTab === 'battle' && <BattleTab />}
         {activeTab === 'achievement' && <AchievementTab />}
       </main>
@@ -108,6 +113,9 @@ export default function App() {
           >
             <span className="tab-icon">{tab.icon}</span>
             {tab.label}
+            {tab.id === 'inventory' && inventoryCount > 0 && (
+              <span className="tab-badge">{inventoryCount}</span>
+            )}
           </button>
         ))}
       </nav>
@@ -122,6 +130,8 @@ export default function App() {
           onClose={() => setOfflineResult(null)}
         />
       )}
+
+      <EnlightenmentModal />
     </div>
   );
 }
