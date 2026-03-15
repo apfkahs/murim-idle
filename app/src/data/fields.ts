@@ -18,6 +18,8 @@ export interface FieldDef {
   isTraining?: boolean;
   canExplore?: boolean; // 답파 가능 여부
   unlockCondition?: FieldUnlockCondition; // 선언적 해금 조건
+  hiddenRate?: number;              // 히든 출현 확률 (기본 0.05)
+  hiddenRequiresBossKill?: boolean; // 보스 처치 후 히든 출현 (기본 false)
 }
 
 export const FIELDS: FieldDef[] = [
@@ -33,10 +35,12 @@ export const FIELDS: FieldDef[] = [
     id: 'yasan',
     name: '야산',
     monsters: ['squirrel', 'rabbit', 'fox', 'deer', 'boar', 'wolf', 'bear'],
-    hiddenMonsters: ['feiyi', 'dangkang'],
+    hiddenMonsters: ['dangkang'],
     boss: 'tiger_boss',
     bossTimer: 60,
     canExplore: true,
+    hiddenRate: 0.03,
+    hiddenRequiresBossKill: true,
   },
   {
     id: 'inn',
@@ -63,10 +67,15 @@ export function getFieldDef(id: string): FieldDef | undefined {
  * - 5번째: 최강 일반 고정 (5%로 히든 대체)
  * - 1~4번째: 약→강, 역행불가, 종류 최대화, 각각 5%로 히든 대체
  */
-export function generateExploreOrder(field: FieldDef): string[] {
+export function generateExploreOrder(field: FieldDef, bossKillCounts?: Record<string, number>): string[] {
   const monsters = [...field.monsters]; // weak to strong
   const hidden = field.hiddenMonsters;
   const result: string[] = [];
+
+  // 히든 출현 조건 체크
+  const hiddenRate = field.hiddenRate ?? 0.05;
+  const canSpawnHidden = hidden.length > 0
+    && (!field.hiddenRequiresBossKill || (field.boss && (bossKillCounts?.[field.boss] ?? 0) > 0));
 
   // 1~4번째: 약→강, 최대 종류, 역행불가
   // 최강(마지막)은 5번째에 고정이므로 나머지에서 4개 선택
@@ -98,16 +107,16 @@ export function generateExploreOrder(field: FieldDef): string[] {
   selected.sort((a, b) => a - b);
 
   for (const idx of selected) {
-    // 각 5%로 히든 대체
-    if (hidden.length > 0 && Math.random() < 0.05) {
+    // 각 hiddenRate%로 히든 대체
+    if (canSpawnHidden && Math.random() < hiddenRate) {
       result.push(hidden[Math.floor(Math.random() * hidden.length)]);
     } else {
       result.push(pool[idx]);
     }
   }
 
-  // 5번째: 최강 일반 (5%로 히든 대체)
-  if (hidden.length > 0 && Math.random() < 0.05) {
+  // 5번째: 최강 일반 (hiddenRate%로 히든 대체)
+  if (canSpawnHidden && Math.random() < hiddenRate) {
     result.push(hidden[Math.floor(Math.random() * hidden.length)]);
   } else {
     result.push(monsters[monsters.length - 1]);

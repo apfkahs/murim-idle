@@ -183,8 +183,71 @@ export default function ArtsTab() {
         </div>
       )}
 
+      {/* 보법/기타 무공 카드 (동적) */}
+      {ownedArts
+        .filter(a => a.id !== 'samjae_sword' && a.id !== 'samjae_simbeop')
+        .map(owned => {
+          const def = getArtDef(owned.id);
+          if (!def) return null;
+          const isEquipped = equippedArts.includes(owned.id);
+          const unlockedCount = (activeMasteries[owned.id] ?? []).length;
+          const desc = def.descriptionByStage
+            ? def.descriptionByStage[Math.min(unlockedCount, def.descriptionByStage.length - 1)]
+            : undefined;
+
+          const badgeLabel = def.artType === 'passive' ? '보법' : def.artType === 'active' ? '주공' : '심법';
+          const badgeClass = def.artType === 'passive' ? 'badge-bobeop' : def.artType === 'active' ? 'badge-active' : 'badge-passive';
+
+          return (
+            <div key={owned.id} className="card" style={{ marginBottom: 12, padding: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontWeight: 500, fontSize: 13 }}>{def.name}</span>
+                    <span className={`badge-art-type ${badgeClass}`}>{badgeLabel}</span>
+                  </div>
+                </div>
+                {isEquipped ? (
+                  <button
+                    className="btn btn-small btn-danger"
+                    onClick={() => unequipArt(owned.id)}
+                    disabled={battling}
+                  >
+                    해제
+                  </button>
+                ) : (
+                  <button
+                    className="btn btn-small"
+                    onClick={() => equipArt(owned.id)}
+                    disabled={battling || availablePoints < def.cost}
+                  >
+                    장착
+                  </button>
+                )}
+              </div>
+
+              {desc && (
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6, fontStyle: 'italic' }}>
+                  {desc}
+                </div>
+              )}
+
+              <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
+                심득 {owned.totalSimdeuk}
+              </div>
+
+              <MasteryPanel
+                artId={owned.id}
+                totalSimdeuk={owned.totalSimdeuk}
+                tier={tier}
+                discoveredMasteries={discoveredMasteries}
+              />
+            </div>
+          );
+        })}
+
       {/* 미보유 안내 */}
-      {!swordOwned && !simbeopOwned && (
+      {ownedArts.length === 0 && (
         <div style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', padding: '20px 0' }}>
           아직 익힌 무공이 없습니다.
         </div>

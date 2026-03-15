@@ -20,7 +20,7 @@ export interface AchievementContext {
   totalSimdeuk: number;
   tier: number;
   achievements: string[];
-  hiddenEncountered: boolean;
+  hiddenRevealedInField: Record<string, string | null>;
   fieldUnlocks: Record<string, boolean>;
 }
 
@@ -75,7 +75,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: 'hidden_encounter', name: '산해경 조우', description: '히든 첫 조우',
-    check: ctx => ctx.hiddenEncountered,
+    check: ctx => Object.values(ctx.hiddenRevealedInField).some(v => v != null),
     prerequisite: 'yasan_entry',
   },
   {

@@ -38,7 +38,6 @@ const ENEMY_EMOJI: Record<string, string> = {
   boar: '🐗',
   wolf: '🐺',
   bear: '🐻',
-  feiyi: '🐉',
   dangkang: '🦏',
   tiger_boss: '🐯',
   drunk_thug: '🍺',

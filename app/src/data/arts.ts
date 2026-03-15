@@ -85,6 +85,10 @@ export interface ArtDef {
 
   growth: ArtGrowth;
   masteries: MasteryDef[];
+
+  // 확장
+  descriptionByStage?: string[];
+  imageKey?: string;
 }
 
 // ============================================================
@@ -251,6 +255,63 @@ export const ARTS: ArtDef[] = [
           killBonusEnabled: true,
           bonusRegenPerSec: 1,
         },
+      },
+    ],
+  },
+
+  // ── 조악한 무명보법 (보법, passive) ──
+  {
+    id: 'crude_bobeop',
+    name: '조악한 무명보법',
+    faction: 'neutral',
+    artType: 'passive',
+    cost: 0,
+    imageKey: 'crude_bobeop',
+    descriptionByStage: [
+      '산군의 몸 속에서 나온 무공서. 아무런 효과도 없는 것 같다..',
+      '산군의 몸 속에서 나온 무공서. 발놀림이 조금 빨라진 것 같다.',
+      '산군의 몸 속에서 나온 무공서. 몸이 한결 가벼워졌다.',
+      '산군의 몸 속에서 나온 무공서. 바람처럼 움직일 수 있게 되었다.',
+    ],
+    growth: {},
+    masteries: [
+      {
+        stage: 1,
+        id: 'crude_bobeop_1',
+        name: '허술한 발놀림',
+        description: '공격 속도 1초 감소',
+        flavorText: '어설프지만 발이 조금 빨라지는 것 같다.',
+        requiredSimdeuk: 0,
+        requiredTier: 0,
+        pointCost: 1,
+        discovery: { type: 'boss', bossId: 'tiger_boss' },
+        effects: { bonusAtkSpeed: 1.0 },
+      },
+      {
+        stage: 2,
+        id: 'crude_bobeop_2',
+        name: '가벼운 보법',
+        description: '공격 속도 1초 추가 감소',
+        flavorText: '몸이 한결 가볍게 느껴진다.',
+        requiredSimdeuk: 0,
+        requiredTier: 0,
+        pointCost: 1,
+        requires: ['crude_bobeop_1'],
+        discovery: { type: 'boss', bossId: 'tiger_boss' },
+        effects: { bonusAtkSpeed: 1.0 },
+      },
+      {
+        stage: 3,
+        id: 'crude_bobeop_3',
+        name: '바람걸음',
+        description: '공격 속도 1초 추가 감소, 회피 +5%',
+        flavorText: '바람처럼 움직이며 적의 공격을 흘릴 수 있게 되었다.',
+        requiredSimdeuk: 0,
+        requiredTier: 0,
+        pointCost: 1,
+        requires: ['crude_bobeop_2'],
+        discovery: { type: 'boss', bossId: 'tiger_boss' },
+        effects: { bonusAtkSpeed: 1.0, bonusDodge: 5 },
       },
     ],
   },

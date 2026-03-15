@@ -7,7 +7,7 @@ import {
   getArtDef, getMasteryDef, getMasteryDefsForArt,
   type ArtDef, type MasteryDef, type MasteryEffects,
 } from '../data/arts';
-import { getMonsterDef, getMonsterAttackMsg, type MonsterDef } from '../data/monsters';
+import { getMonsterDef, getMonsterAttackMsg, BOSS_PATTERNS, type MonsterDef } from '../data/monsters';
 import { TIERS, getTierDef, getMaxSimdeuk } from '../data/tiers';
 import { FIELDS, getFieldDef, generateExploreOrder } from '../data/fields';
 import { ACHIEVEMENTS, type AchievementContext } from '../data/achievements';
@@ -70,7 +70,12 @@ export interface GameState {
   killCounts: Record<string, number>;
   bossKillCounts: Record<string, number>;
   totalYasanKills: number;
-  hiddenEncountered: boolean;
+  hiddenRevealedInField: Record<string, string | null>;
+
+  // 보스 패턴
+  bossPatternState: { bossStamina: number; rageUsed: boolean } | null;
+  playerStunTimer: number;
+  lastEnemyAttack: { enemyName: string; attackMessage: string } | null;
 
   tutorialFlags: {
     equippedSword: boolean;
@@ -108,6 +113,7 @@ export interface BattleResult {
   simdeuk: number;
   drops: string[];
   message: string;
+  deathLog?: string;
 }
 
 export interface FloatingText {
@@ -227,7 +233,10 @@ export function createInitialState(): GameState {
     killCounts: {},
     bossKillCounts: {},
     totalYasanKills: 0,
-    hiddenEncountered: false,
+    hiddenRevealedInField: {},
+    bossPatternState: null,
+    playerStunTimer: 0,
+    lastEnemyAttack: null,
     tutorialFlags: {
       equippedSword: false,
       equippedSimbeop: false,
@@ -514,7 +523,7 @@ function buildAchievementContext(state: GameState): AchievementContext {
     totalSimdeuk: state.totalSimdeuk,
     tier: state.tier,
     achievements: state.achievements,
-    hiddenEncountered: state.hiddenEncountered,
+    hiddenRevealedInField: state.hiddenRevealedInField,
     fieldUnlocks: state.fieldUnlocks,
   };
 }
@@ -546,16 +555,19 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     explorePendingRewards, battleLog, currentField,
     killCounts, bossKillCounts, totalSimdeuk, totalYasanKills,
     ownedArts, equippedArts, equippedSimbeop,
-    battleResult, hiddenEncountered,
+    battleResult,
     huntTarget, totalSpentQi,
     playerAttackTimer, enemyAttackTimer,
     floatingTexts, nextFloatingId, playerAnim, enemyAnim,
     fieldUnlocks, inventory,
     discoveredMasteries, pendingEnlightenments,
     stamina, currentBattleDuration,
+    bossPatternState, playerStunTimer, lastEnemyAttack,
   } = state;
+  let hiddenRevealedInField = { ...state.hiddenRevealedInField };
   let equipmentInventory = [...state.equipmentInventory];
   let ultCooldowns = { ...state.ultCooldowns };
+  if (bossPatternState) bossPatternState = { ...bossPatternState };
   const stats = { ...state.stats };
 
   // Clone mutable
@@ -604,14 +616,16 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   const combatQiRatio = calcCombatQiRatio(state);
   const masteryEffects = isBattling ? gatherMasteryEffects(state) : null;
 
+  const qiMult = 1 + (equipStats.bonusQiMultiplier ?? 0);
+
   // 1) 기운 생산 (비전투)
   if (!isBattling) {
-    qi += qiPerSec * dt;
+    qi += qiPerSec * dt * qiMult;
   }
 
   // 1-1) 전투 중 기운 생산
   if (isBattling && combatQiRatio > 0) {
-    qi += qiPerSec * combatQiRatio * dt;
+    qi += qiPerSec * combatQiRatio * dt * qiMult;
   }
 
   // 2) HP 자동회복 (전투 외)
@@ -622,19 +636,10 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
   // 3) 전투 (타이머 기반)
   if (isBattling && currentEnemy) {
-    // 전투 경과 시간 추적
+    // 전투 경과 시간 추적 (스턴 중에도 계속)
     currentBattleDuration += dt;
 
-    // 내력 회복
-    stamina = Math.min(stamina + effectiveRegen * dt, maxStamina);
-
-    // 절초 쿨타임 감소 (무공별 독립)
-    for (const artId of Object.keys(ultCooldowns)) {
-      ultCooldowns[artId] -= dt;
-      if (ultCooldowns[artId] <= 0) delete ultCooldowns[artId];
-    }
-
-    // 적 회복
+    // 적 회복 (스턴 중에도 계속)
     if (currentEnemy.regen > 0) {
       currentEnemy = { ...currentEnemy };
       currentEnemy.hp = Math.min(
@@ -643,9 +648,36 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       );
     }
 
-    // 플레이어 공격 타이머
-    playerAttackTimer -= dt;
-    if (playerAttackTimer <= 0) {
+    // 보스 내력 자연회복 (스턴 중에도 계속)
+    if (bossPatternState) {
+      const pattern = BOSS_PATTERNS[currentEnemy.id];
+      if (pattern) {
+        bossPatternState.bossStamina = Math.min(
+          bossPatternState.bossStamina + pattern.stamina.regenPerSec * dt,
+          pattern.stamina.max
+        );
+      }
+    }
+
+    // 스턴 타이머 감소
+    if (playerStunTimer > 0) {
+      playerStunTimer = Math.max(0, playerStunTimer - dt);
+    }
+
+    // 플레이어 관련 로직: 스턴 아닐 때만 실행
+    if (playerStunTimer <= 0) {
+      // 내력 회복
+      stamina = Math.min(stamina + effectiveRegen * dt, maxStamina);
+
+      // 절초 쿨타임 감소 (무공별 독립)
+      for (const artId of Object.keys(ultCooldowns)) {
+        ultCooldowns[artId] -= dt;
+        if (ultCooldowns[artId] <= 0) delete ultCooldowns[artId];
+      }
+
+      // 플레이어 공격 타이머
+      playerAttackTimer -= dt;
+      if (playerAttackTimer <= 0) {
       const atkSpeedBonus = (masteryEffects?.bonusAtkSpeed ?? 0) + (equipStats.bonusAtkSpeed ?? 0);
       const attackInterval = Math.max(B.BASE_ATTACK_INTERVAL - atkSpeedBonus, B.ATK_SPEED_MIN);
       playerAttackTimer += attackInterval;
@@ -769,12 +801,15 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         playerAnim = 'attack';
       }
     }
+    } // end stun guard
 
     // 적 사망 체크
     if (currentEnemy.hp <= 0) {
       const monDef = getMonsterDef(currentEnemy.id);
       if (monDef) {
-        if (monDef.isHidden) hiddenEncountered = true;
+        if (monDef.isHidden && currentField) {
+          hiddenRevealedInField[currentField] = monDef.id;
+        }
 
         killCounts[monDef.id] = (killCounts[monDef.id] ?? 0) + 1;
 
@@ -812,10 +847,13 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           }
         }
 
-        // 장비 드롭 처리
+        // 장비 드롭 처리 (중복 방지)
         if (monDef.equipDrops) {
           for (const eqDrop of monDef.equipDrops) {
             if (Math.random() < eqDrop.chance) {
+              const alreadyOwned = Object.values(state.equipment).some(e => e?.defId === eqDrop.equipId)
+                || equipmentInventory.some(e => e.defId === eqDrop.equipId);
+              if (alreadyOwned) continue;
               const eqDef = getEquipmentDef(eqDrop.equipId);
               if (eqDef) {
                 const instance: EquipmentInstance = {
@@ -835,7 +873,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         if (masteryEffects?.killBonusEnabled && combatQiRatio > 0) {
           const combatQiRate = qiPerSec * combatQiRatio;
           const bonusQi = combatQiRate * currentBattleDuration * B.KILL_BONUS_RATIO;
-          qi += bonusQi;
+          qi += bonusQi * qiMult;
         }
 
         // 초(招) 발견 체크 (새 discovery 포맷)
@@ -880,53 +918,90 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           explorePendingRewards.drops.push(...drops);
           battleLog.push(`— ${monDef.name} 처치. 심득 +${simdeuk} —`);
 
-          const nextStep = exploreStep + 1;
-          if (nextStep < exploreOrder.length) {
-            const nextMon = getMonsterDef(exploreOrder[nextStep]);
-            if (nextMon) {
-              currentEnemy = spawnEnemy(nextMon);
-              exploreStep = nextStep;
-              currentBattleDuration = 0;
-              stamina = 0;
-              ultCooldowns = {};
-              battleLog.push(`— ${nextMon.name} 등장 —`);
-              if (nextMon.isHidden) hiddenEncountered = true;
-              playerAttackTimer = B.BASE_ATTACK_INTERVAL;
-              enemyAttackTimer = nextMon.attackInterval;
-            }
-          } else if (!isBossPhase) {
-            const field = getFieldDef(currentField!);
-            if (field?.boss) {
-              const bossMon = getMonsterDef(field.boss);
-              if (bossMon) {
-                isBossPhase = true;
-                bossTimer = field.bossTimer ?? 60;
-                currentEnemy = spawnEnemy(bossMon);
-                currentBattleDuration = 0;
-                stamina = 0;
-                ultCooldowns = {};
-                battleLog.push(`— 보스 등장! ${bossMon.name}이(가) 나타났다! —`);
-                playerAttackTimer = B.BASE_ATTACK_INTERVAL;
-                enemyAttackTimer = bossMon.attackInterval;
-              }
-            }
-          } else {
-            // 보스 처치 성공
+          // 히든 처치 = 답파 즉시 승리
+          if (monDef.isHidden) {
             totalSimdeuk += explorePendingRewards.simdeuk;
             applySimdeuk(ownedArts, equippedArts, equippedSimbeop, explorePendingRewards.simdeuk, state.tier, battleLog);
-
             battleResult = {
               type: 'explore_win',
               simdeuk: explorePendingRewards.simdeuk,
               drops: explorePendingRewards.drops,
-              message: '답파 승리! 전체 보상 획득!',
+              message: '히든 처치! 답파 대성공!',
             };
             battleMode = 'none';
             currentEnemy = null;
             stamina = 0;
             ultCooldowns = {};
             currentBattleDuration = 0;
-            battleLog.push('답파 승리!');
+            bossPatternState = null;
+            playerStunTimer = 0;
+            battleLog.push('괴이한 존재를 물리치고 답파에 성공했다!');
+          } else {
+            const nextStep = exploreStep + 1;
+            if (nextStep < exploreOrder.length) {
+              const nextMon = getMonsterDef(exploreOrder[nextStep]);
+              if (nextMon) {
+                currentEnemy = spawnEnemy(nextMon);
+                exploreStep = nextStep;
+                currentBattleDuration = 0;
+                stamina = 0;
+                ultCooldowns = {};
+                battleLog.push(`— ${nextMon.name} 등장 —`);
+                if (nextMon.isHidden && currentField) {
+                  if (!hiddenRevealedInField[currentField]) {
+                    battleLog.push('산군이 쓰러진 틈에 괴이한 존재가 침입한 것 같다..');
+                  }
+                  hiddenRevealedInField[currentField] = nextMon.id;
+                }
+                // 패턴 초기화 (히든 당강 등)
+                bossPatternState = BOSS_PATTERNS[nextMon.id]
+                  ? { bossStamina: BOSS_PATTERNS[nextMon.id].stamina.initial, rageUsed: false }
+                  : null;
+                playerStunTimer = 0;
+                playerAttackTimer = B.BASE_ATTACK_INTERVAL;
+                enemyAttackTimer = nextMon.attackInterval;
+              }
+            } else if (!isBossPhase) {
+              const field = getFieldDef(currentField!);
+              if (field?.boss) {
+                const bossMon = getMonsterDef(field.boss);
+                if (bossMon) {
+                  isBossPhase = true;
+                  bossTimer = field.bossTimer ?? 60;
+                  currentEnemy = spawnEnemy(bossMon);
+                  currentBattleDuration = 0;
+                  stamina = 0;
+                  ultCooldowns = {};
+                  battleLog.push(`— 보스 등장! ${bossMon.name}이(가) 나타났다! —`);
+                  // 보스 패턴 초기화
+                  bossPatternState = BOSS_PATTERNS[bossMon.id]
+                    ? { bossStamina: BOSS_PATTERNS[bossMon.id].stamina.initial, rageUsed: false }
+                    : null;
+                  playerStunTimer = 0;
+                  playerAttackTimer = B.BASE_ATTACK_INTERVAL;
+                  enemyAttackTimer = bossMon.attackInterval;
+                }
+              }
+            } else {
+              // 보스 처치 성공
+              totalSimdeuk += explorePendingRewards.simdeuk;
+              applySimdeuk(ownedArts, equippedArts, equippedSimbeop, explorePendingRewards.simdeuk, state.tier, battleLog);
+
+              battleResult = {
+                type: 'explore_win',
+                simdeuk: explorePendingRewards.simdeuk,
+                drops: explorePendingRewards.drops,
+                message: '답파 승리! 전체 보상 획득!',
+              };
+              battleMode = 'none';
+              currentEnemy = null;
+              stamina = 0;
+              ultCooldowns = {};
+              currentBattleDuration = 0;
+              bossPatternState = null;
+              playerStunTimer = 0;
+              battleLog.push('답파 승리!');
+            }
           }
         } else if (battleMode === 'hunt') {
           totalSimdeuk += simdeuk;
@@ -941,43 +1016,119 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
               currentBattleDuration = 0;
               playerAttackTimer = B.BASE_ATTACK_INTERVAL;
               enemyAttackTimer = nextMon.attackInterval;
+              // 패턴 초기화 (보스/히든 사냥 시)
+              if (BOSS_PATTERNS[huntTarget]) {
+                bossPatternState = { bossStamina: BOSS_PATTERNS[huntTarget].stamina.initial, rageUsed: false };
+              }
+              playerStunTimer = 0;
             }
           }
         }
       }
     } else {
-      // 적이 살아있으면 → 적 공격 타이머
+      // 적이 살아있으면 → 적 공격 타이머 (스턴 중에도 적은 공격)
       if (currentEnemy.attackPower > 0 && currentEnemy.attackInterval > 0) {
         enemyAttackTimer -= dt;
         if (enemyAttackTimer <= 0) {
           enemyAttackTimer += currentEnemy.attackInterval;
+          const monDef = getMonsterDef(currentEnemy.id);
+          const eName = monDef?.name ?? currentEnemy.id;
 
-          // 회피 판정 (설계서 5.5)
-          if (Math.random() < dodgeRate) {
-            // 회피 성공
-            const monDef = getMonsterDef(currentEnemy.id);
-            const eName = monDef?.name ?? currentEnemy.id;
-            battleLog.push(`${eName}의 공격을 가볍게 피했다!`);
+          // 보스 패턴 스킬 체크
+          const pattern = bossPatternState ? BOSS_PATTERNS[currentEnemy.id] : null;
+          let skillUsed = false;
 
-            if (!isSimulating) {
-              floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: '회피!', type: 'evade' as const, timestamp: Date.now() }];
-              if (floatingTexts.length > 15) floatingTexts = floatingTexts.slice(-15);
-            }
-          } else {
-            // 피격: 피해 = 적 공격력 × (1 - dmgReduction / 100)
-            const incomingDmg = Math.floor(currentEnemy.attackPower * (1 - dmgReduction / 100));
-
-            hp -= incomingDmg;
-
-            if (incomingDmg > 0) {
-              const monDef = getMonsterDef(currentEnemy.id);
-              if (monDef) {
-                battleLog.push(getMonsterAttackMsg(monDef, incomingDmg));
+          if (pattern && bossPatternState) {
+            // priority 내림차순으로 매칭 스킬 찾기
+            const sortedSkills = [...pattern.skills].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+            for (const skill of sortedSkills) {
+              let triggered = false;
+              if (skill.triggerCondition === 'stamina_full' && bossPatternState.bossStamina >= (skill.staminaCost ?? pattern.stamina.max)) {
+                triggered = true;
+              } else if (skill.triggerCondition === 'hp_threshold' && skill.hpThreshold != null) {
+                if (currentEnemy.hp / currentEnemy.maxHp <= skill.hpThreshold && !(skill.oneTime && bossPatternState.rageUsed)) {
+                  triggered = true;
+                }
+              } else if (skill.triggerCondition === 'default') {
+                triggered = true;
               }
-            }
+              if (!triggered) continue;
 
-            if (!isSimulating) {
-              enemyAnim = 'attack';
+              skillUsed = true;
+              const logMsg = skill.logMessages[Math.floor(Math.random() * skill.logMessages.length)];
+
+              if (skill.staminaCost) {
+                bossPatternState.bossStamina -= skill.staminaCost;
+              }
+
+              if (skill.type === 'stun') {
+                // 스턴: 회피 가능 여부 체크
+                if (!skill.undodgeable && Math.random() < dodgeRate) {
+                  battleLog.push(`${eName}의 포효를 흘려냈다!`);
+                  if (!isSimulating) {
+                    floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: '회피!', type: 'evade' as const, timestamp: Date.now() }];
+                    if (floatingTexts.length > 15) floatingTexts = floatingTexts.slice(-15);
+                  }
+                } else {
+                  playerStunTimer = skill.stunDuration ?? 4;
+                  battleLog.push(logMsg);
+                  lastEnemyAttack = { enemyName: eName, attackMessage: logMsg };
+                }
+              } else if (skill.type === 'replace_normal' && !skill.useNormalDamage && !skill.damageMultiplier) {
+                // 풍년의 기운: 데미지 없이 내력만 획득
+                if (skill.staminaGain) {
+                  bossPatternState.bossStamina = Math.min(
+                    bossPatternState.bossStamina + skill.staminaGain,
+                    pattern.stamina.max
+                  );
+                }
+                battleLog.push(logMsg);
+              } else {
+                // 데미지 스킬 (rage_attack, charged_attack)
+                if (skill.oneTime && skill.type === 'rage_attack') {
+                  bossPatternState.rageUsed = true;
+                }
+                const mult = skill.damageMultiplier ?? 1;
+                const skillDmg = Math.floor(currentEnemy.attackPower * mult * (1 - dmgReduction / 100));
+
+                if (skill.undodgeable || Math.random() >= dodgeRate) {
+                  hp -= skillDmg;
+                  battleLog.push(`${logMsg} ${skillDmg} 피해!`);
+                  lastEnemyAttack = { enemyName: eName, attackMessage: `${logMsg} ${skillDmg} 피해!` };
+                  if (!isSimulating) {
+                    enemyAnim = 'attack';
+                  }
+                } else {
+                  battleLog.push(`${eName}의 공격을 가볍게 피했다!`);
+                  if (!isSimulating) {
+                    floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: '회피!', type: 'evade' as const, timestamp: Date.now() }];
+                    if (floatingTexts.length > 15) floatingTexts = floatingTexts.slice(-15);
+                  }
+                }
+              }
+              break; // 최우선 스킬 하나만 발동
+            }
+          }
+
+          if (!skillUsed) {
+            // 일반 공격 (패턴 없는 적 or 조건 미충족)
+            if (Math.random() < dodgeRate) {
+              battleLog.push(`${eName}의 공격을 가볍게 피했다!`);
+              if (!isSimulating) {
+                floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: '회피!', type: 'evade' as const, timestamp: Date.now() }];
+                if (floatingTexts.length > 15) floatingTexts = floatingTexts.slice(-15);
+              }
+            } else {
+              const incomingDmg = Math.floor(currentEnemy.attackPower * (1 - dmgReduction / 100));
+              hp -= incomingDmg;
+              if (incomingDmg > 0 && monDef) {
+                const attackMsg = getMonsterAttackMsg(monDef, incomingDmg);
+                battleLog.push(attackMsg);
+                lastEnemyAttack = { enemyName: eName, attackMessage: attackMsg };
+              }
+              if (!isSimulating) {
+                enemyAnim = 'attack';
+              }
             }
           }
         }
@@ -987,12 +1138,16 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     // HP <= 0: 전투 종료
     if (hp <= 0) {
       hp = 1;
+      const deathLog = lastEnemyAttack
+        ? `${lastEnemyAttack.enemyName}의 공격을 받아 쓰러졌습니다...`
+        : undefined;
       if (battleMode === 'explore') {
         battleResult = {
           type: 'death',
           simdeuk: 0,
           drops: [],
           message: '패배... 보상이 없습니다.',
+          deathLog,
         };
       } else {
         battleResult = {
@@ -1000,6 +1155,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           simdeuk: totalSimdeuk - state.totalSimdeuk,
           drops: [],
           message: '사망! 전투 종료.',
+          deathLog,
         };
       }
       battleMode = 'none';
@@ -1007,6 +1163,8 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       stamina = 0;
       ultCooldowns = {};
       currentBattleDuration = 0;
+      bossPatternState = null;
+      playerStunTimer = 0;
     }
 
     // 보스 타이머
@@ -1024,6 +1182,8 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         stamina = 0;
         ultCooldowns = {};
         currentBattleDuration = 0;
+        bossPatternState = null;
+        playerStunTimer = 0;
       }
     }
   }
@@ -1034,7 +1194,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
   const ctx = buildAchievementContext({
     ...state, killCounts, bossKillCounts, ownedArts,
-    totalSimdeuk, achievements, hiddenEncountered,
+    totalSimdeuk, achievements, hiddenRevealedInField,
     totalYasanKills, fieldUnlocks,
   });
 
@@ -1063,13 +1223,14 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     explorePendingRewards, battleLog, killCounts,
     bossKillCounts, totalSimdeuk, totalYasanKills,
     ownedArts, battleResult,
-    achievements, artPoints, hiddenEncountered,
+    achievements, artPoints, hiddenRevealedInField,
     tutorialFlags, totalSpentQi,
     playerAttackTimer, enemyAttackTimer,
     fieldUnlocks, inventory,
     discoveredMasteries, pendingEnlightenments,
     stamina, ultCooldowns, currentBattleDuration,
     equipmentInventory,
+    bossPatternState, playerStunTimer, lastEnemyAttack,
   };
 
   if (!isSimulating) {
@@ -1241,16 +1402,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const field = getFieldDef(fieldId);
     if (!field || !field.canExplore) return;
 
-    const order = generateExploreOrder(field);
+    const order = generateExploreOrder(field, state.bossKillCounts);
     const firstMon = getMonsterDef(order[0]);
     if (!firstMon) return;
 
-    let hiddenEncountered = state.hiddenEncountered;
-    if (order.some(id => {
-      const m = getMonsterDef(id);
-      return m?.isHidden;
-    })) {
-      hiddenEncountered = true;
+    const hiddenRevealedInField = { ...state.hiddenRevealedInField };
+    if (firstMon.isHidden) {
+      hiddenRevealedInField[fieldId] = order[0];
     }
 
     set({
@@ -1264,12 +1422,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentEnemy: spawnEnemy(firstMon),
       battleLog: [`— ${firstMon.name} 등장 —`],
       battleResult: null,
-      hiddenEncountered,
+      hiddenRevealedInField,
       playerAttackTimer: B.BASE_ATTACK_INTERVAL,
       enemyAttackTimer: firstMon.attackInterval,
       stamina: 0,
       ultCooldowns: {},
       currentBattleDuration: 0,
+      bossPatternState: BOSS_PATTERNS[order[0]]
+        ? { bossStamina: BOSS_PATTERNS[order[0]].stamina.initial, rageUsed: false }
+        : null,
+      playerStunTimer: 0,
+      lastEnemyAttack: null,
     });
   },
 
@@ -1297,6 +1460,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       stamina: 0,
       ultCooldowns: {},
       currentBattleDuration: 0,
+      bossPatternState: BOSS_PATTERNS[monsterId]
+        ? { bossStamina: BOSS_PATTERNS[monsterId].stamina.initial, rageUsed: false }
+        : null,
+      playerStunTimer: 0,
+      lastEnemyAttack: null,
     });
   },
 
@@ -1311,6 +1479,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         stamina: 0,
         ultCooldowns: {},
         currentBattleDuration: 0,
+        bossPatternState: null,
+        playerStunTimer: 0,
+        lastEnemyAttack: null,
         battleResult: {
           type: 'explore_fail',
           simdeuk: 0,
@@ -1325,6 +1496,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         stamina: 0,
         ultCooldowns: {},
         currentBattleDuration: 0,
+        bossPatternState: null,
+        playerStunTimer: 0,
+        lastEnemyAttack: null,
         battleResult: null,
       });
     }
@@ -1573,7 +1747,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       killCounts: state.killCounts,
       bossKillCounts: state.bossKillCounts,
       totalYasanKills: state.totalYasanKills,
-      hiddenEncountered: state.hiddenEncountered,
+      hiddenRevealedInField: state.hiddenRevealedInField,
+      bossPatternState: state.bossPatternState,
+      playerStunTimer: state.playerStunTimer,
+      lastEnemyAttack: state.lastEnemyAttack,
       tutorialFlags: state.tutorialFlags,
       battleMode: state.battleMode,
       huntTarget: state.huntTarget,
@@ -1637,7 +1814,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         killCounts: data.killCounts ?? {},
         bossKillCounts: data.bossKillCounts ?? {},
         totalYasanKills: data.totalYasanKills ?? 0,
-        hiddenEncountered: data.hiddenEncountered ?? false,
+        hiddenRevealedInField: data.hiddenRevealedInField ?? {},
+        bossPatternState: data.bossPatternState ?? null,
+        playerStunTimer: data.playerStunTimer ?? 0,
+        lastEnemyAttack: data.lastEnemyAttack ?? null,
         tutorialFlags: data.tutorialFlags ?? createInitialState().tutorialFlags,
         lastTickTime: Date.now(),
         battleMode: data.battleMode ?? 'none',
@@ -1743,6 +1923,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     currentState.inventory = [...currentState.inventory];
     currentState.discoveredMasteries = [...currentState.discoveredMasteries];
     currentState.pendingEnlightenments = [...currentState.pendingEnlightenments];
+    currentState.equipmentInventory = [...currentState.equipmentInventory];
+    currentState.hiddenRevealedInField = { ...currentState.hiddenRevealedInField };
     currentState.floatingTexts = [];
 
     const startQi = currentState.qi;

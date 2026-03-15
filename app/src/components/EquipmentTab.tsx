@@ -34,6 +34,7 @@ function formatStats(stats: EquipStats): string {
   if (stats.bonusDodge) parts.push(`회피 +${stats.bonusDodge}%`);
   if (stats.bonusAtkSpeed) parts.push(`공속 +${stats.bonusAtkSpeed.toFixed(1)}`);
   if (stats.bonusDmgReduction) parts.push(`감소 +${(stats.bonusDmgReduction * 100).toFixed(1)}%`);
+  if (stats.bonusQiMultiplier) parts.push(`기운 +${(stats.bonusQiMultiplier * 100).toFixed(0)}%`);
   return parts.join(' / ') || '효과 없음';
 }
 

@@ -6,7 +6,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useGameStore, getMonsterRevealLevel, calcStamina } from '../store/gameStore';
-import { getMonsterDef, YASAN_MONSTERS, INN_MONSTERS, type MonsterDef } from '../data/monsters';
+import { getMonsterDef, YASAN_MONSTERS, INN_MONSTERS, BOSS_PATTERNS, type MonsterDef } from '../data/monsters';
 import { getArtDef } from '../data/arts';
 import { formatNumber } from '../utils/format';
 import { getEnemyImage, getEnemyEmoji, getPlayerByTier, getFieldBackground } from '../assets';
@@ -141,6 +141,8 @@ function FieldDetailScreen({ fieldId, onBack }: { fieldId: string; onBack: () =>
   const startExplore = useGameStore(s => s.startExplore);
   const startHunt = useGameStore(s => s.startHunt);
   const killCounts = useGameStore(s => s.killCounts);
+  const bossKillCounts = useGameStore(s => s.bossKillCounts);
+  const hiddenRevealedInField = useGameStore(s => s.hiddenRevealedInField);
 
   const field = getFieldDef(fieldId);
   if (!field) return null;
@@ -261,7 +263,32 @@ function FieldDetailScreen({ fieldId, onBack }: { fieldId: string; onBack: () =>
                   <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
                     보스: {bossReveal >= 1 ? boss.name : '???'}
                     {bossReveal >= 1 ? ` — ${getMonsterHint(boss, bossReveal)}` : ''}
+                    {(bossKillCounts[boss.id] ?? 0) > 0 && (
+                      <span style={{ color: 'var(--green)', marginLeft: 6 }}>답파 성공</span>
+                    )}
                   </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* 히든 몬스터 */}
+        {field.hiddenMonsters.length > 0 && (
+          <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.03)' }}>
+            {(() => {
+              const revealedId = hiddenRevealedInField[fieldId];
+              if (revealedId) {
+                const hiddenMon = getMonsterDef(revealedId);
+                return (
+                  <div style={{ fontSize: 11, color: 'var(--gold)' }}>
+                    히든: {hiddenMon?.name ?? revealedId}
+                  </div>
+                );
+              }
+              return (
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', opacity: 0.4 }}>
+                  히든: ???
                 </div>
               );
             })()}
@@ -297,6 +324,8 @@ function BattleScreen() {
   const getTotalStats = useGameStore(s => s.getTotalStats);
   const killCounts = useGameStore(s => s.killCounts);
   const tier = useGameStore(s => s.tier);
+  const bossPatternState = useGameStore(s => s.bossPatternState);
+  const playerStunTimer = useGameStore(s => s.playerStunTimer);
 
   const logRef = useRef<HTMLDivElement>(null);
 
@@ -384,6 +413,12 @@ function BattleScreen() {
               <div className="hp-bar-container">
                 <div className="hp-bar-fill" style={{ width: `${(hp / maxHp) * 100}%` }} />
               </div>
+              {/* 스턴 표시 */}
+              {playerStunTimer > 0 && (
+                <div style={{ fontSize: 11, color: '#ff4444', fontWeight: 600, marginTop: 4 }}>
+                  경직! ({playerStunTimer.toFixed(1)}초)
+                </div>
+              )}
               {/* 내력 게이지 */}
               {(() => {
                 const maxStamina = calcStamina(stats.sim);
@@ -414,6 +449,20 @@ function BattleScreen() {
                   : '???/???'
                 }
               </div>
+              {/* 보스 내력 바 */}
+              {bossPatternState != null && BOSS_PATTERNS[currentEnemy.id] && (
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2, textAlign: 'right' }}>
+                    내력 {Math.floor(bossPatternState.bossStamina)}/{BOSS_PATTERNS[currentEnemy.id].stamina.max}
+                  </div>
+                  <div className="hp-bar-container">
+                    <div className="hp-bar-fill" style={{
+                      width: `${(bossPatternState.bossStamina / BOSS_PATTERNS[currentEnemy.id].stamina.max) * 100}%`,
+                      background: 'var(--gold, #d4a853)',
+                    }} />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -517,6 +566,12 @@ function BattleResultScreen() {
       <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
         {battleResult.message}
       </div>
+
+      {battleResult.deathLog && (
+        <div style={{ fontSize: 12, color: '#ff6666', marginBottom: 8, fontStyle: 'italic' }}>
+          {battleResult.deathLog}
+        </div>
+      )}
 
       {battleResult.simdeuk > 0 && (
         <div style={{ color: 'var(--gold)', marginBottom: 4, fontSize: 14 }}>

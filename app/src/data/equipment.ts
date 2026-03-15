@@ -13,6 +13,7 @@ export interface EquipStats {
   bonusDodge?: number;
   bonusAtkSpeed?: number;
   bonusDmgReduction?: number;
+  bonusQiMultiplier?: number;
 }
 
 export interface EquipmentDef {
@@ -22,6 +23,7 @@ export interface EquipmentDef {
   rarity: EquipRarity;
   stats: EquipStats;
   description: string;
+  imageKey?: string;
 }
 
 export interface EquipmentInstance {
@@ -31,8 +33,18 @@ export interface EquipmentInstance {
   obtainedAt: number;
 }
 
-// 장비 정의 -- 추후 데이터 추가
-export const EQUIPMENT: EquipmentDef[] = [];
+// 장비 정의
+export const EQUIPMENT: EquipmentDef[] = [
+  {
+    id: 'gusan_gloves',
+    name: '구산팔해(九山八海)의 풍요',
+    slot: 'gloves',
+    rarity: 'superior',
+    stats: { bonusQiMultiplier: 0.15 },
+    description: '당강에게서 얻은 대지의 기운이 깃든 장갑. 자연의 기운 획득량이 15% 증가한다.',
+    imageKey: 'gusan_gloves',
+  },
+];
 
 export function getEquipmentDef(id: string): EquipmentDef | undefined {
   return EQUIPMENT.find(e => e.id === id);

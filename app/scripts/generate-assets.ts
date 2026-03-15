@@ -82,8 +82,6 @@ const ASSETS: AssetEntry[] = [
     prompt: 'mountain wolf, snarling' },
   { file: 'enemies/bear.png', category: 'character', size: '1024x1024',
     prompt: 'massive mountain bear, roar' },
-  { file: 'enemies/feiyi.png', category: 'character', size: '1024x1024',
-    prompt: 'mythical Fei Yi serpent, six legs four wings' },
   { file: 'enemies/dangkang.png', category: 'character', size: '1024x1024',
     prompt: 'mythical Dang Kang boar, single horn jade tusks' },
   { file: 'enemies/tiger_boss.png', category: 'character', size: '1024x1024',

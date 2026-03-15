@@ -1,7 +1,62 @@
 /**
- * 몬스터 데이터 (v1.1)
- * atk → attackPower, attackInterval 추가
+ * 몬스터 데이터 (v1.2)
+ * 보스 패턴 시스템 추가
  */
+
+// ── 보스 스킬/패턴 ──
+export interface BossSkillDef {
+  id: string;
+  type: 'stun' | 'rage_attack' | 'replace_normal' | 'charged_attack';
+  triggerCondition: 'stamina_full' | 'hp_threshold' | 'default';
+  staminaCost?: number;
+  staminaGain?: number;
+  hpThreshold?: number;
+  oneTime?: boolean;
+  stunDuration?: number;
+  damageMultiplier?: number;
+  useNormalDamage?: boolean;
+  undodgeable?: boolean;
+  logMessages: string[];
+  priority?: number;
+}
+
+export interface BossPatternDef {
+  stamina: { initial: number; max: number; regenPerSec: number };
+  skills: BossSkillDef[];
+}
+
+export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
+  tiger_boss: {
+    stamina: { initial: 25, max: 25, regenPerSec: 0.8 },
+    skills: [
+      {
+        id: 'tiger_roar', type: 'stun', triggerCondition: 'stamina_full',
+        staminaCost: 25, stunDuration: 4, undodgeable: false, priority: 1,
+        logMessages: ['무시무시한 포효에 온몸이 얼어붙었다...'],
+      },
+      {
+        id: 'tiger_rage', type: 'rage_attack', triggerCondition: 'hp_threshold',
+        hpThreshold: 0.3, oneTime: true, damageMultiplier: 3.5, undodgeable: true, priority: 2,
+        logMessages: ['산군의 분노! 산군이 남아있는 힘을 모아 강력한 일격을 가했다!!'],
+      },
+    ],
+  },
+  dangkang: {
+    stamina: { initial: 0, max: 50, regenPerSec: 0 },
+    skills: [
+      {
+        id: 'earth_shatter', type: 'charged_attack', triggerCondition: 'stamina_full',
+        staminaCost: 50, damageMultiplier: 10, undodgeable: true, priority: 1,
+        logMessages: ['대지분쇄(大地粉碎)! 당강이 땅을 내리찍자 대지가 갈라졌다!', '대지분쇄(大地粉碎)! 산이 울릴 정도의 충격이 몸을 관통했다!'],
+      },
+      {
+        id: 'harvest_qi', type: 'replace_normal', triggerCondition: 'default',
+        staminaGain: 10, useNormalDamage: false, undodgeable: false, priority: 0,
+        logMessages: ['당강이 풍년의 기운을 내뿜었다!', '당강의 몸에서 대지의 기운이 흘러나왔다!', '당강이 뿔을 들이밀며 기운을 모은다!'],
+      },
+    ],
+  },
+};
 
 export interface MonsterDef {
   id: string;
@@ -101,19 +156,14 @@ export const YASAN_MONSTERS: MonsterDef[] = [
   },
 ];
 
-// 히든 몬스터 (v1.1 수치)
+// 히든 몬스터
 export const HIDDEN_MONSTERS: MonsterDef[] = [
   {
-    id: 'feiyi', name: '비이',
-    hp: 500, attackPower: 24, attackInterval: 2.0, regen: 0, simdeuk: 50,
-    drops: [], isHidden: true, grade: 3, imageKey: 'feiyi',
-    attackMessages: ['비이가 네 날개로 돌풍을 일으켰다!', '비이가 독기를 내뿜었다!'],
-  },
-  {
     id: 'dangkang', name: '당강',
-    hp: 750, attackPower: 30, attackInterval: 1.8, regen: 0, simdeuk: 80,
+    hp: 750, attackPower: 30, attackInterval: 3.0, regen: 0, simdeuk: 80,
     drops: [], isHidden: true, grade: 4, imageKey: 'dangkang',
     attackMessages: ['당강이 뿔로 들이받았다!', '당강의 거대한 몸이 돌진했다!'],
+    equipDrops: [{ equipId: 'gusan_gloves', chance: 1.0 }],
   },
 ];
 
@@ -211,7 +261,7 @@ export const INN_BOSS: MonsterDef = {
 export const YASAN_BOSS: MonsterDef = {
   id: 'tiger_boss', name: '산군',
   hp: 650, attackPower: 28, attackInterval: 1.8, regen: 0, simdeuk: 120,
-  drops: [],
+  drops: [{ artId: 'crude_bobeop', chance: 0.10 }],
   isBoss: true, grade: 4, imageKey: 'tiger_boss',
   attackMessages: ['산군의 발톱이 번개처럼 스쳤다!', '산군이 포효하며 덮쳤다!'],
 };
