@@ -71,7 +71,7 @@ export default function ArtsTab() {
       </div>
 
       {/* 삼재검법 카드 */}
-      {swordDef && (
+      {swordDef && swordOwned && (
         <div className="card" style={{ marginBottom: 12, padding: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -80,66 +80,58 @@ export default function ArtsTab() {
                 <span className="badge-art-type badge-active">주공</span>
               </div>
             </div>
-            {swordOwned && (
-              swordEquipped ? (
-                <button
-                  className="btn btn-small btn-danger"
-                  onClick={() => unequipArt('samjae_sword')}
-                  disabled={battling}
-                >
-                  해제
-                </button>
-              ) : (
-                <button
-                  className="btn btn-small"
-                  onClick={() => equipArt('samjae_sword')}
-                  disabled={battling || availablePoints < swordDef.cost}
-                >
-                  장착
-                </button>
-              )
+            {swordEquipped ? (
+              <button
+                className="btn btn-small btn-danger"
+                onClick={() => unequipArt('samjae_sword')}
+                disabled={battling}
+              >
+                해제
+              </button>
+            ) : (
+              <button
+                className="btn btn-small"
+                onClick={() => equipArt('samjae_sword')}
+                disabled={battling || availablePoints < swordDef.cost}
+              >
+                장착
+              </button>
             )}
           </div>
 
-          {swordOwned ? (
-            <>
-              {/* 초식 배율 */}
-              <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 6 }}>
-                초식 배율 {normalMult.toFixed(2)} / 상한 {normalCap.toFixed(1)}
-              </div>
+          {/* 초식 배율 */}
+          <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 6 }}>
+            초식 배율 {normalMult.toFixed(2)} / 상한 {normalCap.toFixed(1)}
+          </div>
 
-              {/* 절초 정보 */}
-              {swordDef.ultMultiplier && (
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                  절초 배율 {swordDef.ultMultiplier.toFixed(1)}
-                  {effects.ultChange?.simBonusW ? '+심 보정' : ''}
-                  {' · '}코스트 {swordDef.ultCost}
-                  {' · '}쿨타임 {swordDef.ultCooldown}초
-                  {effects.unlockUlt ? '' : ' (미해금)'}
-                </div>
-              )}
-
-              {/* 심득 */}
-              <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
-                심득 {swordOwned.totalSimdeuk}
-              </div>
-
-              {/* 초(招) 패널 */}
-              <MasteryPanel
-                artId="samjae_sword"
-                totalSimdeuk={swordOwned.totalSimdeuk}
-                tier={tier}
-                discoveredMasteries={discoveredMasteries}
-              />
-            </>
-          ) : (
-            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>미보유</div>
+          {/* 절초 정보 */}
+          {swordDef.ultMultiplier && (
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+              절초 배율 {swordDef.ultMultiplier.toFixed(1)}
+              {effects.ultChange?.simBonusW ? '+심 보정' : ''}
+              {' · '}코스트 {swordDef.ultCost}
+              {' · '}쿨타임 {swordDef.ultCooldown}초
+              {effects.unlockUlt ? '' : ' (미해금)'}
+            </div>
           )}
+
+          {/* 심득 */}
+          <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
+            심득 {swordOwned.totalSimdeuk}
+          </div>
+
+          {/* 초(招) 패널 */}
+          <MasteryPanel
+            artId="samjae_sword"
+            totalSimdeuk={swordOwned.totalSimdeuk}
+            tier={tier}
+            discoveredMasteries={discoveredMasteries}
+          />
         </div>
       )}
 
       {/* 삼재심법 카드 */}
-      {simbeopDef && (
+      {simbeopDef && simbeopOwned && (
         <div className="card" style={{ marginBottom: 12, padding: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -148,54 +140,53 @@ export default function ArtsTab() {
                 <span className="badge-art-type badge-passive">심법</span>
               </div>
             </div>
-            {simbeopOwned && (
-              simbeopEquipped ? (
-                <button
-                  className="btn btn-small btn-danger"
-                  onClick={unequipSimbeop}
-                  disabled={battling}
-                >
-                  해제
-                </button>
-              ) : (
-                <button
-                  className="btn btn-small"
-                  onClick={() => equipSimbeop('samjae_simbeop')}
-                  disabled={battling}
-                >
-                  장착
-                </button>
-              )
+            {simbeopEquipped ? (
+              <button
+                className="btn btn-small btn-danger"
+                onClick={unequipSimbeop}
+                disabled={battling}
+              >
+                해제
+              </button>
+            ) : (
+              <button
+                className="btn btn-small"
+                onClick={() => equipSimbeop('samjae_simbeop')}
+                disabled={battling}
+              >
+                장착
+              </button>
             )}
           </div>
 
-          {simbeopOwned ? (
-            <>
-              {/* 기운 생산 정보 */}
-              <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 6 }}>
-                기운 생산 +{(calcQiPerSec(state) - BALANCE_PARAMS.BASE_QI_PER_SEC).toFixed(1)}/초
-                {calcCombatQiRatio(state) > 0 && (
-                  <span> · 전투 중 {(calcCombatQiRatio(state) * 100).toFixed(0)}%</span>
-                )}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                내력 회복 보너스 +{((calcEffectiveRegen(state) - BALANCE_PARAMS.REGEN_BASE - BALANCE_PARAMS.REGEN_T_W * state.stats.che / (state.stats.che + BALANCE_PARAMS.REGEN_T_H))).toFixed(1)}/초
-              </div>
+          {/* 기운 생산 정보 */}
+          <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 6 }}>
+            기운 생산 +{(calcQiPerSec(state) - BALANCE_PARAMS.BASE_QI_PER_SEC).toFixed(1)}/초
+            {calcCombatQiRatio(state) > 0 && (
+              <span> · 전투 중 {(calcCombatQiRatio(state) * 100).toFixed(0)}%</span>
+            )}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+            내력 회복 보너스 +{((calcEffectiveRegen(state) - BALANCE_PARAMS.REGEN_BASE - BALANCE_PARAMS.REGEN_T_W * state.stats.che / (state.stats.che + BALANCE_PARAMS.REGEN_T_H))).toFixed(1)}/초
+          </div>
 
-              <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
-                심득 {simbeopOwned.totalSimdeuk}
-              </div>
+          <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
+            심득 {simbeopOwned.totalSimdeuk}
+          </div>
 
-              <MasteryPanel
-                artId="samjae_simbeop"
-                totalSimdeuk={simbeopOwned.totalSimdeuk}
-                tier={tier}
-                discoveredMasteries={discoveredMasteries}
-              />
-            </>
-          ) : (
-            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>미보유</div>
-          )}
+          <MasteryPanel
+            artId="samjae_simbeop"
+            totalSimdeuk={simbeopOwned.totalSimdeuk}
+            tier={tier}
+            discoveredMasteries={discoveredMasteries}
+          />
+        </div>
+      )}
+
+      {/* 미보유 안내 */}
+      {!swordOwned && !simbeopOwned && (
+        <div style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', padding: '20px 0' }}>
+          아직 익힌 무공이 없습니다.
         </div>
       )}
 
@@ -245,8 +236,15 @@ function MasteryPanel({ artId, totalSimdeuk, tier, discoveredMasteries }: {
           const isDiscovered = !m.discovery || discoveredMasteries.includes(m.id);
           const availPts = getAvailablePoints();
 
-          // 미발견: "???"
+          // Progressive reveal: 이전 단계가 발견되어야 다음 단계 ??? 표시
+          const prevMastery = idx > 0 ? masteries[idx - 1] : null;
+          const prevDiscovered = prevMastery
+            ? (!prevMastery.discovery || discoveredMasteries.includes(prevMastery.id))
+            : true; // stage 1은 항상 표시 가능
+
+          // 미발견: 이전 단계 미발견이면 숨김, 발견됐으면 ??? 표시
           if (!isDiscovered) {
+            if (!prevDiscovered) return null;
             return (
               <div key={m.id} className="mastery-item mastery-locked-grade">
                 <div className="mastery-item-header">
@@ -317,6 +315,11 @@ function MasteryPanel({ artId, totalSimdeuk, tier, discoveredMasteries }: {
                 )}
                 {m.description}
               </div>
+              {m.flavorText && (
+                <div style={{ fontSize: 10, fontStyle: 'italic', color: 'var(--text-dim)', marginTop: 2, paddingLeft: 22 }}>
+                  "{m.flavorText}"
+                </div>
+              )}
               {requiresUnmet.length > 0 && !isActive && (
                 <div className="mastery-prereq-warn">
                   {requiresUnmet.map(reqId => {

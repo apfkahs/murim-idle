@@ -39,6 +39,7 @@ export interface MasteryDef {
   id: string;
   name: string;
   description: string;
+  flavorText?: string;
   requiredSimdeuk: number;
   requiredTier: number;
   pointCost: number;
@@ -118,6 +119,7 @@ export const ARTS: ArtDef[] = [
         id: 'samjae_sword_ult',
         name: '강한 내려치기',
         description: '절초 사용 가능. 내력이 충분하고 쿨타임이 돌아왔을 때 자동 발동.',
+        flavorText: '내력을 실어 묵직하게 내려치는 기본 절초.',
         requiredSimdeuk: 150,
         requiredTier: 0,
         pointCost: 3,
@@ -129,6 +131,7 @@ export const ARTS: ArtDef[] = [
         id: 'samjae_sword_sense',
         name: '삼재의 감각',
         description: '치명타 확률 +5%, 회피 +5%, 데미지 감소 +5%',
+        flavorText: '싸울수록 몸이 적의 움직임에 익숙해진다.',
         requiredSimdeuk: 400,
         requiredTier: 0,
         pointCost: 1,
@@ -144,6 +147,7 @@ export const ARTS: ArtDef[] = [
         id: 'samjae_sword_mastery',
         name: '검의 숙련',
         description: '초식 배율 상한 +0.5, 치명타 확률 +5%',
+        flavorText: '반복된 수련으로 검을 다루는 솜씨가 한 단계 올랐다.',
         requiredSimdeuk: 500,
         requiredTier: 1,
         pointCost: 2,
@@ -158,6 +162,7 @@ export const ARTS: ArtDef[] = [
         id: 'samjae_sword_taesan',
         name: '비기: 태산압정',
         description: '절초가 태산압정으로 변화. 심(心)이 절초 위력에 기여. 초식 상한 +0.5.',
+        flavorText: '무거운 일격으로 적을 짓누르는 삼재검법의 오의.',
         requiredSimdeuk: 960,
         requiredTier: 2,
         pointCost: 3,
@@ -196,6 +201,7 @@ export const ARTS: ArtDef[] = [
         id: 'samjae_simbeop_regen',
         name: '기맥 순환',
         description: '내력 회복 +1/초',
+        flavorText: '호흡을 고르며 기맥의 흐름을 바로잡는다.',
         requiredSimdeuk: 120,
         requiredTier: 0,
         pointCost: 1,
@@ -207,6 +213,7 @@ export const ARTS: ArtDef[] = [
         id: 'samjae_simbeop_combat',
         name: '전투 수련',
         description: '전투 중에도 자연의 기운을 생산할 수 있게 된다',
+        flavorText: '싸우면서도 자연의 기운을 조금씩 받아들인다.',
         requiredSimdeuk: 300,
         requiredTier: 0,
         pointCost: 1,
@@ -218,6 +225,7 @@ export const ARTS: ArtDef[] = [
         id: 'samjae_simbeop_synergy',
         name: '삼재 조화',
         description: '삼재검법 장착 시: 기운 +2/초, 전투 중 기운 +10%',
+        flavorText: '검법과 심법을 함께 익혀 서로의 부족함을 메운다.',
         requiredSimdeuk: 500,
         requiredTier: 1,
         pointCost: 1,
@@ -233,6 +241,7 @@ export const ARTS: ArtDef[] = [
         id: 'samjae_simbeop_kill',
         name: '전투 심법',
         description: '처치 시 전투시간 20%에 해당하는 기운 즉시 획득. 내력 회복 +1/초.',
+        flavorText: '적을 쓰러뜨릴 때 흩어지는 기운을 거둬들인다.',
         requiredSimdeuk: 720,
         requiredTier: 2,
         pointCost: 2,
