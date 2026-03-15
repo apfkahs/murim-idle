@@ -2,6 +2,12 @@
  * 전장 데이터 (v1.0)
  */
 
+// ── 해금 조건 ──
+export interface FieldUnlockCondition {
+  bossKill?: string;   // 특정 보스 처치 시 해금 (보스 ID)
+  minTier?: number;    // 최소 경지 (tier)
+}
+
 export interface FieldDef {
   id: string;
   name: string;
@@ -11,6 +17,7 @@ export interface FieldDef {
   bossTimer?: number; // seconds
   isTraining?: boolean;
   canExplore?: boolean; // 답파 가능 여부
+  unlockCondition?: FieldUnlockCondition; // 선언적 해금 조건
 }
 
 export const FIELDS: FieldDef[] = [
@@ -42,6 +49,7 @@ export const FIELDS: FieldDef[] = [
     boss: 'bandit_leader',
     bossTimer: 60,
     canExplore: true,
+    unlockCondition: { bossKill: 'tiger_boss' },
   },
 ];
 

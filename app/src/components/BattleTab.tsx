@@ -5,7 +5,7 @@
  * DPS 제거, 타이머 기반
  */
 import { useEffect, useRef, useState } from 'react';
-import { useGameStore, getMonsterRevealLevel } from '../store/gameStore';
+import { useGameStore, getMonsterRevealLevel, calcStamina } from '../store/gameStore';
 import { getMonsterDef, YASAN_MONSTERS, INN_MONSTERS, type MonsterDef } from '../data/monsters';
 import { getArtDef } from '../data/arts';
 import { formatNumber } from '../utils/format';
@@ -285,7 +285,9 @@ function BattleScreen() {
   const bossTimer = useGameStore(s => s.bossTimer);
   const hp = useGameStore(s => s.hp);
   const maxHp = useGameStore(s => s.maxHp);
-  const neigong = useGameStore(s => s.neigong);
+  const stamina = useGameStore(s => s.stamina);
+  const stats = useGameStore(s => s.stats);
+  const qi = useGameStore(s => s.qi);
   const equippedArts = useGameStore(s => s.equippedArts);
   const equippedSimbeop = useGameStore(s => s.equippedSimbeop);
   const ownedArts = useGameStore(s => s.ownedArts);
@@ -382,6 +384,21 @@ function BattleScreen() {
               <div className="hp-bar-container">
                 <div className="hp-bar-fill" style={{ width: `${(hp / maxHp) * 100}%` }} />
               </div>
+              {/* 내력 게이지 */}
+              {(() => {
+                const maxStamina = calcStamina(stats.sim);
+                return maxStamina > 0 ? (
+                  <div style={{ marginTop: 4 }}>
+                    <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2 }}>내력 {Math.floor(stamina)}/{maxStamina}</div>
+                    <div className="hp-bar-container">
+                      <div className="hp-bar-fill" style={{
+                        width: `${(stamina / maxStamina) * 100}%`,
+                        background: 'var(--blue, #4a9eff)',
+                      }} />
+                    </div>
+                  </div>
+                ) : null;
+              })()}
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2, textAlign: 'right' }}>{enemyName}</div>
@@ -413,8 +430,8 @@ function BattleScreen() {
           <div className="info-bar-label">HP</div>
         </div>
         <div className="info-bar-item">
-          <div className="info-bar-value">{formatNumber(Math.floor(neigong))}</div>
-          <div className="info-bar-label">내공</div>
+          <div className="info-bar-value">{formatNumber(Math.floor(qi))}</div>
+          <div className="info-bar-label">기운</div>
         </div>
         <div className="info-bar-item">
           <div className="info-bar-value">{totalStats}</div>
@@ -435,9 +452,13 @@ function BattleScreen() {
       <div className="battle-log" ref={logRef} style={{ flex: 1, minHeight: 0 }}>
         {battleLog.map((log, i) => {
           let cls = 'battle-log-line';
-          if (log.startsWith('—') || log.includes('등장') || log.includes('처치') || log.includes('사냥 시작')) {
+          if (log.startsWith('비기 — 태산압정')) {
+            cls += ' log-ult-taesan';
+          } else if (log.startsWith('절초 —')) {
+            cls += ' log-ult';
+          } else if (log.startsWith('—') || log.includes('등장') || log.includes('처치') || log.includes('사냥 시작')) {
             cls += ' log-system';
-          } else if (log.includes('치명타') || log.includes('연속') || log.includes('피했다') || log.includes('📜') || log.includes('보스') || log.includes('승리') || log.includes('업적')) {
+          } else if (log.includes('치명타') || log.includes('연속') || log.includes('피했다') || log.includes('📜') || log.includes('보스') || log.includes('승리') || log.includes('업적') || log.endsWith('..')) {
             cls += ' log-gold';
           }
           return <div key={i} className={cls}>{log}</div>;
@@ -477,10 +498,10 @@ function BattleScreen() {
 function BattleResultScreen() {
   const battleResult = useGameStore(s => s.battleResult);
   const dismissBattleResult = useGameStore(s => s.dismissBattleResult);
-  const healWithNeigong = useGameStore(s => s.healWithNeigong);
+  const healWithQi = useGameStore(s => s.healWithQi);
   const hp = useGameStore(s => s.hp);
   const maxHp = useGameStore(s => s.maxHp);
-  const neigong = useGameStore(s => s.neigong);
+  const qi = useGameStore(s => s.qi);
 
   if (!battleResult) return null;
 
@@ -516,10 +537,10 @@ function BattleResultScreen() {
           </div>
           <button
             className="btn btn-small"
-            onClick={healWithNeigong}
-            disabled={neigong < 1}
+            onClick={healWithQi}
+            disabled={qi < 1}
           >
-            내공으로 HP 회복
+            기운으로 HP 회복
           </button>
         </div>
       )}

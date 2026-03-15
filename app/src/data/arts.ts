@@ -1,323 +1,255 @@
 /**
- * 무공 데이터 (v3.0)
- * 성급(grade) 제거. 점진적 성장(totalSimdeuk 기반) 체계.
- * 심화학습(MasteryDef) — discovery 필드 추가로 발견 시스템 지원.
- * 5종: 삼재검법(액티브), 삼재심법(심법), 어설픈 무당보법(패시브), 조악한 흡공술(심법), 강체술(패시브)
+ * 무공 데이터 (v4.0) — 설계서 v3 기반 전면 재작성
+ * ArtDef / MasteryDef / ArtGrowth 인터페이스
+ * 삼재검법 (주공) + 삼재심법 (심법) 2종만 존재
  */
 
 export type Faction = 'neutral' | 'righteous' | 'evil';
-export type ArtType = 'active' | 'passive';
-
-/** 점진적 성장 커브 정의 */
-export interface ArtGrowth {
-  // active arts
-  basePower?: number;
-  powerGrowth?: number;
-  maxPower?: number;
-  baseTriggerRate?: number;
-  triggerGrowth?: number;
-  maxTriggerRate?: number;
-  // simbeop (내공 심법)
-  baseNeigongPerSec?: number;
-  neigongGrowth?: number;
-  maxNeigongPerSec?: number;
-  // passive dodge
-  baseDodge?: number;
-  dodgeGrowth?: number;
-  maxDodge?: number;
-  // passive hp
-  baseHpBonus?: number;
-  hpGrowth?: number;
-  maxHpBonus?: number;
-}
-
-/** 심화학습 발견 조건 */
+export type ArtType = 'active' | 'passive' | 'simbeop';
+// ── 발견 조건 ──
 export interface MasteryDiscovery {
-  type: 'art_simdeuk' | 'monster_kill';
-  artSimdeuk?: number;        // 해당 무공 totalSimdeuk 임계값
-  monsterId?: string;         // 특정 몬스터 ID
-  monsterKillCount?: number;  // 필요 처치 수
+  type: 'simdeuk' | 'boss' | 'event';
+  threshold?: number;     // simdeuk 타입일 때 발견 심득
+  bossId?: string;        // boss 타입일 때 보스 ID
 }
 
+// ── 초(招) 효과 ──
+export interface MasteryEffects {
+  unlockUlt?: boolean;
+  bonusCritRate?: number;
+  bonusDodge?: number;
+  bonusDmgReduction?: number;
+  bonusAtkSpeed?: number;
+  bonusRegenPerSec?: number;
+  bonusQiPerSec?: number;
+  bonusCombatQiRatio?: number;
+  normalMultiplierCapIncrease?: number;
+  ultChange?: {
+    name?: string;
+    simBonusW?: number;
+    simBonusH?: number;
+  };
+  killBonusEnabled?: boolean;
+  synergyArtId?: string;
+}
+
+// ── 초(招) 정의 ──
 export interface MasteryDef {
-  stage: number;                // 1~4단계
-  requiredSimdeuk: number;      // 해당 무공의 필요 누적 심득
-  requiredTier: number;         // 필요 경지 (0 = 제한 없음)
-  pointCost: number;            // 포인트 비용
-  id: string;                   // 고유 ID
+  stage: number;
+  id: string;
   name: string;
   description: string;
-  requires?: string[];          // 전제 심화 ID
-  discovery?: MasteryDiscovery; // 발견 조건 (없으면 기본 공개)
+  requiredSimdeuk: number;
+  requiredTier: number;
+  pointCost: number;
+  requires?: string[];
+  discovery?: MasteryDiscovery;
+  effects?: MasteryEffects;
 }
 
+// ── 성장 커브 ──
+export interface ArtGrowth {
+  // 초식 배율 성장 (active)
+  baseNormalMultiplier?: number;
+  normalGrowthRate?: number;
+
+  // 심법 기운 생산 성장
+  baseQiPerSec?: number;
+  qiGrowthRate?: number;
+  maxQiPerSec?: number;
+
+  // 전투 수련 성장 (2초 해금 후)
+  baseCombatQiRatio?: number;
+  combatQiGrowthRate?: number;
+  maxCombatQiRatio?: number;
+}
+
+// ── 무공 정의 ──
 export interface ArtDef {
   id: string;
   name: string;
   faction: Faction;
-  isSimbeop: boolean;
-  artType: ArtType;        // 'active' | 'passive'
-  cost: number;            // 포인트 비용 (심법은 별개)
-  attackMessages: string[];
+  artType: ArtType;
+  cost: number;
+
+  // 초식 (심법은 생략)
+  normalMultiplierCap?: number;
+  normalMessages?: string[];
+
+  // 절초 (초(招) 해금 후)
+  ultMultiplier?: number;
+  ultCost?: number;
+  ultCooldown?: number;
+  ultMessages?: string[];
+
   growth: ArtGrowth;
   masteries: MasteryDef[];
 }
 
-/** 심득 기반 스탯 계산: base + growth * sqrt(totalSimdeuk), capped at max */
-export interface ArtStats {
-  power: number;
-  triggerRate: number;
-  neigongPerSec: number;
-  dodge: number;
-  hpBonus: number;
-}
+// ============================================================
+// 무공 데이터
+// ============================================================
 
-function growthCalc(base: number, rate: number, simdeuk: number, max: number): number {
-  const val = base + rate * Math.sqrt(simdeuk);
-  return Math.min(val, max);
-}
-
-export function getArtStats(art: ArtDef, totalSimdeuk: number): ArtStats {
-  const g = art.growth;
-  return {
-    power: g.basePower != null ? Math.floor(growthCalc(g.basePower, g.powerGrowth ?? 0, totalSimdeuk, g.maxPower ?? 999)) : 0,
-    triggerRate: g.baseTriggerRate != null ? growthCalc(g.baseTriggerRate, g.triggerGrowth ?? 0, totalSimdeuk, g.maxTriggerRate ?? 1) : 0,
-    neigongPerSec: g.baseNeigongPerSec != null ? growthCalc(g.baseNeigongPerSec, g.neigongGrowth ?? 0, totalSimdeuk, g.maxNeigongPerSec ?? 999) : 0,
-    dodge: g.baseDodge != null ? growthCalc(g.baseDodge, g.dodgeGrowth ?? 0, totalSimdeuk, g.maxDodge ?? 30) : 0,
-    hpBonus: g.baseHpBonus != null ? Math.floor(growthCalc(g.baseHpBonus, g.hpGrowth ?? 0, totalSimdeuk, g.maxHpBonus ?? 999)) : 0,
-  };
-}
-
-/**
- * Growth tuning notes:
- * - 삼재검법: power 12→48 over ~960 simdeuk. sqrt(960)≈31. rate=(48-12)/31≈1.16
- *   triggerRate 0.55→0.65 over ~960. rate=(0.65-0.55)/31≈0.003
- * - 삼재심법: neigong 1→5 over ~720. sqrt(720)≈26.8. rate=(5-1)/26.8≈0.149
- * - 무당보법: dodge 3→15 over ~1200 (base 100, grade5=2500). sqrt(1200)≈34.6. rate=(15-3)/34.6≈0.347
- * - 흡공술: neigong 3→14 over ~2400 (base 200). sqrt(2400)≈49. rate=(14-3)/49≈0.224
- * - 강체술: hp 20→110 over ~1800 (base 150). sqrt(1800)≈42.4. rate=(110-20)/42.4≈2.12
- */
 export const ARTS: ArtDef[] = [
+  // ── 삼재검법 (주공, 균형형) ──
   {
     id: 'samjae_sword',
     name: '삼재검법',
     faction: 'neutral',
-    isSimbeop: false,
     artType: 'active',
     cost: 1,
-    attackMessages: [
-      '삼재검법의 검기가 빛난다!',
-      '삼재의 이치를 담은 일격!',
-      '삼재검법으로 베어냈다!',
-    ],
+
+    normalMultiplierCap: 1.3,
+    normalMessages: ['삼재검법의 검기가 빛난다!', '삼재의 이치를 담은 일격!'],
+
+    ultMultiplier: 3.0,
+    ultCost: 30,
+    ultCooldown: 10,
+    ultMessages: ['강한 내려치기!', '묵직한 일격이 내리꽂힌다!'],
+
     growth: {
-      basePower: 12, powerGrowth: 1.16, maxPower: 48,
-      baseTriggerRate: 0.55, triggerGrowth: 0.003, maxTriggerRate: 0.65,
+      baseNormalMultiplier: 0.7,
+      // normalGrowthRate 생략 → BALANCE_PARAMS.NORMAL_GROWTH_RATE (0.02)
     },
+
     masteries: [
       {
-        stage: 1, requiredSimdeuk: 80, requiredTier: 0, pointCost: 1,
-        id: 'samjae_sword_residual',
-        name: '검기 잔류',
-        description: '무공이 발동하지 않아도 잔류하는 검기가 적을 스친다',
-        discovery: { type: 'art_simdeuk', artSimdeuk: 150 },
+        stage: 1,
+        id: 'samjae_sword_ult',
+        name: '강한 내려치기',
+        description: '절초 사용 가능. 내력이 충분하고 쿨타임이 돌아왔을 때 자동 발동.',
+        requiredSimdeuk: 150,
+        requiredTier: 0,
+        pointCost: 3,
+        discovery: { type: 'simdeuk', threshold: 80 },
+        effects: { unlockUlt: true },
       },
       {
-        stage: 2, requiredSimdeuk: 200, requiredTier: 0, pointCost: 1,
-        id: 'samjae_sword_double',
-        name: '이연격',
-        description: '간혹 검을 한 번 더 휘두를 수 있게 된다',
-        discovery: { type: 'art_simdeuk', artSimdeuk: 400 },
+        stage: 2,
+        id: 'samjae_sword_sense',
+        name: '삼재의 감각',
+        description: '치명타 확률 +5%, 회피 +5%, 데미지 감소 +5%',
+        requiredSimdeuk: 400,
+        requiredTier: 0,
+        pointCost: 1,
+        discovery: { type: 'simdeuk', threshold: 200 },
+        effects: {
+          bonusCritRate: 0.05,
+          bonusDodge: 5,
+          bonusDmgReduction: 5,
+        },
       },
       {
-        stage: 3, requiredSimdeuk: 480, requiredTier: 1, pointCost: 2,
-        id: 'samjae_sword_critical',
-        name: '파쇄',
-        description: '급소를 노리는 일격을 가할 수 있게 된다',
-        discovery: { type: 'monster_kill', monsterId: 'tiger_boss', monsterKillCount: 1 },
+        stage: 3,
+        id: 'samjae_sword_mastery',
+        name: '검의 숙련',
+        description: '초식 배율 상한 +0.5, 치명타 확률 +5%',
+        requiredSimdeuk: 500,
+        requiredTier: 1,
+        pointCost: 2,
+        discovery: { type: 'simdeuk', threshold: 500 },
+        effects: {
+          normalMultiplierCapIncrease: 0.5,
+          bonusCritRate: 0.05,
+        },
       },
       {
-        stage: 4, requiredSimdeuk: 960, requiredTier: 2, pointCost: 2,
-        id: 'samjae_sword_penetrate',
-        name: '삼재관통',
-        description: '잔류하는 검기에도 연격과 파쇄의 이치가 깃든다',
-        requires: ['samjae_sword_residual'],
-        discovery: { type: 'art_simdeuk', artSimdeuk: 800 },
+        stage: 4,
+        id: 'samjae_sword_taesan',
+        name: '비기: 태산압정',
+        description: '절초가 태산압정으로 변화. 심(心)이 절초 위력에 기여. 초식 상한 +0.5.',
+        requiredSimdeuk: 960,
+        requiredTier: 2,
+        pointCost: 3,
+        requires: ['samjae_sword_ult'],
+        discovery: { type: 'simdeuk', threshold: 800 },
+        effects: {
+          ultChange: {
+            name: '태산압정',
+            simBonusW: 1.5,
+            simBonusH: 120,
+          },
+          normalMultiplierCapIncrease: 0.5,
+        },
       },
     ],
   },
+
+  // ── 삼재심법 (심법) ──
   {
     id: 'samjae_simbeop',
     name: '삼재심법',
     faction: 'neutral',
-    isSimbeop: true,
-    artType: 'passive',
+    artType: 'simbeop',
     cost: 0,
-    attackMessages: [],
+
     growth: {
-      baseNeigongPerSec: 1, neigongGrowth: 0.149, maxNeigongPerSec: 5,
+      baseQiPerSec: 1.0,
+      maxQiPerSec: 3.0,
+      // qiGrowthRate 생략 → BALANCE_PARAMS.QI_GROWTH_RATE (0.075)
+      // baseCombatQiRatio/combatQiGrowthRate/maxCombatQiRatio 생략 → BALANCE_PARAMS 기본값
     },
+
     masteries: [
       {
-        stage: 1, requiredSimdeuk: 60, requiredTier: 0, pointCost: 1,
+        stage: 1,
+        id: 'samjae_simbeop_regen',
+        name: '기맥 순환',
+        description: '내력 회복 +1/초',
+        requiredSimdeuk: 120,
+        requiredTier: 0,
+        pointCost: 1,
+        discovery: { type: 'simdeuk', threshold: 60 },
+        effects: { bonusRegenPerSec: 1 },
+      },
+      {
+        stage: 2,
         id: 'samjae_simbeop_combat',
         name: '전투 수련',
-        description: '전투 중에도 내공이 서서히 생성된다',
-        discovery: { type: 'art_simdeuk', artSimdeuk: 120 },
+        description: '전투 중에도 자연의 기운을 생산할 수 있게 된다',
+        requiredSimdeuk: 300,
+        requiredTier: 0,
+        pointCost: 1,
+        discovery: { type: 'simdeuk', threshold: 150 },
+        // effects 없음 — 2초 해금 여부로 combatQiRatio 활성 판단
       },
       {
-        stage: 2, requiredSimdeuk: 150, requiredTier: 0, pointCost: 1,
-        id: 'samjae_simbeop_heal',
-        name: '기혈순환',
-        description: '내공으로 상처를 치유하는 효율이 향상된다',
-        discovery: { type: 'art_simdeuk', artSimdeuk: 300 },
+        stage: 3,
+        id: 'samjae_simbeop_synergy',
+        name: '삼재 조화',
+        description: '삼재검법 장착 시: 기운 +2/초, 전투 중 기운 +10%',
+        requiredSimdeuk: 500,
+        requiredTier: 1,
+        pointCost: 1,
+        discovery: { type: 'simdeuk', threshold: 400 },
+        effects: {
+          bonusQiPerSec: 2,
+          bonusCombatQiRatio: 0.10,
+          synergyArtId: 'samjae_sword',
+        },
       },
       {
-        stage: 3, requiredSimdeuk: 360, requiredTier: 1, pointCost: 2,
-        id: 'samjae_simbeop_burst',
-        name: '내공 폭발',
-        description: '수련에 집중하면 간헐적으로 내공이 폭발적으로 생성된다',
-        discovery: { type: 'monster_kill', monsterId: 'tiger_boss', monsterKillCount: 1 },
-      },
-      {
-        stage: 4, requiredSimdeuk: 720, requiredTier: 2, pointCost: 2,
-        id: 'samjae_simbeop_mastery',
-        name: '심법 대성',
-        description: '전투 중 내공 회복이 한층 더 깊어진다',
-        requires: ['samjae_simbeop_combat'],
-        discovery: { type: 'art_simdeuk', artSimdeuk: 600 },
-      },
-    ],
-  },
-  {
-    id: 'mudang_step',
-    name: '어설픈 무당보법',
-    faction: 'righteous',
-    isSimbeop: false,
-    artType: 'passive',
-    cost: 1,
-    attackMessages: [],
-    growth: {
-      baseDodge: 3, dodgeGrowth: 0.347, maxDodge: 15,
-    },
-    masteries: [
-      {
-        stage: 1, requiredSimdeuk: 100, requiredTier: 0, pointCost: 1,
-        id: 'mudang_step_gyeongbo',
-        name: '경보',
-        description: '적을 처치한 후 가벼운 발놀림으로 기력을 회복한다',
-        discovery: { type: 'art_simdeuk', artSimdeuk: 200 },
-      },
-      {
-        stage: 2, requiredSimdeuk: 250, requiredTier: 0, pointCost: 1,
-        id: 'mudang_step_simdeuk',
-        name: '심득 강화',
-        description: '몸의 움직임에서 더 깊은 깨달음을 얻는다',
-        discovery: { type: 'art_simdeuk', artSimdeuk: 500 },
-      },
-      {
-        stage: 3, requiredSimdeuk: 600, requiredTier: 1, pointCost: 2,
-        id: 'mudang_step_dodge',
-        name: '보법 숙련',
-        description: '몸놀림이 한계를 넘어 더 높은 경지에 이른다',
-        discovery: { type: 'monster_kill', monsterId: 'feiyi', monsterKillCount: 1 },
-      },
-      {
-        stage: 4, requiredSimdeuk: 1200, requiredTier: 2, pointCost: 2,
-        id: 'mudang_step_fullbody',
-        name: '무당 전신',
-        description: '적의 공격을 피할 때마다 기혈이 소량 회복된다',
-        discovery: { type: 'art_simdeuk', artSimdeuk: 1000 },
-      },
-    ],
-  },
-  {
-    id: 'heupgong',
-    name: '조악한 흡공술',
-    faction: 'evil',
-    isSimbeop: true,
-    artType: 'passive',
-    cost: 0,
-    attackMessages: [],
-    growth: {
-      baseNeigongPerSec: 3, neigongGrowth: 0.224, maxNeigongPerSec: 14,
-    },
-    masteries: [
-      {
-        stage: 1, requiredSimdeuk: 200, requiredTier: 0, pointCost: 1,
-        id: 'heupgong_combat',
-        name: '전투 수련',
-        description: '전투 중에도 주변의 기운을 흡수할 수 있다',
-        discovery: { type: 'art_simdeuk', artSimdeuk: 400 },
-      },
-      {
-        stage: 2, requiredSimdeuk: 500, requiredTier: 0, pointCost: 1,
-        id: 'heupgong_heal_enhance',
-        name: '흡혈 강화',
-        description: '적을 처치할 때 그 생명력의 일부를 빼앗는다',
-        discovery: { type: 'art_simdeuk', artSimdeuk: 800 },
-      },
-      {
-        stage: 3, requiredSimdeuk: 1200, requiredTier: 1, pointCost: 2,
-        id: 'heupgong_accel',
-        name: '흡공 가속',
-        description: '상대가 약해질수록 흡수하는 기운이 강해진다',
-        requires: ['heupgong_heal_enhance'],
-        discovery: { type: 'monster_kill', monsterId: 'bandit_leader', monsterKillCount: 1 },
-      },
-      {
-        stage: 4, requiredSimdeuk: 2400, requiredTier: 2, pointCost: 2,
-        id: 'heupgong_morale',
-        name: '사기충천',
-        description: '적을 쓰러뜨린 기세로 다음 일격이 한층 강해진다',
-        discovery: { type: 'art_simdeuk', artSimdeuk: 2000 },
-      },
-    ],
-  },
-  {
-    id: 'gangche',
-    name: '강체술',
-    faction: 'neutral',
-    isSimbeop: false,
-    artType: 'passive',
-    cost: 1,
-    attackMessages: [],
-    growth: {
-      baseHpBonus: 20, hpGrowth: 2.12, maxHpBonus: 110,
-    },
-    masteries: [
-      {
-        stage: 1, requiredSimdeuk: 150, requiredTier: 0, pointCost: 1,
-        id: 'gangche_tough',
-        name: '강인',
-        description: '단련된 육체가 적의 공격을 일부 상쇄한다',
-        discovery: { type: 'art_simdeuk', artSimdeuk: 300 },
-      },
-      {
-        stage: 2, requiredSimdeuk: 375, requiredTier: 0, pointCost: 1,
-        id: 'gangche_reinforce',
-        name: '근골강화',
-        description: '근골이 한층 단단해져 체력이 크게 상승한다',
-        discovery: { type: 'art_simdeuk', artSimdeuk: 600 },
-      },
-      {
-        stage: 3, requiredSimdeuk: 900, requiredTier: 1, pointCost: 2,
-        id: 'gangche_unyielding',
-        name: '불굴',
-        description: '궁지에 몰릴수록 더 강인해지는 의지가 피해를 줄인다',
-        requires: ['gangche_tough'],
-        discovery: { type: 'monster_kill', monsterId: 'dangkang', monsterKillCount: 1 },
-      },
-      {
-        stage: 4, requiredSimdeuk: 1800, requiredTier: 2, pointCost: 2,
-        id: 'gangche_ironwall',
-        name: '철벽지체',
-        description: '때로 적의 공격을 완전히 무시할 수 있는 경지에 이른다',
-        discovery: { type: 'art_simdeuk', artSimdeuk: 1500 },
+        stage: 4,
+        id: 'samjae_simbeop_kill',
+        name: '전투 심법',
+        description: '처치 시 전투시간 20%에 해당하는 기운 즉시 획득. 내력 회복 +1/초.',
+        requiredSimdeuk: 720,
+        requiredTier: 2,
+        pointCost: 2,
+        requires: ['samjae_simbeop_regen'],
+        discovery: { type: 'simdeuk', threshold: 600 },
+        effects: {
+          killBonusEnabled: true,
+          bonusRegenPerSec: 1,
+        },
       },
     ],
   },
 ];
+
+// ============================================================
+// Lookup helpers
+// ============================================================
 
 export function getArtDef(id: string): ArtDef | undefined {
   return ARTS.find(a => a.id === id);
@@ -325,25 +257,18 @@ export function getArtDef(id: string): ArtDef | undefined {
 
 export function getMasteryDef(artId: string, masteryId: string): MasteryDef | undefined {
   const art = getArtDef(artId);
-  if (!art) return undefined;
-  return art.masteries.find(m => m.id === masteryId);
+  return art?.masteries.find(m => m.id === masteryId);
 }
 
 export function getMasteryDefsForArt(artId: string): MasteryDef[] {
-  const art = getArtDef(artId);
-  return art?.masteries ?? [];
+  return getArtDef(artId)?.masteries ?? [];
 }
 
-/** 세이브 마이그레이션용: 기존 grade+proficiency → totalSimdeuk 역산 */
-const GRADE_COST_MULTIPLIERS = [0, 1, 2.5, 6, 12, 25];
-const BASE_SIMDEUK_COSTS: Record<string, number> = {
-  samjae_sword: 80, samjae_simbeop: 60, mudang_step: 100, heupgong: 200, gangche: 150,
-};
-export function migrateGradeToSimdeuk(artId: string, grade: number, proficiency: number): number {
-  const baseCost = BASE_SIMDEUK_COSTS[artId] ?? 100;
-  let total = 0;
-  for (let g = 2; g <= grade; g++) {
-    total += Math.floor(baseCost * GRADE_COST_MULTIPLIERS[g - 1]);
+/** 모든 무공의 모든 mastery 중 id가 일치하는 것을 찾아 [artId, MasteryDef] 반환 */
+export function findMasteryById(masteryId: string): [string, MasteryDef] | undefined {
+  for (const art of ARTS) {
+    const m = art.masteries.find(m => m.id === masteryId);
+    if (m) return [art.id, m];
   }
-  return total + proficiency;
+  return undefined;
 }

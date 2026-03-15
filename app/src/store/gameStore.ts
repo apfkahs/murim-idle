@@ -1,29 +1,23 @@
 /**
- * 무림 방치록 v3.0 — 게임 스토어 (Zustand)
- * simulateTick 순수 함수 분리. 심화학습 시스템. 저장 슬롯. 오프라인 진행.
- * v3.0: grade/proficiency → totalSimdeuk 점진 성장. 인벤토리. 심화학습 발견.
+ * 무림 방치록 v4.0 — 게임 스토어 (Zustand)
+ * Phase 2: 무공 + UI 연결. 초식/절초/초(招) 시스템 가동.
  */
 import { create } from 'zustand';
 import {
-  getArtDef, getArtStats, getMasteryDef, getMasteryDefsForArt, migrateGradeToSimdeuk,
-  type ArtDef,
+  getArtDef, getMasteryDef, getMasteryDefsForArt,
+  type ArtDef, type MasteryDef, type MasteryEffects,
 } from '../data/arts';
 import { getMonsterDef, getMonsterAttackMsg, type MonsterDef } from '../data/monsters';
 import { TIERS, getTierDef, getMaxSimdeuk } from '../data/tiers';
-import { getFieldDef, generateExploreOrder } from '../data/fields';
+import { FIELDS, getFieldDef, generateExploreOrder } from '../data/fields';
 import { ACHIEVEMENTS, type AchievementContext } from '../data/achievements';
+import { BALANCE_PARAMS } from '../data/balance';
+import { getEquipmentDef, type EquipSlot, type EquipStats, type EquipmentInstance } from '../data/equipment';
 
 // ============================================================
-// Constants
+// Constants (shorthand)
 // ============================================================
-function getResidualRatio(totalSimdeuk: number): number {
-  if (totalSimdeuk >= 1500) return 0.45;
-  if (totalSimdeuk >= 500) return 0.42;
-  if (totalSimdeuk >= 100) return 0.38;
-  return 0.35;
-}
-const COMBAT_NEIGONG_RATIO = 0.25;
-const COMBAT_NEIGONG_MASTERY_BONUS = 0.1;
+const B = BALANCE_PARAMS;
 
 // ============================================================
 // State interface
@@ -37,13 +31,18 @@ export interface InventoryItem {
 }
 
 export interface GameState {
-  neigong: number;
+  qi: number;                    // 자연의 기운 (구 neigong)
   totalSimdeuk: number;
-  totalSpentNeigong: number;
-  stats: { sungi: number; gyeongsin: number; magi: number };
+  totalSpentQi: number;          // 구 totalSpentNeigong
+  stats: { gi: number; sim: number; che: number };
   hp: number;
   maxHp: number;
   tier: number;
+
+  // 전투 자원
+  stamina: number;               // 현재 내력
+  ultCooldowns: Record<string, number>;  // 무공별 절초 쿨타임
+  currentBattleDuration: number; // 현재 적과의 전투 경과 시간
 
   equippedSimbeop: string | null;
   ownedArts: { id: string; totalSimdeuk: number }[];
@@ -82,7 +81,6 @@ export interface GameState {
   };
 
   lastTickTime: number;
-  simbeopBurstTimer: number;
   battleResult: BattleResult | null;
 
   // 전투 애니메이션 상태
@@ -91,7 +89,7 @@ export interface GameState {
   playerAnim: string;
   enemyAnim: string;
 
-  // v2.0 신규 필드
+  // v2.0+ 필드
   activeMasteries: Record<string, string[]>;
   gameSpeed: number;
   currentSaveSlot: number;
@@ -99,7 +97,10 @@ export interface GameState {
   inventory: InventoryItem[];
   discoveredMasteries: string[];
   pendingEnlightenments: { artId: string; masteryId: string; masteryName: string }[];
-  moraleBuff: number; // 사기충천 보너스 데미지 (0이면 미적용)
+
+  // 장비 시스템
+  equipment: Record<EquipSlot, EquipmentInstance | null>;
+  equipmentInventory: EquipmentInstance[];
 }
 
 export interface BattleResult {
@@ -118,7 +119,7 @@ export interface FloatingText {
 
 export interface OfflineResult {
   elapsedTime: number;
-  neigongGained: number;
+  qiGained: number;
   simdeukGained: number;
   killCount: number;
   deathCount: number;
@@ -140,8 +141,8 @@ export interface SaveMeta {
 // ============================================================
 export interface GameActions {
   tick: (forceDt?: number) => void;
-  investStat: (stat: 'sungi' | 'gyeongsin' | 'magi') => void;
-  healWithNeigong: () => void;
+  investStat: (stat: 'gi' | 'sim' | 'che') => void;
+  healWithQi: () => void;
 
   equipArt: (artId: string) => void;
   unequipArt: (artId: string) => void;
@@ -173,9 +174,12 @@ export interface GameActions {
   discardItem: (itemId: string) => void;
   dismissEnlightenment: () => void;
 
-  getNeigongPerSec: () => number;
+  equipItem: (instanceId: string) => void;
+  unequipItem: (slot: EquipSlot) => void;
+  discardEquipment: (instanceId: string) => void;
+
+  getQiPerSec: () => number;
   getAttackInterval: () => number;
-  getEvasion: () => number;
   getTotalStats: () => number;
   getStatCost: (level: number) => number;
   getUsedPoints: () => number;
@@ -189,15 +193,20 @@ export type GameStore = GameState & GameActions;
 // ============================================================
 // Initial state
 // ============================================================
-function createInitialState(): GameState {
+export function createInitialState(): GameState {
   return {
-    neigong: 0,
+    qi: 0,
     totalSimdeuk: 0,
-    totalSpentNeigong: 0,
-    stats: { sungi: 0, gyeongsin: 0, magi: 0 },
-    hp: 50,
-    maxHp: 50,
+    totalSpentQi: 0,
+    stats: { gi: 0, sim: 0, che: 0 },
+    hp: B.HP_BASE,
+    maxHp: B.HP_BASE,
     tier: 0,
+
+    stamina: 0,
+    ultCooldowns: {},
+    currentBattleDuration: 0,
+
     equippedSimbeop: null,
     ownedArts: [],
     equippedArts: [],
@@ -227,7 +236,6 @@ function createInitialState(): GameState {
       killedIron: false,
     },
     lastTickTime: Date.now(),
-    simbeopBurstTimer: 0,
     battleResult: null,
     floatingTexts: [],
     nextFloatingId: 0,
@@ -240,85 +248,242 @@ function createInitialState(): GameState {
     inventory: [],
     discoveredMasteries: [],
     pendingEnlightenments: [],
-    moraleBuff: 0,
+    equipment: { weapon: null, armor: null, gloves: null, boots: null },
+    equipmentInventory: [],
   };
 }
 
 // ============================================================
-// Helper calculations
+// 전투 수치 계산 함수 (설계서 8.3)
 // ============================================================
 
-/** v1.1 HP: 50 + floor(log2(1 + totalSpentNeigong) * 15) + hpBonus */
-function calcMaxHp(totalSpentNeigong: number, state?: GameState): number {
-  let base = 50 + Math.floor(Math.log2(1 + totalSpentNeigong) * 15);
-
-  if (state) {
-    let hpBonusTotal = 0;
-    for (const artId of state.equippedArts) {
-      const owned = state.ownedArts.find(a => a.id === artId);
-      const artDef = getArtDef(artId);
-      if (!owned || !artDef) continue;
-      const stats = getArtStats(artDef, owned.totalSimdeuk);
-      if (stats.hpBonus) hpBonusTotal += stats.hpBonus;
-    }
-    if (hpBonusTotal > 0 && hasMastery(state, 'gangche_reinforce')) {
-      hpBonusTotal = Math.floor(hpBonusTotal * 1.5);
-    }
-    base += hpBonusTotal;
-  }
-
-  return base;
+/** ATK = ATK_BASE + ATK_G_W × G/(G+ATK_G_H) + ATK_M_W × M/(M+ATK_M_H) + ATK_T_W × T/(T+ATK_T_H) */
+export function calcATK(gi: number, sim: number, che: number): number {
+  return B.ATK_BASE
+       + B.ATK_G_W * gi / (gi + B.ATK_G_H)
+       + B.ATK_M_W * sim / (sim + B.ATK_M_H)
+       + B.ATK_T_W * che / (che + B.ATK_T_H);
 }
 
-function calcStatCost(level: number): number {
-  return Math.floor(10 * Math.pow(1.15, level));
+/** CRIT_DMG = CRITD_BASE + CRITD_M_W × M/(M+CRITD_M_H) */
+export function calcCritDmg(sim: number): number {
+  return B.CRITD_BASE + B.CRITD_M_W * sim / (sim + B.CRITD_M_H);
 }
 
-/** v1.1 공격 간격: 4 / (1 + ln(1 + 경신 * 0.05)), 최소 1초 */
-function calcAttackInterval(gyeongsin: number): number {
-  const raw = 4 / (1 + Math.log(1 + gyeongsin * 0.05));
-  return Math.max(raw, 1.0);
+/** HP = HP_BASE + HP_T_W × T/(T+HP_T_H) + HP_G_W × G/(G+HP_G_H) + hpBonus */
+export function calcMaxHp(che: number, gi: number, hpBonus: number = 0): number {
+  return Math.floor(
+    B.HP_BASE
+    + B.HP_T_W * che / (che + B.HP_T_H)
+    + B.HP_G_W * gi / (gi + B.HP_G_H)
+    + hpBonus
+  );
 }
 
-/** v2.0 회피: 패시브 무공의 dodge 합산, 상한 25% (보법 숙련 시 30%) */
-function calcEvasion(stateParam: GameState): number {
-  let dodge = 0;
-  for (const artId of stateParam.equippedArts) {
-    const owned = stateParam.ownedArts.find(a => a.id === artId);
+/** STAMINA = STAM_BASE + STAM_M_W × M/(M+STAM_M_H) */
+export function calcStamina(sim: number): number {
+  return Math.floor(B.STAM_BASE + B.STAM_M_W * sim / (sim + B.STAM_M_H));
+}
+
+/** STAMINA_REGEN = REGEN_BASE + REGEN_T_W × T/(T+REGEN_T_H) */
+export function calcStaminaRegen(che: number): number {
+  return B.REGEN_BASE + B.REGEN_T_W * che / (che + B.REGEN_T_H);
+}
+
+// ============================================================
+// Mastery effects aggregation
+// ============================================================
+
+/** 해금된 MasteryDef의 effects를 순회하여 합산. synergyArtId 조건 적용. */
+export function gatherMasteryEffects(state: GameState): MasteryEffects {
+  const result: MasteryEffects = {};
+  const { activeMasteries, equippedArts, equippedSimbeop } = state;
+
+  for (const [artId, masteryIds] of Object.entries(activeMasteries)) {
     const artDef = getArtDef(artId);
-    if (!owned || !artDef) continue;
-    const stats = getArtStats(artDef, owned.totalSimdeuk);
-    if (stats.dodge) dodge += stats.dodge;
+    if (!artDef) continue;
+    // 무공이 장착 중이어야 효과 적용
+    const isEquipped = equippedArts.includes(artId) || equippedSimbeop === artId;
+    if (!isEquipped) continue;
+
+    for (const mId of masteryIds) {
+      const mDef = artDef.masteries.find(m => m.id === mId);
+      if (!mDef?.effects) continue;
+      const eff = mDef.effects;
+
+      // synergyArtId 확인
+      if (eff.synergyArtId) {
+        const synergyEquipped = equippedArts.includes(eff.synergyArtId) || equippedSimbeop === eff.synergyArtId;
+        if (!synergyEquipped) continue; // 시너지 대상 미장착 → 효과 스킵
+      }
+
+      if (eff.unlockUlt) result.unlockUlt = true;
+      if (eff.bonusCritRate) result.bonusCritRate = (result.bonusCritRate ?? 0) + eff.bonusCritRate;
+      if (eff.bonusDodge) result.bonusDodge = (result.bonusDodge ?? 0) + eff.bonusDodge;
+      if (eff.bonusDmgReduction) result.bonusDmgReduction = (result.bonusDmgReduction ?? 0) + eff.bonusDmgReduction;
+      if (eff.bonusAtkSpeed) result.bonusAtkSpeed = (result.bonusAtkSpeed ?? 0) + eff.bonusAtkSpeed;
+      if (eff.bonusRegenPerSec) result.bonusRegenPerSec = (result.bonusRegenPerSec ?? 0) + eff.bonusRegenPerSec;
+      if (eff.bonusQiPerSec) result.bonusQiPerSec = (result.bonusQiPerSec ?? 0) + eff.bonusQiPerSec;
+      if (eff.bonusCombatQiRatio) result.bonusCombatQiRatio = (result.bonusCombatQiRatio ?? 0) + eff.bonusCombatQiRatio;
+      if (eff.normalMultiplierCapIncrease) result.normalMultiplierCapIncrease = (result.normalMultiplierCapIncrease ?? 0) + eff.normalMultiplierCapIncrease;
+      if (eff.ultChange) result.ultChange = eff.ultChange; // 마지막 것이 우선
+      if (eff.killBonusEnabled) result.killBonusEnabled = true;
+    }
   }
-  let cap = 25;
-  if (hasMastery(stateParam, 'mudang_step_dodge')) cap = 30;
-  return Math.min(dodge, cap);
+  return result;
 }
 
-function calcNeigongPerSec(state: GameState): number {
-  let base = 1;
-  if (state.equippedSimbeop) {
-    const artDef = getArtDef(state.equippedSimbeop);
-    const owned = state.ownedArts.find(a => a.id === state.equippedSimbeop);
-    if (artDef && owned) {
-      const stats = getArtStats(artDef, owned.totalSimdeuk);
-      if (stats.neigongPerSec) {
-        base += stats.neigongPerSec;
+/** 장착 장비의 스탯 합산 */
+export function gatherEquipmentStats(state: GameState): EquipStats {
+  const result: EquipStats = {};
+  for (const slot of ['weapon', 'armor', 'gloves', 'boots'] as EquipSlot[]) {
+    const inst = state.equipment[slot];
+    if (!inst) continue;
+    const def = getEquipmentDef(inst.defId);
+    if (!def) continue;
+    for (const [key, val] of Object.entries(def.stats)) {
+      if (typeof val === 'number') {
+        (result as any)[key] = ((result as any)[key] ?? 0) + val;
       }
     }
   }
-  return base;
+  return result;
 }
 
-/** v2.0 심화학습 보유 체크 */
-function hasMastery(state: GameState, masteryId: string): boolean {
-  for (const [artId, mIds] of Object.entries(state.activeMasteries)) {
-    if (!mIds.includes(masteryId)) continue;
-    if (state.equippedArts.includes(artId) || state.equippedSimbeop === artId)
-      return true;
-  }
-  return false;
+/** 심법의 2초(전투 수련)가 해금되어 있는지 확인 */
+function isCombatQiUnlocked(state: GameState): boolean {
+  if (!state.equippedSimbeop) return false;
+  const masteryIds = state.activeMasteries[state.equippedSimbeop] ?? [];
+  const artDef = getArtDef(state.equippedSimbeop);
+  if (!artDef) return false;
+  // stage 2인 mastery가 해금되어 있는지
+  return artDef.masteries.some(m => m.stage === 2 && masteryIds.includes(m.id));
 }
+
+/** BASE_CRIT_RATE + 해금된 MasteryDef bonusCritRate 합산, 캡 적용 */
+export function calcCritRate(state: GameState): number {
+  const effects = gatherMasteryEffects(state);
+  return Math.min(B.BASE_CRIT_RATE + (effects.bonusCritRate ?? 0), B.CRIT_RATE_CAP);
+}
+
+/** 스탯 기반 회복 + 해금된 MasteryDef bonusRegenPerSec 합산 */
+export function calcEffectiveRegen(state: GameState): number {
+  const effects = gatherMasteryEffects(state);
+  return calcStaminaRegen(state.stats.che) + (effects.bonusRegenPerSec ?? 0);
+}
+
+/** 해금된 MasteryDef bonusDmgReduction 합산 */
+export function calcDmgReduction(state: GameState): number {
+  const effects = gatherMasteryEffects(state);
+  return effects.bonusDmgReduction ?? 0;
+}
+
+/** 해금된 MasteryDef bonusDodge 합산, DODGE_CAP 적용 */
+export function calcDodge(state: GameState): number {
+  const effects = gatherMasteryEffects(state);
+  return Math.min((effects.bonusDodge ?? 0) / 100, B.DODGE_CAP);
+}
+
+/** BASE_QI_PER_SEC + 심법 심득 성장분 + 해금된 MasteryDef bonusQiPerSec 합산 */
+export function calcQiPerSec(state: GameState): number {
+  let total = B.BASE_QI_PER_SEC;
+
+  // 심법 심득 성장분
+  if (state.equippedSimbeop) {
+    const artDef = getArtDef(state.equippedSimbeop);
+    const owned = state.ownedArts.find(a => a.id === state.equippedSimbeop);
+    if (artDef && owned && artDef.growth.baseQiPerSec != null) {
+      const rate = artDef.growth.qiGrowthRate ?? B.QI_GROWTH_RATE;
+      const grown = artDef.growth.baseQiPerSec + rate * Math.sqrt(owned.totalSimdeuk);
+      const capped = Math.min(grown, artDef.growth.maxQiPerSec ?? Infinity);
+      total += capped;
+    }
+  }
+
+  // 초(招) bonusQiPerSec
+  const effects = gatherMasteryEffects(state);
+  total += effects.bonusQiPerSec ?? 0;
+
+  return total;
+}
+
+/** 전투 중 기운 생산 비율. 2초 해금 후만 활성. */
+export function calcCombatQiRatio(state: GameState): number {
+  if (!isCombatQiUnlocked(state)) return 0;
+
+  const artDef = state.equippedSimbeop ? getArtDef(state.equippedSimbeop) : null;
+  const owned = state.equippedSimbeop ? state.ownedArts.find(a => a.id === state.equippedSimbeop) : null;
+
+  let ratio = B.COMBAT_QI_BASE;
+  if (artDef && owned) {
+    const rate = artDef.growth.combatQiGrowthRate ?? B.COMBAT_QI_GROWTH_RATE;
+    ratio = (artDef.growth.baseCombatQiRatio ?? B.COMBAT_QI_BASE) + rate * Math.sqrt(owned.totalSimdeuk);
+  }
+  const cap = artDef?.growth.maxCombatQiRatio ?? B.COMBAT_QI_CAP;
+  ratio = Math.min(ratio, cap);
+
+  // 초(招) bonusCombatQiRatio (캡 밖에서 가산)
+  const effects = gatherMasteryEffects(state);
+  ratio += effects.bonusCombatQiRatio ?? 0;
+
+  return ratio;
+}
+
+/** 무공의 초식 배율 계산 (심득 기반 성장 + 상한). artId 지정 시 해당 무공, 미지정 시 첫 번째 장착 active 무공. */
+export function calcNormalMultiplier(state: GameState, artId?: string): { multiplier: number; cap: number; artDef: ArtDef | null } {
+  // 대상 무공 찾기
+  const targetId = artId ?? state.equippedArts.find(id => {
+    const def = getArtDef(id);
+    return def && def.artType === 'active';
+  });
+  if (!targetId) return { multiplier: B.BARE_HAND_MULTIPLIER, cap: B.BARE_HAND_MULTIPLIER, artDef: null };
+
+  const artDef = getArtDef(targetId)!;
+  if (!artDef) return { multiplier: B.BARE_HAND_MULTIPLIER, cap: B.BARE_HAND_MULTIPLIER, artDef: null };
+  const owned = state.ownedArts.find(a => a.id === targetId);
+  const simdeuk = owned?.totalSimdeuk ?? 0;
+
+  const baseM = artDef.growth.baseNormalMultiplier ?? 1.0;
+  const rate = artDef.growth.normalGrowthRate ?? B.NORMAL_GROWTH_RATE;
+
+  // per-art: 해당 무공의 active mastery에서 normalMultiplierCapIncrease 직접 조회
+  const artMasteryIds = state.activeMasteries[targetId] ?? [];
+  let capIncrease = 0;
+  for (const mId of artMasteryIds) {
+    const mDef = artDef.masteries.find(m => m.id === mId);
+    capIncrease += mDef?.effects?.normalMultiplierCapIncrease ?? 0;
+  }
+  const effectiveCap = (artDef.normalMultiplierCap ?? 1.0) + capIncrease;
+
+  const multiplier = Math.min(baseM + rate * Math.sqrt(simdeuk), effectiveCap);
+  return { multiplier, cap: effectiveCap, artDef };
+}
+
+/** 장착된 무공 중 ult 가능한 첫 번째의 절초 이름 (ultChange 반영) */
+export function getActiveUltName(state: GameState): string {
+  // 장착 무공 중 ult 있는 첫 번째 찾기
+  for (const artId of state.equippedArts) {
+    const artDef = getArtDef(artId);
+    if (!artDef?.ultMultiplier) continue;
+
+    // 해당 무공의 active mastery에서 ultChange 조회
+    const artMasteryIds = state.activeMasteries[artId] ?? [];
+    for (const mId of artMasteryIds) {
+      const mDef = artDef.masteries.find(m => m.id === mId);
+      if (mDef?.effects?.ultChange?.name) return mDef.effects.ultChange.name;
+    }
+    if (artDef.ultMessages?.[0]) return artDef.ultMessages[0];
+  }
+  return '절초';
+}
+
+function calcStatCost(level: number): number {
+  return Math.floor(B.COST_BASE * Math.pow(B.COST_RATE, level));
+}
+
+// ============================================================
+// Helper functions
+// ============================================================
 
 function getTrainingSimdeuk(state: GameState, monsterId: string): number {
   if ((state.killCounts[monsterId] ?? 0) > 0) return 0;
@@ -326,7 +491,7 @@ function getTrainingSimdeuk(state: GameState, monsterId: string): number {
   return mon?.simdeuk ?? 0;
 }
 
-function spawnEnemy(monDef: MonsterDef): GameState['currentEnemy'] {
+export function spawnEnemy(monDef: MonsterDef): GameState['currentEnemy'] {
   return {
     id: monDef.id,
     hp: monDef.hp,
@@ -345,7 +510,7 @@ function buildAchievementContext(state: GameState): AchievementContext {
     bossKillCounts: state.bossKillCounts,
     ownedArts: state.ownedArts.map(a => a.id),
     artSimdeuks,
-    totalStats: state.stats.sungi + state.stats.gyeongsin + state.stats.magi,
+    totalStats: state.stats.gi + state.stats.sim + state.stats.che,
     totalSimdeuk: state.totalSimdeuk,
     tier: state.tier,
     achievements: state.achievements,
@@ -371,116 +536,26 @@ function calcUsedPoints(state: GameState): number {
   return used;
 }
 
-/**
- * v2.0 무공 발동 로직
- * 반환에 isResidual 추가
- */
-function executeAttack(
-  state: GameState,
-  _enemyId: string,
-): { artDef: ArtDef | null; damage: number; isCritical: boolean; isDouble: boolean; artName: string; isResidual: boolean; usedMorale: boolean } {
-  // 장착 액티브 무공 후보 수집
-  const candidates: { artDef: ArtDef; owned: { totalSimdeuk: number } }[] = [];
-  for (const artId of state.equippedArts) {
-    const artDef = getArtDef(artId);
-    const owned = state.ownedArts.find(a => a.id === artId);
-    if (!artDef || !owned) continue;
-    if (artDef.artType !== 'active') continue;
-    candidates.push({ artDef, owned });
-  }
-
-  let fired = false;
-  let damage = 5; // 평타
-  let artName = '평타';
-  let firedArtDef: ArtDef | null = null;
-  let isCritical = false;
-  let isDouble = false;
-  let isResidual = false;
-
-  // 랜덤 순서로 발동 시도
-  const pool = [...candidates];
-  while (pool.length > 0 && !fired) {
-    const idx = Math.floor(Math.random() * pool.length);
-    const { artDef, owned } = pool.splice(idx, 1)[0];
-    const artStats = getArtStats(artDef, owned.totalSimdeuk);
-    if (!artStats.triggerRate || !artStats.power) continue;
-
-    if (Math.random() < artStats.triggerRate) {
-      damage = artStats.power;
-
-      // 진영 배율
-      if (artDef.faction === 'righteous') {
-        damage *= (1 + state.stats.sungi * 0.02);
-      } else if (artDef.faction === 'evil') {
-        damage *= (1 + state.stats.magi * 0.02);
-      } else {
-        damage *= (1 + state.stats.sungi * 0.01 + state.stats.magi * 0.01);
-      }
-
-      artName = artDef.name;
-      firedArtDef = artDef;
-      fired = true;
-    }
-  }
-
-  // 미발동 시 검기 잔류
-  if (!fired) {
-    if (hasMastery(state, 'samjae_sword_residual')) {
-      const swordOwned = state.ownedArts.find(a => a.id === 'samjae_sword');
-      const swordDef = getArtDef('samjae_sword');
-      if (swordOwned && swordDef) {
-        const swordStats = getArtStats(swordDef, swordOwned.totalSimdeuk);
-        if (swordStats.power) {
-          const ratio = getResidualRatio(swordOwned.totalSimdeuk);
-          damage = Math.floor(swordStats.power * ratio);
-          artName = '검기 잔류';
-          isResidual = true;
-        }
-      }
-    }
-    // else damage = 5 (기존 평타)
-  }
-
-  // 사기충천 보너스
-  const usedMorale = state.moraleBuff > 0;
-  if (state.moraleBuff > 0) {
-    damage += state.moraleBuff;
-  }
-
-  // 이연격/파쇄 판정
-  const canProc = fired || (isResidual && hasMastery(state, 'samjae_sword_penetrate'));
-  if (canProc && hasMastery(state, 'samjae_sword_critical') && Math.random() < 0.03) {
-    damage *= 1.3;
-    isCritical = true;
-  }
-  if (canProc && hasMastery(state, 'samjae_sword_double') && Math.random() < 0.05) {
-    damage *= 2;
-    isDouble = true;
-  }
-
-  damage = Math.floor(damage);
-
-  return { artDef: firedArtDef, damage, isCritical, isDouble, artName, isResidual, usedMorale };
-}
-
 // ============================================================
-// simulateTick — 순수 함수
+// simulateTick — 순수 함수 (설계서 8.4~8.6)
 // ============================================================
-function simulateTick(state: GameState, dt: number, isSimulating: boolean): Partial<GameState> {
+export function simulateTick(state: GameState, dt: number, isSimulating: boolean): Partial<GameState> {
   let {
-    neigong, hp, maxHp, battleMode, currentEnemy,
+    qi, hp, maxHp, battleMode, currentEnemy,
     exploreStep, exploreOrder, isBossPhase, bossTimer,
     explorePendingRewards, battleLog, currentField,
     killCounts, bossKillCounts, totalSimdeuk, totalYasanKills,
     ownedArts, equippedArts, equippedSimbeop,
-    simbeopBurstTimer, battleResult, hiddenEncountered,
-    huntTarget, totalSpentNeigong,
+    battleResult, hiddenEncountered,
+    huntTarget, totalSpentQi,
     playerAttackTimer, enemyAttackTimer,
     floatingTexts, nextFloatingId, playerAnim, enemyAnim,
     fieldUnlocks, inventory,
     discoveredMasteries, pendingEnlightenments,
-    moraleBuff,
+    stamina, currentBattleDuration,
   } = state;
+  let equipmentInventory = [...state.equipmentInventory];
+  let ultCooldowns = { ...state.ultCooldowns };
   const stats = { ...state.stats };
 
   // Clone mutable
@@ -508,49 +583,57 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
 
   const isBattling = battleMode !== 'none';
 
-  // stateForCheck: hasMastery 등에서 사용할 상태 (activeMasteries는 변하지 않으므로 원래 state 사용 가능)
-  // 단, equippedArts/equippedSimbeop도 tick 중 변하지 않으므로 state를 그대로 사용
-  const stateForCheck = state;
+  // 전투 수치 계산
+  const { gi, sim, che } = stats;
+  const equipStats = gatherEquipmentStats(state);
+  const atk = calcATK(gi, sim, che) + (equipStats.bonusAtk ?? 0);
+  const critDmg = calcCritDmg(sim);
+  const critRate = Math.min(
+    calcCritRate(state) + (equipStats.bonusCritRate ?? 0),
+    B.CRIT_RATE_CAP
+  );
+  const masteryDodge = calcDodge(state);
+  const dodgeRate = Math.min(
+    masteryDodge + (equipStats.bonusDodge ?? 0) / 100,
+    B.DODGE_CAP
+  );
+  const dmgReduction = calcDmgReduction(state) + (equipStats.bonusDmgReduction ?? 0);
+  const maxStamina = calcStamina(sim);
+  const effectiveRegen = calcEffectiveRegen(state);
+  const qiPerSec = calcQiPerSec(state);
+  const combatQiRatio = calcCombatQiRatio(state);
+  const masteryEffects = isBattling ? gatherMasteryEffects(state) : null;
 
-  // 1) 내공 생산 (전투 외)
+  // 1) 기운 생산 (비전투)
   if (!isBattling) {
-    const neigongRate = calcNeigongPerSec(state);
-    neigong += neigongRate * dt;
+    qi += qiPerSec * dt;
   }
 
-  // 1-1) 전투 중 내공 생산 (심화학습)
-  if (isBattling) {
-    let combatRatio = 0;
-    if (hasMastery(stateForCheck, 'samjae_simbeop_combat')) combatRatio = COMBAT_NEIGONG_RATIO;
-    if (hasMastery(stateForCheck, 'heupgong_combat')) combatRatio = COMBAT_NEIGONG_RATIO;
-    if (hasMastery(stateForCheck, 'samjae_simbeop_mastery')) combatRatio += COMBAT_NEIGONG_MASTERY_BONUS;
-    if (combatRatio > 0) {
-      const neigongRate = calcNeigongPerSec(stateForCheck);
-      neigong += neigongRate * combatRatio * dt;
-    }
+  // 1-1) 전투 중 기운 생산
+  if (isBattling && combatQiRatio > 0) {
+    qi += qiPerSec * combatQiRatio * dt;
   }
 
-  // 2) 심법 패시브 타이머 (neigong_burst: 60초마다, 비전투 시에만)
-  if (!isBattling && equippedSimbeop) {
-    if (hasMastery(stateForCheck, 'samjae_simbeop_burst')) {
-      simbeopBurstTimer += dt;
-      if (simbeopBurstTimer >= 60) {
-        const rate = calcNeigongPerSec(state);
-        neigong += rate * 8;
-        simbeopBurstTimer -= 60;
-        battleLog.push(`심법 폭발! 내공 +${(rate * 8).toFixed(0)}`);
-      }
-    }
-  }
-
-  // 3) HP 자동회복 (전투 외)
+  // 2) HP 자동회복 (전투 외)
   if (!isBattling) {
-    maxHp = calcMaxHp(totalSpentNeigong, state);
+    maxHp = calcMaxHp(che, gi, equipStats.bonusHp ?? 0);
     hp = Math.min(hp + maxHp * 0.05 * dt, maxHp);
   }
 
-  // 4) 전투 (타이머 기반)
+  // 3) 전투 (타이머 기반)
   if (isBattling && currentEnemy) {
+    // 전투 경과 시간 추적
+    currentBattleDuration += dt;
+
+    // 내력 회복
+    stamina = Math.min(stamina + effectiveRegen * dt, maxStamina);
+
+    // 절초 쿨타임 감소 (무공별 독립)
+    for (const artId of Object.keys(ultCooldowns)) {
+      ultCooldowns[artId] -= dt;
+      if (ultCooldowns[artId] <= 0) delete ultCooldowns[artId];
+    }
+
     // 적 회복
     if (currentEnemy.regen > 0) {
       currentEnemy = { ...currentEnemy };
@@ -563,47 +646,124 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
     // 플레이어 공격 타이머
     playerAttackTimer -= dt;
     if (playerAttackTimer <= 0) {
-      const attackInterval = calcAttackInterval(stats.gyeongsin);
+      const atkSpeedBonus = (masteryEffects?.bonusAtkSpeed ?? 0) + (equipStats.bonusAtkSpeed ?? 0);
+      const attackInterval = Math.max(B.BASE_ATTACK_INTERVAL - atkSpeedBonus, B.ATK_SPEED_MIN);
       playerAttackTimer += attackInterval;
 
-      // 무공 발동 로직
       currentEnemy = { ...currentEnemy };
-      const result = executeAttack({ ...state, moraleBuff }, currentEnemy.id);
-      currentEnemy.hp -= result.damage;
 
-      // 사기충천 사용 후 초기화
-      if (result.usedMorale) {
-        moraleBuff = 0;
+      const effects = masteryEffects!;
+      const { activeMasteries } = state;
+
+      let damage: number;
+      let isCritical = false;
+      let attackName = '평타';
+      let isUlt = false;
+
+      // 절초 판정: 무공별 독립 (장착 무공 중 절초 발동 가능 후보 필터링)
+      const ultCandidates = equippedArts.filter(artId => {
+        const def = getArtDef(artId);
+        if (!def?.ultMultiplier || def.ultCost == null) return false;
+        const artActiveMasteries = activeMasteries[artId] ?? [];
+        const hasUltUnlock = def.masteries.some(m =>
+          artActiveMasteries.includes(m.id) && m.effects?.unlockUlt);
+        if (!hasUltUnlock) return false;
+        return stamina >= def.ultCost! && (ultCooldowns[artId] ?? 0) <= 0;
+      });
+
+      if (ultCandidates.length > 0) {
+        // 절초 발동 (후보 중 랜덤 1개)
+        const chosenId = ultCandidates[Math.floor(Math.random() * ultCandidates.length)];
+        const chosenDef = getArtDef(chosenId)!;
+
+        isUlt = true;
+        let ultMult = chosenDef.ultMultiplier!;
+
+        // ultChange: 해당 무공의 active mastery에서 직접 조회 (per-art)
+        const artMasteryIds = activeMasteries[chosenId] ?? [];
+        let ultChangeName: string | undefined;
+        for (const mId of artMasteryIds) {
+          const mDef = chosenDef.masteries.find(m => m.id === mId);
+          if (mDef?.effects?.ultChange) {
+            if (mDef.effects.ultChange.simBonusW) {
+              ultMult += mDef.effects.ultChange.simBonusW * sim / (sim + (mDef.effects.ultChange.simBonusH ?? 120));
+            }
+            ultChangeName = mDef.effects.ultChange.name;
+          }
+        }
+
+        damage = atk * ultMult;
+        stamina -= chosenDef.ultCost!;
+        ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
+        attackName = ultChangeName ?? chosenDef.ultMessages?.[0] ?? '절초';
+      } else {
+        // 일반 초식: 균등 랜덤 (모든 장착 active 무공)
+        const activeCandidates = equippedArts
+          .map(id => ({ id, def: getArtDef(id)!, owned: ownedArts.find(a => a.id === id) }))
+          .filter(x => x.def && x.def.artType === 'active' && x.owned);
+
+        if (activeCandidates.length > 0) {
+          const chosen = activeCandidates[Math.floor(Math.random() * activeCandidates.length)];
+          const baseM = chosen.def.growth.baseNormalMultiplier ?? 1.0;
+          const rate = chosen.def.growth.normalGrowthRate ?? B.NORMAL_GROWTH_RATE;
+
+          // normalMultiplierCapIncrease: 해당 무공의 mastery에서 직접 조회 (per-art)
+          const artMasteryIds = activeMasteries[chosen.id] ?? [];
+          let capIncrease = 0;
+          for (const mId of artMasteryIds) {
+            const mDef = chosen.def.masteries.find(m => m.id === mId);
+            capIncrease += mDef?.effects?.normalMultiplierCapIncrease ?? 0;
+          }
+          const effectiveCap = (chosen.def.normalMultiplierCap ?? 1.0) + capIncrease;
+          const normalMult = Math.min(baseM + rate * Math.sqrt(chosen.owned!.totalSimdeuk), effectiveCap);
+
+          damage = atk * normalMult;
+
+          // 초식 메시지 랜덤 선택
+          if (chosen.def.normalMessages && chosen.def.normalMessages.length > 0) {
+            attackName = chosen.def.normalMessages[Math.floor(Math.random() * chosen.def.normalMessages.length)];
+          } else {
+            attackName = chosen.def.name;
+          }
+        } else {
+          // 무공 없음: 평타
+          damage = atk * B.BARE_HAND_MULTIPLIER;
+        }
       }
+
+      // 치명타 판정
+      if (Math.random() < critRate) {
+        damage *= critDmg / 100;
+        isCritical = true;
+      }
+
+      damage = Math.floor(damage);
+      currentEnemy.hp -= damage;
 
       // 로그 생성
       const monDef = getMonsterDef(currentEnemy.id);
       const eName = monDef?.name ?? currentEnemy.id;
 
-      if (result.isCritical) {
-        battleLog.push(`치명타! ${result.artName}으로 ${eName}에게 ${result.damage} 피해!`);
-      } else if (result.isDouble) {
-        battleLog.push(`연속 공격! ${result.artName}으로 ${eName}에게 ${result.damage} 피해!`);
-      } else if (result.isResidual) {
-        battleLog.push(`검기 잔류로 ${eName}에게 ${result.damage} 피해.`);
-      } else if (result.artDef) {
-        const msgs = result.artDef.attackMessages;
-        if (msgs && msgs.length > 0) {
-          const tmpl = msgs[Math.floor(Math.random() * msgs.length)];
-          battleLog.push(`${tmpl} ${eName}에게 ${result.damage} 피해.`);
+      if (isUlt) {
+        // 절초 로그 (강조)
+        if (attackName === '태산압정') {
+          battleLog.push(`비기 — 태산압정! ${eName}에게 ${damage}의 거대한 충격!`);
         } else {
-          battleLog.push(`${result.artName}으로 ${eName}에게 ${result.damage} 피해를 입혔다.`);
+          battleLog.push(`절초 — ${attackName}! ${eName}에게 ${damage} 피해!`);
         }
+      } else if (isCritical) {
+        battleLog.push(`치명타! ${attackName} ${eName}에게 ${damage} 피해!`);
       } else {
-        battleLog.push(`평타로 ${eName}에게 ${result.damage} 피해를 입혔다.`);
+        battleLog.push(`${attackName} ${eName}에게 ${damage} 피해를 입혔다.`);
       }
 
       if (!isSimulating) {
-        // 플로팅 텍스트
-        if (result.isCritical) {
-          floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: `${result.damage} 치명타!`, type: 'critical' as const, timestamp: Date.now() }];
-        } else if (result.damage > 0) {
-          floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: `${result.damage}`, type: 'damage' as const, timestamp: Date.now() }];
+        if (isUlt) {
+          floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: `${damage} 절초!`, type: 'critical' as const, timestamp: Date.now() }];
+        } else if (isCritical) {
+          floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: `${damage} 치명타!`, type: 'critical' as const, timestamp: Date.now() }];
+        } else if (damage > 0) {
+          floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: `${damage}`, type: 'damage' as const, timestamp: Date.now() }];
         }
         if (floatingTexts.length > 15) floatingTexts = floatingTexts.slice(-15);
         playerAnim = 'attack';
@@ -633,9 +793,6 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
           simdeuk = getTrainingSimdeuk(state, monDef.id);
           if (killCounts[monDef.id] > 1) simdeuk = 0;
         }
-        if (hasMastery(stateForCheck, 'mudang_step_simdeuk')) {
-          simdeuk = Math.floor(simdeuk * 1.05);
-        }
 
         // 드롭
         const drops: string[] = [];
@@ -655,7 +812,33 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
           }
         }
 
-        // 심화학습 발견 체크
+        // 장비 드롭 처리
+        if (monDef.equipDrops) {
+          for (const eqDrop of monDef.equipDrops) {
+            if (Math.random() < eqDrop.chance) {
+              const eqDef = getEquipmentDef(eqDrop.equipId);
+              if (eqDef) {
+                const instance: EquipmentInstance = {
+                  instanceId: `eq_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                  defId: eqDrop.equipId,
+                  obtainedFrom: monDef.id,
+                  obtainedAt: Date.now(),
+                };
+                equipmentInventory.push(instance);
+                battleLog.push(`${eqDef.name}을(를) 획득했다!`);
+              }
+            }
+          }
+        }
+
+        // 처치 시 기운 보너스 (4초 전투 심법)
+        if (masteryEffects?.killBonusEnabled && combatQiRatio > 0) {
+          const combatQiRate = qiPerSec * combatQiRatio;
+          const bonusQi = combatQiRate * currentBattleDuration * B.KILL_BONUS_RATIO;
+          qi += bonusQi;
+        }
+
+        // 초(招) 발견 체크 (새 discovery 포맷)
         const allArts = [...new Set([...equippedArts, ...(equippedSimbeop ? [equippedSimbeop] : [])])];
         for (const artId of allArts) {
           const artDef = getArtDef(artId);
@@ -665,10 +848,10 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
             if (!m.discovery) continue;
             if (discoveredMasteries.includes(m.id)) continue;
             let discovered = false;
-            if (m.discovery.type === 'art_simdeuk' && m.discovery.artSimdeuk != null) {
-              if (artOwned.totalSimdeuk >= m.discovery.artSimdeuk) discovered = true;
-            } else if (m.discovery.type === 'monster_kill' && m.discovery.monsterId) {
-              if ((killCounts[m.discovery.monsterId] ?? 0) >= (m.discovery.monsterKillCount ?? 1)) discovered = true;
+            if (m.discovery.type === 'simdeuk' && m.discovery.threshold != null) {
+              if (artOwned.totalSimdeuk >= m.discovery.threshold) discovered = true;
+            } else if (m.discovery.type === 'boss' && m.discovery.bossId) {
+              if ((bossKillCounts[m.discovery.bossId] ?? 0) >= 1) discovered = true;
             }
             if (discovered) {
               discoveredMasteries.push(m.id);
@@ -678,26 +861,18 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
           }
         }
 
-        // 흡혈 (heupgong_heal_enhance 통합)
-        if (hasMastery(stateForCheck, 'heupgong_heal_enhance')) {
-          let healRate = 0.04;
-          if (hasMastery(stateForCheck, 'heupgong_accel')) {
-            healRate += 0.02;
+        // 선언적 전장 해금: unlockCondition 체크
+        if (monDef.isBoss) {
+          for (const field of FIELDS) {
+            if (fieldUnlocks[field.id]) continue;
+            const cond = field.unlockCondition;
+            if (!cond) continue;
+            const bossOk = !cond.bossKill || cond.bossKill === monDef.id;
+            const tierOk = cond.minTier == null || state.tier >= cond.minTier;
+            if (bossOk && tierOk) {
+              fieldUnlocks[field.id] = true;
+            }
           }
-          hp = Math.min(hp + maxHp * healRate, maxHp);
-        }
-
-        // 사기충천: 처치 시 다음 1회 공격에 심득의 15% 가산
-        if (hasMastery(stateForCheck, 'heupgong_morale') && monDef.simdeuk > 0) {
-          moraleBuff = Math.floor(monDef.simdeuk * 0.15);
-          if (moraleBuff > 0) {
-            battleLog.push(`사기충천! 다음 공격에 +${moraleBuff} 위력 가산!`);
-          }
-        }
-
-        // 곰 처치 시 inn 해금
-        if (monDef.id === 'bear' && !fieldUnlocks.inn) {
-          fieldUnlocks.inn = true;
         }
 
         if (battleMode === 'explore') {
@@ -711,10 +886,12 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
             if (nextMon) {
               currentEnemy = spawnEnemy(nextMon);
               exploreStep = nextStep;
+              currentBattleDuration = 0;
+              stamina = 0;
+              ultCooldowns = {};
               battleLog.push(`— ${nextMon.name} 등장 —`);
               if (nextMon.isHidden) hiddenEncountered = true;
-              const pInterval = calcAttackInterval(stats.gyeongsin);
-              playerAttackTimer = pInterval;
+              playerAttackTimer = B.BASE_ATTACK_INTERVAL;
               enemyAttackTimer = nextMon.attackInterval;
             }
           } else if (!isBossPhase) {
@@ -725,16 +902,18 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
                 isBossPhase = true;
                 bossTimer = field.bossTimer ?? 60;
                 currentEnemy = spawnEnemy(bossMon);
+                currentBattleDuration = 0;
+                stamina = 0;
+                ultCooldowns = {};
                 battleLog.push(`— 보스 등장! ${bossMon.name}이(가) 나타났다! —`);
-                const pInterval = calcAttackInterval(stats.gyeongsin);
-                playerAttackTimer = pInterval;
+                playerAttackTimer = B.BASE_ATTACK_INTERVAL;
                 enemyAttackTimer = bossMon.attackInterval;
               }
             }
           } else {
             // 보스 처치 성공
             totalSimdeuk += explorePendingRewards.simdeuk;
-            applySimdeuk(ownedArts, equippedArts, equippedSimbeop, explorePendingRewards.simdeuk, state.tier);
+            applySimdeuk(ownedArts, equippedArts, equippedSimbeop, explorePendingRewards.simdeuk, state.tier, battleLog);
 
             battleResult = {
               type: 'explore_win',
@@ -744,31 +923,23 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
             };
             battleMode = 'none';
             currentEnemy = null;
+            stamina = 0;
+            ultCooldowns = {};
+            currentBattleDuration = 0;
             battleLog.push('답파 승리!');
-
-            // 경보: 보스 처치 후 HP 5% 회복
-            if (hasMastery(stateForCheck, 'mudang_step_gyeongbo')) {
-              hp = Math.min(hp + maxHp * 0.05, maxHp);
-            }
-
-            // 산군 첫 클리어 (기존 inn 해금 조건이었으나 곰 처치로 완화됨)
           }
         } else if (battleMode === 'hunt') {
           totalSimdeuk += simdeuk;
-          applySimdeuk(ownedArts, equippedArts, equippedSimbeop, simdeuk, state.tier);
+          applySimdeuk(ownedArts, equippedArts, equippedSimbeop, simdeuk, state.tier, battleLog);
           battleLog.push(`— ${monDef.name} 처치. 심득 +${simdeuk} —`);
-
-          // hunt 킬 시 경보 HP 회복
-          if (hasMastery(stateForCheck, 'mudang_step_gyeongbo')) {
-            hp = Math.min(hp + maxHp * 0.05, maxHp);
-          }
 
           if (huntTarget) {
             const nextMon = getMonsterDef(huntTarget);
             if (nextMon) {
               currentEnemy = spawnEnemy(nextMon);
-              const pInterval = calcAttackInterval(stats.gyeongsin);
-              playerAttackTimer = pInterval;
+              // hunt: 내력 유지 (지정 사냥 중 몬스터 간 내력 유지)
+              currentBattleDuration = 0;
+              playerAttackTimer = B.BASE_ATTACK_INTERVAL;
               enemyAttackTimer = nextMon.attackInterval;
             }
           }
@@ -781,40 +952,20 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
         if (enemyAttackTimer <= 0) {
           enemyAttackTimer += currentEnemy.attackInterval;
 
-          const dodge = calcEvasion(stateForCheck);
-          if (Math.random() * 100 < dodge) {
+          // 회피 판정 (설계서 5.5)
+          if (Math.random() < dodgeRate) {
             // 회피 성공
             const monDef = getMonsterDef(currentEnemy.id);
             const eName = monDef?.name ?? currentEnemy.id;
             battleLog.push(`${eName}의 공격을 가볍게 피했다!`);
-
-            // 무당 전신: 회피 시 HP 1% 회복
-            if (hasMastery(stateForCheck, 'mudang_step_fullbody')) {
-              hp = Math.min(hp + maxHp * 0.01, maxHp);
-            }
 
             if (!isSimulating) {
               floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: '회피!', type: 'evade' as const, timestamp: Date.now() }];
               if (floatingTexts.length > 15) floatingTexts = floatingTexts.slice(-15);
             }
           } else {
-            // 피격
-            let incomingDmg = currentEnemy.attackPower;
-
-            // 철벽지체: 3% 완전 무효화
-            if (hasMastery(stateForCheck, 'gangche_ironwall') && Math.random() < 0.03) {
-              incomingDmg = 0;
-              battleLog.push('철벽지체! 피해를 완전히 무효화했다!');
-            } else {
-              // 강인: 5% 피해 감소
-              if (hasMastery(stateForCheck, 'gangche_tough')) {
-                incomingDmg = Math.floor(incomingDmg * 0.95);
-              }
-              // 불굴: HP 30% 이하일 때 추가 10% 감소
-              if (hasMastery(stateForCheck, 'gangche_unyielding') && hp <= maxHp * 0.3) {
-                incomingDmg = Math.floor(incomingDmg * 0.90);
-              }
-            }
+            // 피격: 피해 = 적 공격력 × (1 - dmgReduction / 100)
+            const incomingDmg = Math.floor(currentEnemy.attackPower * (1 - dmgReduction / 100));
 
             hp -= incomingDmg;
 
@@ -853,11 +1004,9 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
       }
       battleMode = 'none';
       currentEnemy = null;
-
-      // 경보: 사망 후 HP 5% 회복
-      if (hasMastery(stateForCheck, 'mudang_step_gyeongbo')) {
-        hp = Math.min(hp + maxHp * 0.05, maxHp);
-      }
+      stamina = 0;
+      ultCooldowns = {};
+      currentBattleDuration = 0;
     }
 
     // 보스 타이머
@@ -872,15 +1021,17 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
         };
         battleMode = 'none';
         currentEnemy = null;
+        stamina = 0;
+        ultCooldowns = {};
+        currentBattleDuration = 0;
       }
     }
   }
 
-  // 5) 업적 체크
+  // 4) 업적 체크
   let achievements = [...state.achievements];
   let artPoints = state.artPoints;
 
-  // isSimulating 시 업적 체크 빈도 조절은 호출자 측에서 처리
   const ctx = buildAchievementContext({
     ...state, killCounts, bossKillCounts, ownedArts,
     totalSimdeuk, achievements, hiddenEncountered,
@@ -907,17 +1058,18 @@ function simulateTick(state: GameState, dt: number, isSimulating: boolean): Part
   }
 
   const result: Partial<GameState> = {
-    neigong, hp, maxHp, battleMode, currentEnemy,
+    qi, hp, maxHp, battleMode, currentEnemy,
     exploreStep, exploreOrder, isBossPhase, bossTimer,
     explorePendingRewards, battleLog, killCounts,
     bossKillCounts, totalSimdeuk, totalYasanKills,
-    ownedArts, simbeopBurstTimer, battleResult,
+    ownedArts, battleResult,
     achievements, artPoints, hiddenEncountered,
-    tutorialFlags, totalSpentNeigong,
+    tutorialFlags, totalSpentQi,
     playerAttackTimer, enemyAttackTimer,
     fieldUnlocks, inventory,
     discoveredMasteries, pendingEnlightenments,
-    moraleBuff,
+    stamina, ultCooldowns, currentBattleDuration,
+    equipmentInventory,
   };
 
   if (!isSimulating) {
@@ -939,12 +1091,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // ─────────────────────────────────────────────
   // Helpers
   // ─────────────────────────────────────────────
-  getNeigongPerSec: () => calcNeigongPerSec(get()),
-  getAttackInterval: () => calcAttackInterval(get().stats.gyeongsin),
-  getEvasion: () => calcEvasion(get()),
+  getQiPerSec: () => calcQiPerSec(get()),
+  getAttackInterval: () => {
+    const state = get();
+    const effects = gatherMasteryEffects(state);
+    const equipStats = gatherEquipmentStats(state);
+    const bonus = (effects.bonusAtkSpeed ?? 0) + (equipStats.bonusAtkSpeed ?? 0);
+    return Math.max(B.BASE_ATTACK_INTERVAL - bonus, B.ATK_SPEED_MIN);
+  },
   getTotalStats: () => {
     const s = get().stats;
-    return s.sungi + s.gyeongsin + s.magi;
+    return s.gi + s.sim + s.che;
   },
   getStatCost: (level: number) => calcStatCost(level),
   getUsedPoints: () => calcUsedPoints(get()),
@@ -972,42 +1129,38 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const level = state.stats[stat];
     const cost = calcStatCost(level);
-    if (state.neigong < cost) return;
+    if (state.qi < cost) return;
 
     const newStats = { ...state.stats, [stat]: level + 1 };
-    const newTotalSpent = state.totalSpentNeigong + cost;
-    const newMaxHp = calcMaxHp(newTotalSpent, state);
+    const newTotalSpent = state.totalSpentQi + cost;
+    const eqStats = gatherEquipmentStats(state);
+    const newMaxHp = calcMaxHp(newStats.che, newStats.gi, eqStats.bonusHp ?? 0);
 
     set({
-      neigong: state.neigong - cost,
+      qi: state.qi - cost,
       stats: newStats,
-      totalSpentNeigong: newTotalSpent,
+      totalSpentQi: newTotalSpent,
       maxHp: newMaxHp,
       hp: Math.min(state.hp, newMaxHp),
     });
   },
 
   // ─────────────────────────────────────────────
-  // HP heal with neigong
+  // HP heal with qi
   // ─────────────────────────────────────────────
-  healWithNeigong: () => {
+  healWithQi: () => {
     const state = get();
     if (state.battleMode !== 'none') return;
     if (state.hp >= state.maxHp) return;
 
     const missing = state.maxHp - state.hp;
-    const healAmount = Math.min(missing, state.neigong);
+    const healAmount = Math.min(missing, state.qi);
     if (healAmount <= 0) return;
 
-    let bonus = 0;
-    if (hasMastery(state, 'samjae_simbeop_heal')) {
-      bonus = Math.floor(healAmount * 0.05);
-    }
-
-    const totalHeal = Math.min(healAmount + bonus, missing);
+    const totalHeal = Math.min(healAmount, missing);
 
     set({
-      neigong: state.neigong - healAmount,
+      qi: state.qi - healAmount,
       hp: Math.min(state.hp + totalHeal, state.maxHp),
     });
   },
@@ -1020,7 +1173,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (state.battleMode !== 'none') return;
 
     const artDef = getArtDef(artId);
-    if (!artDef || artDef.isSimbeop) return;
+    if (!artDef || artDef.artType === 'simbeop') return;
 
     const owned = state.ownedArts.find(a => a.id === artId);
     if (!owned) return;
@@ -1051,7 +1204,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (state.battleMode !== 'none') return;
 
     const artDef = getArtDef(artId);
-    if (!artDef || !artDef.isSimbeop) return;
+    if (!artDef || artDef.artType !== 'simbeop') return;
 
     const owned = state.ownedArts.find(a => a.id === artId);
     if (!owned) return;
@@ -1059,7 +1212,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const flags = { ...state.tutorialFlags };
     if (artId === 'samjae_simbeop') flags.equippedSimbeop = true;
 
-    // fieldUnlocks.yasan도 동시에 세팅
     const fieldUnlocksUpdate: Record<string, boolean> = { ...state.fieldUnlocks };
     if (flags.equippedSword && flags.equippedSimbeop) {
       flags.yasanUnlocked = true;
@@ -1101,8 +1253,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       hiddenEncountered = true;
     }
 
-    const playerInterval = calcAttackInterval(state.stats.gyeongsin);
-
     set({
       battleMode: 'explore',
       currentField: fieldId,
@@ -1115,8 +1265,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       battleLog: [`— ${firstMon.name} 등장 —`],
       battleResult: null,
       hiddenEncountered,
-      playerAttackTimer: playerInterval,
+      playerAttackTimer: B.BASE_ATTACK_INTERVAL,
       enemyAttackTimer: firstMon.attackInterval,
+      stamina: 0,
+      ultCooldowns: {},
+      currentBattleDuration: 0,
     });
   },
 
@@ -1126,8 +1279,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const monDef = getMonsterDef(monsterId);
     if (!monDef) return;
-
-    const playerInterval = calcAttackInterval(state.stats.gyeongsin);
 
     set({
       battleMode: 'hunt',
@@ -1141,8 +1292,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       explorePendingRewards: { simdeuk: 0, drops: [] },
       battleLog: [`— ${monDef.name} 사냥 시작 —`],
       battleResult: null,
-      playerAttackTimer: playerInterval,
+      playerAttackTimer: B.BASE_ATTACK_INTERVAL,
       enemyAttackTimer: monDef.attackInterval,
+      stamina: 0,
+      ultCooldowns: {},
+      currentBattleDuration: 0,
     });
   },
 
@@ -1154,6 +1308,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({
         battleMode: 'none',
         currentEnemy: null,
+        stamina: 0,
+        ultCooldowns: {},
+        currentBattleDuration: 0,
         battleResult: {
           type: 'explore_fail',
           simdeuk: 0,
@@ -1165,6 +1322,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({
         battleMode: 'none',
         currentEnemy: null,
+        stamina: 0,
+        ultCooldowns: {},
+        currentBattleDuration: 0,
         battleResult: null,
       });
     }
@@ -1186,7 +1346,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!tierDef || !tierDef.requirements) return;
 
     const reqs = tierDef.requirements;
-    const totalStats = state.stats.sungi + state.stats.gyeongsin + state.stats.magi;
+    const totalStats = state.stats.gi + state.stats.sim + state.stats.che;
 
     if (reqs.totalStats && totalStats < reqs.totalStats) return;
     if (reqs.totalSimdeuk && state.totalSimdeuk < reqs.totalSimdeuk) return;
@@ -1197,9 +1357,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
       newPoints += tierDef.rewards.artPoints;
     }
 
+    // 경지 상승으로 인한 전장 해금 체크
+    const fieldUnlocks = { ...state.fieldUnlocks };
+    for (const field of FIELDS) {
+      if (field.unlockCondition?.minTier != null && !fieldUnlocks[field.id]) {
+        if (nextTier >= field.unlockCondition.minTier) {
+          fieldUnlocks[field.id] = true;
+        }
+      }
+    }
+
     set({
       tier: nextTier,
       artPoints: newPoints,
+      fieldUnlocks,
       playerAnim: 'breakthrough',
     });
   },
@@ -1218,35 +1389,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get();
     if (state.battleMode !== 'none') return;
 
-    // 장착 확인
     if (!state.equippedArts.includes(artId) && state.equippedSimbeop !== artId) return;
 
-    // 해당 무공 보유 확인
     const owned = state.ownedArts.find(a => a.id === artId);
     if (!owned) return;
 
-    // 심화 정의 확인
     const mDef = getMasteryDef(artId, masteryId);
     if (!mDef) return;
 
-    // 이미 활성화
     const currentMasteries = state.activeMasteries[artId] ?? [];
     if (currentMasteries.includes(masteryId)) return;
 
-    // 심득 확인
     if (owned.totalSimdeuk < mDef.requiredSimdeuk) return;
 
-    // 경지 확인
     if (mDef.requiredTier > 0 && state.tier < mDef.requiredTier) return;
 
-    // 전제 심화 확인
     if (mDef.requires) {
       for (const reqId of mDef.requires) {
         if (!currentMasteries.includes(reqId)) return;
       }
     }
 
-    // 포인트 확인
     const available = state.artPoints - calcUsedPoints(state);
     if (available < mDef.pointCost) return;
 
@@ -1265,11 +1428,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const currentMasteries = state.activeMasteries[artId] ?? [];
     if (!currentMasteries.includes(masteryId)) return;
 
-    // 종속 자동 해제: 같은 무공 내 다른 심화 중 requires에 해제 대상이 포함된 것도 함께 비활성화
     const toRemove = new Set<string>();
     toRemove.add(masteryId);
 
-    // 반복적으로 종속 탐색
     let changed = true;
     while (changed) {
       changed = false;
@@ -1308,7 +1469,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get();
     const item = state.inventory.find(i => i.id === itemId);
     if (!item || item.itemType !== 'art_scroll' || !item.artId) return;
-    if (state.ownedArts.some(a => a.id === item.artId)) return; // 이미 보유
+    if (state.ownedArts.some(a => a.id === item.artId)) return;
     set({
       ownedArts: [...state.ownedArts, { id: item.artId!, totalSimdeuk: 0 }],
       inventory: state.inventory.filter(i => i.id !== itemId),
@@ -1324,17 +1485,83 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   // ─────────────────────────────────────────────
-  // Save / Load / Reset (v2.0: 3슬롯)
+  // Equipment actions
+  // ─────────────────────────────────────────────
+  equipItem: (instanceId: string) => {
+    const state = get();
+    if (state.battleMode !== 'none') return;
+
+    const idx = state.equipmentInventory.findIndex(e => e.instanceId === instanceId);
+    if (idx === -1) return;
+    const instance = state.equipmentInventory[idx];
+    const def = getEquipmentDef(instance.defId);
+    if (!def) return;
+
+    const slot = def.slot;
+    const newInventory = [...state.equipmentInventory];
+    newInventory.splice(idx, 1);
+
+    const newEquipment = { ...state.equipment };
+    // 기존 장비가 있으면 인벤토리로 이동
+    if (newEquipment[slot]) {
+      newInventory.push(newEquipment[slot]!);
+    }
+    newEquipment[slot] = instance;
+
+    // HP 재계산
+    const eqStats = gatherEquipmentStats({ ...state, equipment: newEquipment });
+    const newMaxHp = calcMaxHp(state.stats.che, state.stats.gi, eqStats.bonusHp ?? 0);
+
+    set({
+      equipment: newEquipment,
+      equipmentInventory: newInventory,
+      maxHp: newMaxHp,
+      hp: Math.min(state.hp, newMaxHp),
+    });
+  },
+
+  unequipItem: (slot: EquipSlot) => {
+    const state = get();
+    if (state.battleMode !== 'none') return;
+
+    const equipped = state.equipment[slot];
+    if (!equipped) return;
+
+    const newEquipment = { ...state.equipment };
+    newEquipment[slot] = null;
+
+    const newInventory = [...state.equipmentInventory, equipped];
+
+    // HP 재계산
+    const eqStats = gatherEquipmentStats({ ...state, equipment: newEquipment });
+    const newMaxHp = calcMaxHp(state.stats.che, state.stats.gi, eqStats.bonusHp ?? 0);
+
+    set({
+      equipment: newEquipment,
+      equipmentInventory: newInventory,
+      maxHp: newMaxHp,
+      hp: Math.min(state.hp, newMaxHp),
+    });
+  },
+
+  discardEquipment: (instanceId: string) => {
+    const state = get();
+    const newInventory = state.equipmentInventory.filter(e => e.instanceId !== instanceId);
+    set({ equipmentInventory: newInventory });
+  },
+
+  // ─────────────────────────────────────────────
+  // Save / Load / Reset
   // ─────────────────────────────────────────────
   saveGame: (slot?: number) => {
     const state = get();
     const targetSlot = slot ?? state.currentSaveSlot;
 
     const saveData = {
-      version: '3.0',
-      neigong: state.neigong,
+      version: '4.0',
+      qi: state.qi,
       totalSimdeuk: state.totalSimdeuk,
-      totalSpentNeigong: state.totalSpentNeigong,
+      totalSpentQi: state.totalSpentQi,
       stats: state.stats,
       hp: state.hp,
       tier: state.tier,
@@ -1348,8 +1575,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       totalYasanKills: state.totalYasanKills,
       hiddenEncountered: state.hiddenEncountered,
       tutorialFlags: state.tutorialFlags,
-      simbeopBurstTimer: state.simbeopBurstTimer,
-      // 전투 상태 저장
       battleMode: state.battleMode,
       huntTarget: state.huntTarget,
       currentField: state.currentField,
@@ -1365,7 +1590,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       fieldUnlocks: state.fieldUnlocks,
       inventory: state.inventory,
       discoveredMasteries: state.discoveredMasteries,
-      moraleBuff: state.moraleBuff,
+      stamina: state.stamina,
+      ultCooldowns: state.ultCooldowns,
+      currentBattleDuration: state.currentBattleDuration,
+      equipment: state.equipment,
+      equipmentInventory: state.equipmentInventory,
       currentSaveSlot: targetSlot,
       lastTickTime: Date.now(),
       savedAt: Date.now(),
@@ -1380,77 +1609,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
   loadGame: (slot: number) => {
     if (typeof window === 'undefined' || !window.localStorage) return;
 
-    // 기존 murim_save → slot_0 이전 (1회)
-    try {
-      const oldSave = localStorage.getItem('murim_save');
-      if (oldSave && !localStorage.getItem('murim_save_slot_0')) {
-        localStorage.setItem('murim_save_slot_0', oldSave);
-        localStorage.removeItem('murim_save');
-      }
-    } catch {
-      // 실패 시 무시
-    }
-
     const raw = localStorage.getItem(`murim_save_slot_${slot}`);
     if (!raw) return;
 
     try {
       const data = JSON.parse(raw);
 
-      // v1.0 → v1.1 마이그레이션
-      let totalSpentNeigong = data.totalSpentNeigong;
-      if (totalSpentNeigong === undefined) {
-        let s = 0;
-        const stats = data.stats ?? { sungi: 0, gyeongsin: 0, magi: 0 };
-        for (const k of ['sungi', 'gyeongsin', 'magi'] as const) {
-          for (let i = 0; i < (stats[k] ?? 0); i++) {
-            s += Math.floor(10 * Math.pow(1.15, i));
-          }
-        }
-        totalSpentNeigong = s;
+      // v4.0 전용 — 마이그레이션 없음, 구버전 세이브는 무시
+      if (!data.version || !data.version.startsWith('4')) {
+        return;
       }
 
-      // v2 → v3 마이그레이션: grade/proficiency → totalSimdeuk
-      let loadedOwnedArts = data.ownedArts ?? [];
-      if (loadedOwnedArts.length > 0 && loadedOwnedArts[0].grade !== undefined) {
-        loadedOwnedArts = loadedOwnedArts.map((a: any) => ({
-          id: a.id,
-          totalSimdeuk: migrateGradeToSimdeuk(a.id, a.grade ?? 1, a.proficiency ?? 0),
-        }));
-      }
-
-      // discoveredMasteries 마이그레이션
-      let discoveredMasteries = data.discoveredMasteries;
-      if (!discoveredMasteries) {
-        // 기존 활성화된 마스터리 + requiredSimdeuk가 낮은 기본 마스터리 자동 발견
-        discoveredMasteries = [];
-        const loadedActiveMasteries = data.activeMasteries ?? {};
-        for (const [_artId, mIds] of Object.entries(loadedActiveMasteries)) {
-          discoveredMasteries.push(...(mIds as string[]));
-        }
-      }
-
-      // Build a temporary state-like object for calcMaxHp (needs equippedArts, ownedArts, activeMasteries)
-      const loadedEquippedArts = data.equippedArts ?? [];
-      const loadedEquippedSimbeop = data.equippedSimbeop ?? null;
-      const loadedActiveMasteries = data.activeMasteries ?? {};
-      const tempStateForHp = {
-        equippedArts: loadedEquippedArts,
-        ownedArts: loadedOwnedArts,
-        equippedSimbeop: loadedEquippedSimbeop,
-        activeMasteries: loadedActiveMasteries,
-      } as GameState;
-      const maxHp = calcMaxHp(totalSpentNeigong, tempStateForHp);
+      const maxHp = calcMaxHp(data.stats?.che ?? 0, data.stats?.gi ?? 0);
       set({
-        neigong: data.neigong ?? 0,
+        qi: data.qi ?? 0,
         totalSimdeuk: data.totalSimdeuk ?? 0,
-        totalSpentNeigong,
-        stats: data.stats ?? { sungi: 0, gyeongsin: 0, magi: 0 },
+        totalSpentQi: data.totalSpentQi ?? 0,
+        stats: data.stats ?? { gi: 0, sim: 0, che: 0 },
         hp: Math.min(data.hp ?? maxHp, maxHp),
         maxHp,
         tier: data.tier ?? 0,
         equippedSimbeop: data.equippedSimbeop ?? null,
-        ownedArts: loadedOwnedArts,
+        ownedArts: data.ownedArts ?? [],
         equippedArts: data.equippedArts ?? [],
         artPoints: data.artPoints ?? 3,
         achievements: data.achievements ?? [],
@@ -1459,9 +1639,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         totalYasanKills: data.totalYasanKills ?? 0,
         hiddenEncountered: data.hiddenEncountered ?? false,
         tutorialFlags: data.tutorialFlags ?? createInitialState().tutorialFlags,
-        simbeopBurstTimer: data.simbeopBurstTimer ?? 0,
         lastTickTime: Date.now(),
-        // 전투 상태 복원
         battleMode: data.battleMode ?? 'none',
         huntTarget: data.huntTarget ?? null,
         currentField: data.currentField ?? null,
@@ -1476,11 +1654,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         activeMasteries: data.activeMasteries ?? {},
         fieldUnlocks: data.fieldUnlocks ?? { training: true, yasan: false, inn: false },
         inventory: data.inventory ?? [],
-        discoveredMasteries,
+        discoveredMasteries: data.discoveredMasteries ?? [],
         pendingEnlightenments: data.pendingEnlightenments ?? [],
-        moraleBuff: data.moraleBuff ?? 0,
+        stamina: data.stamina ?? 0,
+        ultCooldowns: data.ultCooldowns ?? {},
+        currentBattleDuration: data.currentBattleDuration ?? 0,
+        equipment: data.equipment ?? { weapon: null, armor: null, gloves: null, boots: null },
+        equipmentInventory: data.equipmentInventory ?? [],
         currentSaveSlot: slot,
-        // 전투 결과/로그는 저장하지 않으므로 초기화
         battleResult: null,
         battleLog: [],
       });
@@ -1524,13 +1705,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
           continue;
         }
         const data = JSON.parse(raw);
-        const stats = data.stats ?? { sungi: 0, gyeongsin: 0, magi: 0 };
+        const stats = data.stats ?? { gi: 0, sim: 0, che: 0 };
         const tierDef = getTierDef(data.tier ?? 0);
         slots.push({
           slotIndex: i,
           savedAt: data.savedAt ?? Date.now(),
           tierName: tierDef.name,
-          totalStats: (stats.sungi ?? 0) + (stats.gyeongsin ?? 0) + (stats.magi ?? 0),
+          totalStats: (stats.gi ?? 0) + (stats.sim ?? 0) + (stats.che ?? 0),
         });
       } catch {
         slots.push(null);
@@ -1543,9 +1724,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // Offline progress
   // ─────────────────────────────────────────────
   processOfflineProgress: (elapsedSeconds: number): OfflineResult => {
-    const maxSeconds = Math.min(elapsedSeconds, 28800); // 최대 8시간
+    const maxSeconds = Math.min(elapsedSeconds, 28800);
     let currentState = { ...get() } as GameState;
-    // Deep clone mutable fields
     currentState.stats = { ...currentState.stats };
     currentState.killCounts = { ...currentState.killCounts };
     currentState.bossKillCounts = { ...currentState.bossKillCounts };
@@ -1565,7 +1745,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     currentState.pendingEnlightenments = [...currentState.pendingEnlightenments];
     currentState.floatingTexts = [];
 
-    const startNeigong = currentState.neigong;
+    const startQi = currentState.qi;
     const startSimdeuk = currentState.totalSimdeuk;
     const startAchievements = [...currentState.achievements];
     let killCount = 0;
@@ -1579,25 +1759,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
     for (let i = 0; i < maxSeconds; i++) {
       tickCounter++;
 
-      // 업적 체크 빈도 조절: 60틱마다만
       const shouldCheckAchievements = (tickCounter % 60 === 0);
 
       const changes = simulateTick(currentState, 1, true);
 
-      // 업적 체크 스킵 시 이전 achievements/artPoints 유지
       if (!shouldCheckAchievements) {
         changes.achievements = currentState.achievements;
         changes.artPoints = currentState.artPoints;
       }
 
-      // 통계 수집
       if (currentState.battleMode !== 'none') {
         battleTime++;
       } else {
         idleTime++;
       }
 
-      // 킬 카운트 변경 감지
       if (changes.killCounts) {
         for (const [mId, count] of Object.entries(changes.killCounts)) {
           const prev = currentState.killCounts[mId] ?? 0;
@@ -1605,14 +1781,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
       }
 
-      // 사망 감지
       if (changes.battleResult && (changes.battleResult.type === 'death' || changes.battleResult.type === 'hunt_end')) {
         if (changes.hp !== undefined && changes.hp <= 1) {
           deathCount++;
         }
       }
 
-      // 드롭 감지 (inventory 기반)
       if (changes.inventory) {
         for (const item of changes.inventory) {
           if (!currentState.inventory.some(i => i.id === item.id)) {
@@ -1622,11 +1796,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
       }
 
-      // 상태 병합
       currentState = { ...currentState, ...changes } as GameState;
     }
 
-    // 마지막에 set() 한 번
     set({
       ...currentState,
       lastTickTime: Date.now(),
@@ -1635,14 +1807,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       enemyAnim: '',
     });
 
-    // 새로 획득한 업적
     const achievementsEarned = currentState.achievements.filter(
       a => !startAchievements.includes(a)
     );
 
     return {
       elapsedTime: maxSeconds,
-      neigongGained: currentState.neigong - startNeigong,
+      qiGained: currentState.qi - startQi,
       simdeukGained: currentState.totalSimdeuk - startSimdeuk,
       killCount,
       deathCount,
@@ -1654,7 +1825,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   // ─────────────────────────────────────────────
-  // Main tick — v2.0: simulateTick 래핑
+  // Main tick
   // ─────────────────────────────────────────────
   tick: (forceDt?: number) => {
     set(state => {
@@ -1679,12 +1850,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
 // ============================================================
 // 심득 적용
 // ============================================================
+const GROWTH_MESSAGES = {
+  power: [
+    '어렴풋이 더 효율적으로 공격할 수 있게 된 것 같다..',
+    '일격에 실리는 힘이 전보다 묵직하게 느껴진다..',
+  ],
+  qi: [
+    '기운이 모이는 속도가 조금 늘어난 것 같다..',
+    '단전에 기운이 더 자연스럽게 모여든다..',
+  ],
+} as const;
+
+function pickGrowthMsg(stat: keyof typeof GROWTH_MESSAGES): string {
+  const pool = GROWTH_MESSAGES[stat];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 function applySimdeuk(
   ownedArts: GameState['ownedArts'],
   equippedArts: string[],
   equippedSimbeop: string | null,
   amount: number,
   tier: number,
+  battleLog: string[],
 ) {
   if (amount <= 0) return;
   const maxSd = getMaxSimdeuk(tier);
@@ -1694,18 +1882,25 @@ function applySimdeuk(
     const owned = ownedArts.find(a => a.id === artId);
     if (!owned) continue;
     if (owned.totalSimdeuk >= maxSd) continue;
+
+    const before = owned.totalSimdeuk;
     owned.totalSimdeuk = Math.min(owned.totalSimdeuk + amount, maxSd);
+
+    // Phase 1: 간단한 성장 메시지만 (art stats는 Phase 2에서 재설계)
+    if (owned.totalSimdeuk > before && Math.random() < 0.1) {
+      battleLog.push(pickGrowthMsg('power'));
+    }
   }
 }
 
 // ============================================================
-// 몬스터 정보 공개 레벨 (3장)
+// 몬스터 정보 공개 레벨
 // ============================================================
 export function getMonsterRevealLevel(killCount: number): number {
-  if (killCount >= 20) return 5; // 전부
-  if (killCount >= 10) return 4; // 간격
-  if (killCount >= 5) return 3;  // 공격력
-  if (killCount >= 3) return 2;  // HP
-  if (killCount >= 1) return 1;  // 이름
-  return 0;                      // ???
+  if (killCount >= 20) return 5;
+  if (killCount >= 10) return 4;
+  if (killCount >= 5) return 3;
+  if (killCount >= 3) return 2;
+  if (killCount >= 1) return 1;
+  return 0;
 }

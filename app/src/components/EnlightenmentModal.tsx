@@ -23,14 +23,14 @@ export default function EnlightenmentModal() {
         <div className="enlightenment-icon">✦</div>
         <h2 className="enlightenment-title">깨달음</h2>
         <p className="enlightenment-desc">
-          수련 중 깊은 깨달음을 얻었다!
+          새로운 초를 깨우쳤다!
         </p>
         <div className="enlightenment-detail">
           <span className="enlightenment-art">{artDef?.name ?? current.artId}</span>
           <span className="enlightenment-mastery">{current.masteryName}</span>
         </div>
         <p className="enlightenment-hint">
-          무공 화면에서 새로운 심화학습을 확인하세요.
+          무공 화면에서 새로운 초(招)를 확인하세요.
         </p>
         <button className="enlightenment-confirm" onClick={dismiss}>
           확인

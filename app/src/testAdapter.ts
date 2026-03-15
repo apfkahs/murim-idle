@@ -25,7 +25,7 @@ export function setState(partial: Record<string, any>) {
 // 게임에 액션이 추가/삭제되어도 이 함수를 수정할 필요가 없다.
 //
 // 사용 예:
-//   callAction('investStat', 'sungi')
+//   callAction('investStat', 'gi')
 //   callAction('startHunt', 'yasan', 'squirrel')
 //   callAction('equipArt', 'samjae_sword')
 //   callAction('abandonBattle')

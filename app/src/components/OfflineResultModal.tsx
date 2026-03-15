@@ -28,10 +28,10 @@ export default function OfflineResultModal({ result, onClose }: Props) {
         <div className="offline-duration">({formatDuration(result.elapsedTime)})</div>
 
         <div className="offline-results">
-          {result.neigongGained > 0 && (
+          {result.qiGained > 0 && (
             <div className="offline-result-row">
-              <span>내공</span>
-              <span className="offline-result-value">+{formatNumber(Math.floor(result.neigongGained))}</span>
+              <span>자연의 기운</span>
+              <span className="offline-result-value">+{formatNumber(Math.floor(result.qiGained))}</span>
             </div>
           )}
           {result.simdeukGained > 0 && (

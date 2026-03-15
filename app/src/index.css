@@ -495,6 +495,19 @@ body {
   font-size: 11px;
 }
 
+.battle-log-line.log-ult {
+  color: var(--gold);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.battle-log-line.log-ult-taesan {
+  color: #ff6b4a;
+  font-weight: 700;
+  font-size: 14px;
+  text-shadow: 0 0 6px rgba(255, 107, 74, 0.4);
+}
+
 /* ────────────────────────────────
    정보 바 (4.2장)
    ──────────────────────────────── */
@@ -1378,4 +1391,101 @@ body {
   margin-top: 10px;
   font-size: 10px;
   color: var(--text-dim);
+}
+
+/* ────────────────────────────────
+   장비 탭
+   ──────────────────────────────── */
+.equip-slot-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.equip-slot-card {
+  padding: 12px;
+  margin-bottom: 0;
+}
+
+.equip-slot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.equip-slot-name {
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+}
+
+.equip-slot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.equip-slot-empty {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.equip-item-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.equip-item-stats {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+.equip-item-slot {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.equip-rarity-badge {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid;
+  opacity: 0.7;
+}
+
+.equip-inventory-empty {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 16px 0;
+}
+
+.equip-inventory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.equip-inventory-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 10px;
+}
+
+.equip-inventory-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.equip-inventory-item-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
 }

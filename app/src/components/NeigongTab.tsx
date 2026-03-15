@@ -1,29 +1,28 @@
 /**
- * 내공/경맥 탭 — v1.1
- * 경신 = 공격 간격만 (회피 제거)
- * HP = totalSpentNeigong 기반 log2 공식
+ * 자연의 기운/경맥 탭 — v4.1
+ * 기(氣)/심(心)/체(體) 스탯. 내력 게이지 추가.
  */
-import { useGameStore } from '../store/gameStore';
+import { useGameStore, calcATK, calcCritDmg, calcMaxHp, calcStamina, calcStaminaRegen, calcEffectiveRegen } from '../store/gameStore';
 import { getTierDef, TIERS } from '../data/tiers';
-import { getArtDef, getArtStats } from '../data/arts';
+import { getArtDef } from '../data/arts';
 import { getPlayerByTier } from '../assets';
 import { formatNumber } from '../utils/format';
 
 export default function NeigongTab() {
-  const neigong = useGameStore(s => s.neigong);
+  const qi = useGameStore(s => s.qi);
   const stats = useGameStore(s => s.stats);
   const hp = useGameStore(s => s.hp);
   const maxHp = useGameStore(s => s.maxHp);
+  const stamina = useGameStore(s => s.stamina);
   const tier = useGameStore(s => s.tier);
   const equippedSimbeop = useGameStore(s => s.equippedSimbeop);
   const ownedArts = useGameStore(s => s.ownedArts);
   const investStat = useGameStore(s => s.investStat);
-  const healWithNeigong = useGameStore(s => s.healWithNeigong);
-  const getNeigongPerSec = useGameStore(s => s.getNeigongPerSec);
+  const healWithQi = useGameStore(s => s.healWithQi);
+  const getQiPerSec = useGameStore(s => s.getQiPerSec);
   const getStatCost = useGameStore(s => s.getStatCost);
   const getTotalStats = useGameStore(s => s.getTotalStats);
   const getAttackInterval = useGameStore(s => s.getAttackInterval);
-  const getEvasion = useGameStore(s => s.getEvasion);
   const attemptBreakthrough = useGameStore(s => s.attemptBreakthrough);
   const equipSimbeop = useGameStore(s => s.equipSimbeop);
   const unequipSimbeop = useGameStore(s => s.unequipSimbeop);
@@ -31,11 +30,16 @@ export default function NeigongTab() {
 
   const battling = battleMode !== 'none';
   const tierDef = getTierDef(tier);
-  const neigongRate = getNeigongPerSec();
+  const qiRate = getQiPerSec();
   const totalStats = getTotalStats();
   const player = getPlayerByTier(tier);
   const atkInterval = getAttackInterval();
-  const evasion = getEvasion();
+
+  // 파생 수치
+  const atk = calcATK(stats.gi, stats.sim, stats.che);
+  const critDmg = calcCritDmg(stats.sim);
+  const maxStamina = calcStamina(stats.sim);
+  const effRegen = calcEffectiveRegen(useGameStore.getState());
 
   const nextTier = TIERS[tier + 1];
   const canBreakthrough = nextTier?.requirements ? (() => {
@@ -52,17 +56,17 @@ export default function NeigongTab() {
     return true;
   })() : false;
 
-  const simbeopArts = ownedArts.filter(a => getArtDef(a.id)?.isSimbeop);
+  const simbeopArts = ownedArts.filter(a => getArtDef(a.id)?.artType === 'simbeop');
 
-  const statEntries: { key: 'sungi' | 'gyeongsin' | 'magi'; name: string; dot: string; desc: string }[] = [
-    { key: 'sungi', name: '선기', dot: 'var(--dot-sungi)', desc: '정파 위력' },
-    { key: 'gyeongsin', name: '경신', dot: 'var(--dot-gyeongsin)', desc: `공격간격 ${atkInterval.toFixed(1)}초` },
-    { key: 'magi', name: '마기', dot: 'var(--dot-magi)', desc: '사파 위력' },
+  const statEntries: { key: 'gi' | 'sim' | 'che'; name: string; sub: string; dot: string; desc: string }[] = [
+    { key: 'gi', name: '기', sub: '氣', dot: 'var(--dot-sungi)', desc: `공격력 ${Math.floor(atk)}` },
+    { key: 'sim', name: '심', sub: '心', dot: 'var(--dot-gyeongsin)', desc: `치피 ${Math.floor(critDmg)}% · 내력 ${maxStamina}` },
+    { key: 'che', name: '체', sub: '體', dot: 'var(--dot-magi)', desc: `체력 ${calcMaxHp(stats.che, stats.gi)} · 회복 ${effRegen.toFixed(1)}/초` },
   ];
 
   return (
     <div>
-      {/* 캐릭터 + 내공 */}
+      {/* 캐릭터 + 자연의 기운 */}
       <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
         <div className="char-circle">
           {player.url ? (
@@ -72,24 +76,12 @@ export default function NeigongTab() {
           )}
         </div>
         <div className="neigong-value">
-          {formatNumber(Math.floor(neigong))}
+          {formatNumber(Math.floor(qi))}
         </div>
         <div className="neigong-rate">
-          {battling ? (
-            (() => {
-              const s = useGameStore.getState();
-              const am = s.activeMasteries;
-              const hasCombatMastery = Object.entries(am).some(([artId, ids]) =>
-                ids.some(id => id === 'samjae_simbeop_combat' || id === 'heupgong_combat') &&
-                (s.equippedArts.includes(artId) || s.equippedSimbeop === artId)
-              );
-              if (hasCombatMastery) {
-                const combatRate = neigongRate * 0.25;
-                return `+${combatRate.toFixed(1)}/초 (전투 수련)`;
-              }
-              return '전투 중 생산 중단';
-            })()
-          ) : `+${neigongRate.toFixed(1)}/초`}
+          {battling
+            ? '전투 중'
+            : `+${qiRate.toFixed(1)}/초`}
         </div>
       </div>
 
@@ -102,11 +94,24 @@ export default function NeigongTab() {
         <div className="hp-bar-container">
           <div className="hp-bar-fill" style={{ width: `${(hp / maxHp) * 100}%` }} />
         </div>
+
+        {/* 내력 게이지 */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 4 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>내력</span>
+          <span style={{ fontSize: 13 }}>{Math.floor(stamina)}/{maxStamina}</span>
+        </div>
+        <div className="hp-bar-container">
+          <div className="hp-bar-fill" style={{
+            width: `${maxStamina > 0 ? (stamina / maxStamina) * 100 : 0}%`,
+            background: 'var(--blue, #4a9eff)',
+          }} />
+        </div>
+
         <div
-          className={`heal-link ${(battling || hp >= maxHp || neigong < 1) ? 'disabled' : ''}`}
-          onClick={() => { if (!battling && hp < maxHp && neigong >= 1) healWithNeigong(); }}
+          className={`heal-link ${(battling || hp >= maxHp || qi < 1) ? 'disabled' : ''}`}
+          onClick={() => { if (!battling && hp < maxHp && qi >= 1) healWithQi(); }}
         >
-          내공으로 회복 →
+          기운으로 회복 →
         </div>
       </div>
 
@@ -145,8 +150,11 @@ export default function NeigongTab() {
 
       {/* 경맥 투자 */}
       <div className="card">
-        <div className="card-label">경맥</div>
-        {statEntries.map(({ key, name, dot, desc }) => {
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span className="card-label" style={{ marginBottom: 0 }}>경맥</span>
+          <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>공격간격 {atkInterval.toFixed(1)}초</span>
+        </div>
+        {statEntries.map(({ key, name, sub, dot, desc }) => {
           const level = stats[key];
           const cost = getStatCost(level);
           return (
@@ -154,7 +162,7 @@ export default function NeigongTab() {
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <span className="stat-dot" style={{ background: dot }} />
                 <div>
-                  <span className="stat-label">{name}</span>
+                  <span className="stat-label">{name}<span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 2 }}>{sub}</span></span>
                   <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 1 }}>{desc}</div>
                 </div>
               </div>
@@ -164,7 +172,7 @@ export default function NeigongTab() {
                 <button
                   className="btn btn-plus"
                   onClick={() => investStat(key)}
-                  disabled={battling || neigong < cost}
+                  disabled={battling || qi < cost}
                 >
                   +
                 </button>
@@ -172,12 +180,6 @@ export default function NeigongTab() {
             </div>
           );
         })}
-        {/* 회피 정보 (패시브 무공 기반) */}
-        {evasion > 0 && (
-          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.03)' }}>
-            회피율: {evasion.toFixed(0)}% (패시브 무공)
-          </div>
-        )}
       </div>
 
       {/* 심법 */}
@@ -187,7 +189,6 @@ export default function NeigongTab() {
           const artDef = getArtDef(equippedSimbeop);
           const owned = ownedArts.find(a => a.id === equippedSimbeop);
           if (!artDef || !owned) return null;
-          const artStats = getArtStats(artDef, owned.totalSimdeuk);
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div className="simbeop-icon">📖</div>
@@ -196,7 +197,7 @@ export default function NeigongTab() {
                   {artDef.name}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
-                  내공 +{artStats.neigongPerSec.toFixed(1)}/초
+                  장착 중
                 </div>
               </div>
               <button className="btn btn-small" onClick={unequipSimbeop} disabled={battling}>교체</button>

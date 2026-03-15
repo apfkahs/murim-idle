@@ -267,4 +267,48 @@ cd D:/newidle/app && node node_modules/.bin/tsx scripts/generate-assets.ts
 
 ---
 
-*마지막 업데이트: 2026-03-13*
+## 7. 시뮬레이션/테스트 스크립트 관련
+
+### 7-1. `simulateTick` import 불가
+
+| 항목 | 내용 |
+|------|------|
+| **에러 메시지** | `simulateTick is not exported` 또는 `has no exported member` |
+| **원인** | `gameStore.ts`의 전투 함수들이 로컬 함수로 선언되어 export되지 않음 |
+| **해결법** | `simulateTick`, `calcMaxHp`, `calcAttackInterval`, `spawnEnemy`, `createInitialState`에 `export` 키워드 추가 |
+
+### 7-2. hunt 모드 승리 미감지
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 몬스터를 처치해도 시뮬레이터가 승리를 감지하지 못함 |
+| **원인** | hunt 모드에서 몬스터 사망 시 `battleResult`가 설정되지 않고 즉시 리스폰됨 |
+| **해결법** | `killCounts[monsterId]` 변화를 감지하여 승리 판정 |
+
+### 7-3. 시뮬레이션 데미지가 0
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 가상 플레이어가 평타(5)만 발생하고 무공 데미지가 나오지 않음 |
+| **원인** | `equippedArts`와 `ownedArts`가 올바르게 설정되지 않음 |
+| **해결법** | `equippedArts: ['samjae_sword']`와 `ownedArts: [{ id: 'samjae_sword', totalSimdeuk: N }]` 양쪽 모두 설정 |
+
+### 7-4. 수련 몬스터 시뮬레이션 무한루프
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 나무인형/철인형 시뮬레이션이 타임아웃까지 무한 반복 |
+| **원인** | `attackInterval: 0`이라 적이 공격하지 않아 플레이어가 죽지 않음 |
+| **해결법** | `isTraining: true`인 몬스터는 시뮬레이션 건너뛰고 `grade: 0` 직접 할당 |
+
+### 7-5. 전체 GameState 수동 구성 시 필드 누락
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | TypeScript 에러 또는 런타임 undefined 참조 |
+| **원인** | GameState에 50개+ 필드가 있어 수동 구성 시 누락 발생 |
+| **해결법** | `createInitialState()`를 export하여 기반 상태로 사용 후, 필요한 필드만 오버라이드 |
+
+---
+
+*마지막 업데이트: 2026-03-15*

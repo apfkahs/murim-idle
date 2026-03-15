@@ -36,11 +36,11 @@ export default function AchievementTab() {
           else if (ach.id === 'simdeuk_3000') progress = `${Math.min(totalSimdeuk, 3000)}/3000`;
           else if (ach.id === 'stats_10') {
             const s = useGameStore.getState().stats;
-            progress = `${s.sungi + s.gyeongsin + s.magi}/10`;
+            progress = `${s.gi + s.sim + s.che}/10`;
           }
           else if (ach.id === 'stats_30') {
             const s = useGameStore.getState().stats;
-            progress = `${s.sungi + s.gyeongsin + s.magi}/30`;
+            progress = `${s.gi + s.sim + s.che}/30`;
           }
           else if (ach.id === 'art_collector') progress = `${ownedArts.length}/4`;
         }
