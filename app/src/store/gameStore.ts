@@ -5,7 +5,7 @@
 import { create } from 'zustand';
 import {
   getArtDef, getMasteryDef, getMasteryDefsForArt,
-  type ArtDef, type MasteryDef, type MasteryEffects,
+  type ArtDef, type MasteryDef, type MasteryEffects, type ProficiencyType,
 } from '../data/arts';
 import { getMonsterDef, getMonsterAttackMsg, BOSS_PATTERNS, type MonsterDef } from '../data/monsters';
 import { TIERS, getTierDef, getMaxSimdeuk } from '../data/tiers';
@@ -35,6 +35,7 @@ export interface GameState {
   totalSimdeuk: number;
   totalSpentQi: number;          // 구 totalSpentNeigong
   stats: { gi: number; sim: number; che: number };
+  proficiency: Record<ProficiencyType, number>;  // 숙련도 누적값
   hp: number;
   maxHp: number;
   tier: number;
@@ -205,6 +206,7 @@ export function createInitialState(): GameState {
     totalSimdeuk: 0,
     totalSpentQi: 0,
     stats: { gi: 0, sim: 0, che: 0 },
+    proficiency: { sword: 1, palm: 1, footwork: 1, mental: 1 },
     hp: B.HP_BASE,
     maxHp: B.HP_BASE,
     tier: 0,
@@ -266,37 +268,29 @@ export function createInitialState(): GameState {
 // 전투 수치 계산 함수 (설계서 8.3)
 // ============================================================
 
-/** ATK = ATK_BASE + ATK_G_W × G/(G+ATK_G_H) + ATK_M_W × M/(M+ATK_M_H) + ATK_T_W × T/(T+ATK_T_H) */
-export function calcATK(gi: number, sim: number, che: number): number {
-  return B.ATK_BASE
-       + B.ATK_G_W * gi / (gi + B.ATK_G_H)
-       + B.ATK_M_W * sim / (sim + B.ATK_M_H)
-       + B.ATK_T_W * che / (che + B.ATK_T_H);
+/** CRIT_DMG = CRITD_BASE (고정값, 스탯 무관) */
+export function calcCritDmg(): number {
+  return B.CRITD_BASE;
 }
 
-/** CRIT_DMG = CRITD_BASE + CRITD_M_W × M/(M+CRITD_M_H) */
-export function calcCritDmg(sim: number): number {
-  return B.CRITD_BASE + B.CRITD_M_W * sim / (sim + B.CRITD_M_H);
+/** HP = HP_BASE + 체 × K_CHE + hpBonus (선형) */
+export function calcMaxHp(che: number, hpBonus: number = 0): number {
+  return Math.floor(B.HP_BASE + che * B.STAT_K_CHE + hpBonus);
 }
 
-/** HP = HP_BASE + HP_T_W × T/(T+HP_T_H) + HP_G_W × G/(G+HP_G_H) + hpBonus */
-export function calcMaxHp(che: number, gi: number, hpBonus: number = 0): number {
-  return Math.floor(
-    B.HP_BASE
-    + B.HP_T_W * che / (che + B.HP_T_H)
-    + B.HP_G_W * gi / (gi + B.HP_G_H)
-    + hpBonus
-  );
-}
-
-/** STAMINA = STAM_BASE + STAM_M_W × M/(M+STAM_M_H) */
+/** STAMINA = STAM_BASE + 심 × K_SIM (선형) */
 export function calcStamina(sim: number): number {
-  return Math.floor(B.STAM_BASE + B.STAM_M_W * sim / (sim + B.STAM_M_H));
+  return Math.floor(B.STAM_BASE + sim * B.STAT_K_SIM);
 }
 
-/** STAMINA_REGEN = REGEN_BASE + REGEN_T_W × T/(T+REGEN_T_H) */
-export function calcStaminaRegen(che: number): number {
-  return B.REGEN_BASE + B.REGEN_T_W * che / (che + B.REGEN_T_H);
+/** STAMINA_REGEN = REGEN_BASE + 기 × K_GI (선형) */
+export function calcStaminaRegen(gi: number): number {
+  return B.REGEN_BASE + gi * B.STAT_K_GI;
+}
+
+/** 숙련도 등급: floor(숙련도 / 20000) + 1 */
+export function getProficiencyGrade(prof: number): number {
+  return Math.floor(prof / 20000) + 1;
 }
 
 // ============================================================
@@ -378,7 +372,7 @@ export function calcCritRate(state: GameState): number {
 /** 스탯 기반 회복 + 해금된 MasteryDef bonusRegenPerSec 합산 */
 export function calcEffectiveRegen(state: GameState): number {
   const effects = gatherMasteryEffects(state);
-  return calcStaminaRegen(state.stats.che) + (effects.bonusRegenPerSec ?? 0);
+  return calcStaminaRegen(state.stats.gi) + (effects.bonusRegenPerSec ?? 0);
 }
 
 /** 해금된 MasteryDef bonusDmgReduction 합산 */
@@ -438,35 +432,6 @@ export function calcCombatQiRatio(state: GameState): number {
   return ratio;
 }
 
-/** 무공의 초식 배율 계산 (심득 기반 성장 + 상한). artId 지정 시 해당 무공, 미지정 시 첫 번째 장착 active 무공. */
-export function calcNormalMultiplier(state: GameState, artId?: string): { multiplier: number; cap: number; artDef: ArtDef | null } {
-  // 대상 무공 찾기
-  const targetId = artId ?? state.equippedArts.find(id => {
-    const def = getArtDef(id);
-    return def && def.artType === 'active';
-  });
-  if (!targetId) return { multiplier: B.BARE_HAND_MULTIPLIER, cap: B.BARE_HAND_MULTIPLIER, artDef: null };
-
-  const artDef = getArtDef(targetId)!;
-  if (!artDef) return { multiplier: B.BARE_HAND_MULTIPLIER, cap: B.BARE_HAND_MULTIPLIER, artDef: null };
-  const owned = state.ownedArts.find(a => a.id === targetId);
-  const simdeuk = owned?.totalSimdeuk ?? 0;
-
-  const baseM = artDef.growth.baseNormalMultiplier ?? 1.0;
-  const rate = artDef.growth.normalGrowthRate ?? B.NORMAL_GROWTH_RATE;
-
-  // per-art: 해당 무공의 active mastery에서 normalMultiplierCapIncrease 직접 조회
-  const artMasteryIds = state.activeMasteries[targetId] ?? [];
-  let capIncrease = 0;
-  for (const mId of artMasteryIds) {
-    const mDef = artDef.masteries.find(m => m.id === mId);
-    capIncrease += mDef?.effects?.normalMultiplierCapIncrease ?? 0;
-  }
-  const effectiveCap = (artDef.normalMultiplierCap ?? 1.0) + capIncrease;
-
-  const multiplier = Math.min(baseM + rate * Math.sqrt(simdeuk), effectiveCap);
-  return { multiplier, cap: effectiveCap, artDef };
-}
 
 /** 장착된 무공 중 ult 가능한 첫 번째의 절초 이름 (ultChange 반영) */
 export function getActiveUltName(state: GameState): string {
@@ -487,7 +452,7 @@ export function getActiveUltName(state: GameState): string {
 }
 
 function calcStatCost(level: number): number {
-  return Math.floor(B.COST_BASE * Math.pow(B.COST_RATE, level));
+  return Math.max(1, Math.floor(Math.pow(level, 1.25)));
 }
 
 // ============================================================
@@ -569,6 +534,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   let ultCooldowns = { ...state.ultCooldowns };
   if (bossPatternState) bossPatternState = { ...bossPatternState };
   const stats = { ...state.stats };
+  const proficiency = { ...state.proficiency };
 
   // Clone mutable
   killCounts = { ...killCounts };
@@ -598,8 +564,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   // 전투 수치 계산
   const { gi, sim, che } = stats;
   const equipStats = gatherEquipmentStats(state);
-  const atk = calcATK(gi, sim, che) + (equipStats.bonusAtk ?? 0);
-  const critDmg = calcCritDmg(sim);
+  const critDmg = calcCritDmg();
   const critRate = Math.min(
     calcCritRate(state) + (equipStats.bonusCritRate ?? 0),
     B.CRIT_RATE_CAP
@@ -630,7 +595,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
   // 2) HP 자동회복 (전투 외)
   if (!isBattling) {
-    maxHp = calcMaxHp(che, gi, equipStats.bonusHp ?? 0);
+    maxHp = calcMaxHp(che, equipStats.bonusHp ?? 0);
     hp = Math.min(hp + maxHp * 0.05 * dt, maxHp);
   }
 
@@ -709,22 +674,20 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         const chosenDef = getArtDef(chosenId)!;
 
         isUlt = true;
-        let ultMult = chosenDef.ultMultiplier!;
 
-        // ultChange: 해당 무공의 active mastery에서 직접 조회 (per-art)
+        // ultChange: 해당 무공의 active mastery에서 이름만 조회 (per-art)
         const artMasteryIds = activeMasteries[chosenId] ?? [];
         let ultChangeName: string | undefined;
         for (const mId of artMasteryIds) {
           const mDef = chosenDef.masteries.find(m => m.id === mId);
-          if (mDef?.effects?.ultChange) {
-            if (mDef.effects.ultChange.simBonusW) {
-              ultMult += mDef.effects.ultChange.simBonusW * sim / (sim + (mDef.effects.ultChange.simBonusH ?? 120));
-            }
+          if (mDef?.effects?.ultChange?.name) {
             ultChangeName = mDef.effects.ultChange.name;
           }
         }
 
-        damage = atk * ultMult;
+        const ultProfType = chosenDef.proficiencyType;
+        const ultProf = proficiency[ultProfType] ?? 0;
+        damage = (chosenDef.ultBaseDamage ?? 0) + Math.floor(chosenDef.ultMultiplier! * ultProf);
         stamina -= chosenDef.ultCost!;
         ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
         attackName = ultChangeName ?? chosenDef.ultMessages?.[0] ?? '절초';
@@ -736,20 +699,10 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
         if (activeCandidates.length > 0) {
           const chosen = activeCandidates[Math.floor(Math.random() * activeCandidates.length)];
-          const baseM = chosen.def.growth.baseNormalMultiplier ?? 1.0;
-          const rate = chosen.def.growth.normalGrowthRate ?? B.NORMAL_GROWTH_RATE;
 
-          // normalMultiplierCapIncrease: 해당 무공의 mastery에서 직접 조회 (per-art)
-          const artMasteryIds = activeMasteries[chosen.id] ?? [];
-          let capIncrease = 0;
-          for (const mId of artMasteryIds) {
-            const mDef = chosen.def.masteries.find(m => m.id === mId);
-            capIncrease += mDef?.effects?.normalMultiplierCapIncrease ?? 0;
-          }
-          const effectiveCap = (chosen.def.normalMultiplierCap ?? 1.0) + capIncrease;
-          const normalMult = Math.min(baseM + rate * Math.sqrt(chosen.owned!.totalSimdeuk), effectiveCap);
-
-          damage = atk * normalMult;
+          const normalProfType = chosen.def.proficiencyType;
+          const normalProf = proficiency[normalProfType] ?? 0;
+          damage = (chosen.def.baseDamage ?? 0) + Math.floor(chosen.def.proficiencyCoefficient * normalProf);
 
           // 초식 메시지 랜덤 선택
           if (chosen.def.normalMessages && chosen.def.normalMessages.length > 0) {
@@ -758,8 +711,8 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
             attackName = chosen.def.name;
           }
         } else {
-          // 무공 없음: 평타
-          damage = atk * B.BARE_HAND_MULTIPLIER;
+          // 무공 없음: 평타 (기본 데미지 1)
+          damage = 1;
         }
       }
 
@@ -827,6 +780,39 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         if (monDef.isTraining) {
           simdeuk = getTrainingSimdeuk(state, monDef.id);
           if (killCounts[monDef.id] > 1) simdeuk = 0;
+        } else if (monDef.grade > 0) {
+          const maxArtGrade = getMaxEquippedArtGrade(equippedArts, equippedSimbeop, state.activeMasteries);
+          if (maxArtGrade > 0) {
+            const diff = maxArtGrade - monDef.grade;
+            if (diff >= 3) {
+              simdeuk = 0;
+              if (Math.random() < 0.05) battleLog.push('너무 약한 상대라 심득을 얻지 못했다.');
+            } else if (diff === 2) {
+              simdeuk = Math.floor(simdeuk * 0.2);
+            } else if (diff === 1) {
+              simdeuk = Math.floor(simdeuk * 0.5);
+            }
+          }
+        }
+
+        // 숙련도 획득·분배
+        const profTypeCount: Partial<Record<ProficiencyType, number>> = {};
+        for (const artId of [...equippedArts, ...(equippedSimbeop ? [equippedSimbeop] : [])]) {
+          const artDef = getArtDef(artId);
+          if (artDef?.proficiencyType) {
+            profTypeCount[artDef.proficiencyType] = (profTypeCount[artDef.proficiencyType] ?? 0) + 1;
+          }
+        }
+        const totalProfArts = Object.values(profTypeCount).reduce((a, b) => a + b, 0);
+        if (!monDef.isTraining && totalProfArts > 0 && (monDef.baseProficiency ?? 0) > 0) {
+          const baseProfGain = monDef.baseProficiency!;
+          const monsterGrade = monDef.grade >= 1 ? monDef.grade : 1;
+          for (const [pType, count] of Object.entries(profTypeCount) as [ProficiencyType, number][]) {
+            const currentGrade = getProficiencyGrade(proficiency[pType] ?? 0);
+            const multiplier = Math.pow(2.5, monsterGrade - currentGrade);
+            const gain = baseProfGain * multiplier * (count / totalProfArts);
+            proficiency[pType] = (proficiency[pType] ?? 0) + gain;
+          }
         }
 
         // 드롭
@@ -1231,6 +1217,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     stamina, ultCooldowns, currentBattleDuration,
     equipmentInventory,
     bossPatternState, playerStunTimer, lastEnemyAttack,
+    proficiency,
   };
 
   if (!isSimulating) {
@@ -1252,7 +1239,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // ─────────────────────────────────────────────
   // Helpers
   // ─────────────────────────────────────────────
-  getQiPerSec: () => calcQiPerSec(get()),
+  getQiPerSec: () => {
+    const state = get();
+    const equipStats = gatherEquipmentStats(state);
+    const qiMult = 1 + (equipStats.bonusQiMultiplier ?? 0);
+    return calcQiPerSec(state) * qiMult;
+  },
   getAttackInterval: () => {
     const state = get();
     const effects = gatherMasteryEffects(state);
@@ -1295,7 +1287,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newStats = { ...state.stats, [stat]: level + 1 };
     const newTotalSpent = state.totalSpentQi + cost;
     const eqStats = gatherEquipmentStats(state);
-    const newMaxHp = calcMaxHp(newStats.che, newStats.gi, eqStats.bonusHp ?? 0);
+    const newMaxHp = calcMaxHp(newStats.che, eqStats.bonusHp ?? 0);
 
     set({
       qi: state.qi - cost,
@@ -1684,7 +1676,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // HP 재계산
     const eqStats = gatherEquipmentStats({ ...state, equipment: newEquipment });
-    const newMaxHp = calcMaxHp(state.stats.che, state.stats.gi, eqStats.bonusHp ?? 0);
+    const newMaxHp = calcMaxHp(state.stats.che, eqStats.bonusHp ?? 0);
 
     set({
       equipment: newEquipment,
@@ -1708,7 +1700,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // HP 재계산
     const eqStats = gatherEquipmentStats({ ...state, equipment: newEquipment });
-    const newMaxHp = calcMaxHp(state.stats.che, state.stats.gi, eqStats.bonusHp ?? 0);
+    const newMaxHp = calcMaxHp(state.stats.che, eqStats.bonusHp ?? 0);
 
     set({
       equipment: newEquipment,
@@ -1797,12 +1789,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return;
       }
 
-      const maxHp = calcMaxHp(data.stats?.che ?? 0, data.stats?.gi ?? 0);
+      const maxHp = calcMaxHp(data.stats?.che ?? 0);
       set({
         qi: data.qi ?? 0,
         totalSimdeuk: data.totalSimdeuk ?? 0,
         totalSpentQi: data.totalSpentQi ?? 0,
         stats: data.stats ?? { gi: 0, sim: 0, che: 0 },
+        proficiency: data.proficiency ?? { sword: 1, palm: 1, footwork: 1, mental: 1 },
         hp: Math.min(data.hp ?? maxHp, maxHp),
         maxHp,
         tier: data.tier ?? 0,
@@ -2046,6 +2039,27 @@ const GROWTH_MESSAGES = {
 function pickGrowthMsg(stat: keyof typeof GROWTH_MESSAGES): string {
   const pool = GROWTH_MESSAGES[stat];
   return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/** 무공의 현재 등급 = baseGrade + 활성화된 mastery 수 */
+export function getArtCurrentGrade(
+  artId: string,
+  activeMasteries: Record<string, string[]>,
+): number {
+  const artDef = getArtDef(artId);
+  if (!artDef) return 0;
+  return artDef.baseGrade + (activeMasteries[artId] ?? []).length;
+}
+
+/** 장착된 모든 무공(보법/심법 포함) 중 최대 등급 반환 */
+export function getMaxEquippedArtGrade(
+  equippedArts: string[],
+  equippedSimbeop: string | null,
+  activeMasteries: Record<string, string[]>,
+): number {
+  const allArts = equippedSimbeop ? [...equippedArts, equippedSimbeop] : [...equippedArts];
+  if (allArts.length === 0) return 0;
+  return Math.max(...allArts.map(id => getArtCurrentGrade(id, activeMasteries)));
 }
 
 function applySimdeuk(

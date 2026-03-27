@@ -2,7 +2,7 @@
  * 자연의 기운/경맥 탭 — v4.1
  * 기(氣)/심(心)/체(體) 스탯. 내력 게이지 추가.
  */
-import { useGameStore, calcATK, calcCritDmg, calcMaxHp, calcStamina, calcStaminaRegen, calcEffectiveRegen } from '../store/gameStore';
+import { useGameStore, calcMaxHp, calcStamina, calcStaminaRegen, calcEffectiveRegen } from '../store/gameStore';
 import { getTierDef, TIERS } from '../data/tiers';
 import { getArtDef } from '../data/arts';
 import { getPlayerByTier } from '../assets';
@@ -36,8 +36,6 @@ export default function NeigongTab() {
   const atkInterval = getAttackInterval();
 
   // 파생 수치
-  const atk = calcATK(stats.gi, stats.sim, stats.che);
-  const critDmg = calcCritDmg(stats.sim);
   const maxStamina = calcStamina(stats.sim);
   const effRegen = calcEffectiveRegen(useGameStore.getState());
 
@@ -59,9 +57,9 @@ export default function NeigongTab() {
   const simbeopArts = ownedArts.filter(a => getArtDef(a.id)?.artType === 'simbeop');
 
   const statEntries: { key: 'gi' | 'sim' | 'che'; name: string; sub: string; dot: string; desc: string }[] = [
-    { key: 'gi', name: '기', sub: '氣', dot: 'var(--dot-sungi)', desc: `공격력 ${Math.floor(atk)}` },
-    { key: 'sim', name: '심', sub: '心', dot: 'var(--dot-gyeongsin)', desc: `치피 ${Math.floor(critDmg)}% · 내력 ${maxStamina}` },
-    { key: 'che', name: '체', sub: '體', dot: 'var(--dot-magi)', desc: `체력 ${calcMaxHp(stats.che, stats.gi)} · 회복 ${effRegen.toFixed(1)}/초` },
+    { key: 'gi', name: '기', sub: '氣', dot: 'var(--dot-sungi)', desc: `내력 회복 ${calcStaminaRegen(stats.gi).toFixed(2)}/초` },
+    { key: 'sim', name: '심', sub: '心', dot: 'var(--dot-gyeongsin)', desc: `최대 내력 ${maxStamina}` },
+    { key: 'che', name: '체', sub: '體', dot: 'var(--dot-magi)', desc: `최대 체력 ${calcMaxHp(stats.che)}` },
   ];
 
   return (

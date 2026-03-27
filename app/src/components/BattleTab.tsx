@@ -522,7 +522,7 @@ function BattleScreen() {
           if (!def || !owned) return null;
           return (
             <span key={artId} className="chip">
-              {def.artType === 'active' ? '⚔' : '🛡'} {def.name}
+              {def.name}
             </span>
           );
         })}

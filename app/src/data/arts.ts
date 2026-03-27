@@ -6,6 +6,7 @@
 
 export type Faction = 'neutral' | 'righteous' | 'evil';
 export type ArtType = 'active' | 'passive' | 'simbeop';
+export type ProficiencyType = 'sword' | 'palm' | 'footwork' | 'mental';
 // ── 발견 조건 ──
 export interface MasteryDiscovery {
   type: 'simdeuk' | 'boss' | 'event';
@@ -72,6 +73,13 @@ export interface ArtDef {
   faction: Faction;
   artType: ArtType;
   cost: number;
+  baseGrade: number;
+
+  // 숙련도
+  proficiencyType: ProficiencyType;
+  proficiencyCoefficient: number;  // 초식 데미지 = baseDamage + floor(proficiencyCoefficient × 숙련도)
+  baseDamage?: number;             // 초식 기본 피해 (숙련도 0일 때 기저값)
+  ultBaseDamage?: number;          // 절초 기본 피해
 
   // 초식 (심법은 생략)
   normalMultiplierCap?: number;
@@ -103,11 +111,16 @@ export const ARTS: ArtDef[] = [
     faction: 'neutral',
     artType: 'active',
     cost: 1,
+    baseGrade: 1,
+
+    proficiencyType: 'sword',
+    proficiencyCoefficient: 0.00475,  // 초식: 5 + floor(0.00475 × prof) → prof=20000에서 100
+    baseDamage: 5,
+    ultBaseDamage: 15,
+    ultMultiplier: 0.01425,           // 절초: 15 + floor(0.01425 × prof) → prof=20000에서 300
 
     normalMultiplierCap: 1.3,
     normalMessages: ['삼재검법의 검기가 빛난다!', '삼재의 이치를 담은 일격!'],
-
-    ultMultiplier: 3.0,
     ultCost: 30,
     ultCooldown: 10,
     ultMessages: ['강한 내려치기!', '묵직한 일격이 내리꽂힌다!'],
@@ -191,6 +204,10 @@ export const ARTS: ArtDef[] = [
     faction: 'neutral',
     artType: 'simbeop',
     cost: 0,
+    baseGrade: 1,
+
+    proficiencyType: 'mental',
+    proficiencyCoefficient: 0.03,
 
     growth: {
       baseQiPerSec: 1.0,
@@ -266,7 +283,11 @@ export const ARTS: ArtDef[] = [
     faction: 'neutral',
     artType: 'passive',
     cost: 0,
+    baseGrade: 1,
     imageKey: 'crude_bobeop',
+
+    proficiencyType: 'footwork',
+    proficiencyCoefficient: 0.02,
     descriptionByStage: [
       '산군의 몸 속에서 나온 무공서. 아무런 효과도 없는 것 같다..',
       '산군의 몸 속에서 나온 무공서. 발놀림이 조금 빨라진 것 같다.',
