@@ -551,6 +551,8 @@ function BattleResultScreen() {
   const hp = useGameStore(s => s.hp);
   const maxHp = useGameStore(s => s.maxHp);
   const qi = useGameStore(s => s.qi);
+  const pendingHuntRetry = useGameStore(s => s.pendingHuntRetry);
+  const huntTarget = useGameStore(s => s.huntTarget);
 
   if (!battleResult) return null;
 
@@ -585,6 +587,17 @@ function BattleResultScreen() {
         </div>
       )}
 
+      {battleResult.type === 'hunt_end' && pendingHuntRetry && huntTarget && (
+        <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(255,160,0,0.08)', border: '1px solid rgba(255,160,0,0.3)', borderRadius: 4, fontSize: 12 }}>
+          <div style={{ color: 'var(--gold)', marginBottom: 4 }}>
+            ⟳ 체력 회복 후 자동 재도전...
+          </div>
+          <div style={{ color: 'var(--text-dim)' }}>
+            {getMonsterDef(huntTarget)?.name ?? huntTarget}와의 전투를 재개합니다.
+          </div>
+        </div>
+      )}
+
       {hp < maxHp && (
         <div style={{ marginTop: 16, marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 4 }}>
@@ -600,7 +613,9 @@ function BattleResultScreen() {
         </div>
       )}
 
-      <button className="btn battle-result-actions" onClick={dismissBattleResult}>돌아가기</button>
+      <button className="btn battle-result-actions" onClick={dismissBattleResult}>
+        {pendingHuntRetry ? '닫기 (재도전 취소)' : '돌아가기'}
+      </button>
     </div>
   );
 }

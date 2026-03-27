@@ -86,7 +86,7 @@ export default function ArtsTab() {
                   {PROF_TYPE_LABEL[pType]}
                   <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 6 }}>{pGrade}등급</span>
                 </span>
-                <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>???</span>
+                <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{pct.toFixed(2)}%</span>
               </div>
               <div className="hp-bar-container">
                 <div className="hp-bar-fill" style={{

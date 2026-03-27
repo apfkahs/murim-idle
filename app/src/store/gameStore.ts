@@ -18,6 +18,9 @@ import { getEquipmentDef, type EquipSlot, type EquipStats, type EquipmentInstanc
 // Constants (shorthand)
 // ============================================================
 const B = BALANCE_PARAMS;
+const PROF_LABEL: Record<string, string> = {
+  sword: '검법', palm: '장법', footwork: '보법', mental: '심법',
+};
 
 // ============================================================
 // State interface
@@ -53,6 +56,7 @@ export interface GameState {
   currentField: string | null;
   battleMode: 'none' | 'explore' | 'hunt';
   huntTarget: string | null;
+  pendingHuntRetry: boolean;
   currentEnemy: {
     id: string; hp: number; maxHp: number; attackPower: number;
     attackInterval: number; regen: number;
@@ -222,6 +226,7 @@ export function createInitialState(): GameState {
     currentField: null,
     battleMode: 'none',
     huntTarget: null,
+    pendingHuntRetry: false,
     currentEnemy: null,
     exploreStep: 0,
     exploreOrder: [],
@@ -528,6 +533,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     discoveredMasteries, pendingEnlightenments,
     stamina, currentBattleDuration,
     bossPatternState, playerStunTimer, lastEnemyAttack,
+    pendingHuntRetry,
   } = state;
   let hiddenRevealedInField = { ...state.hiddenRevealedInField };
   let equipmentInventory = [...state.equipmentInventory];
@@ -597,6 +603,28 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   if (!isBattling) {
     maxHp = calcMaxHp(che, equipStats.bonusHp ?? 0);
     hp = Math.min(hp + maxHp * 0.05 * dt, maxHp);
+
+    // 재도전 대기 중 + HP 완전 회복 → 자동 재전투 시작
+    if (pendingHuntRetry && hp >= maxHp && huntTarget && currentField) {
+      const retryMon = getMonsterDef(huntTarget);
+      if (retryMon) {
+        pendingHuntRetry = false;
+        battleMode = 'hunt';
+        currentEnemy = spawnEnemy(retryMon);
+        battleResult = null;
+        playerAttackTimer = B.BASE_ATTACK_INTERVAL;
+        enemyAttackTimer = retryMon.attackInterval;
+        stamina = 0;
+        ultCooldowns = {};
+        currentBattleDuration = 0;
+        bossPatternState = BOSS_PATTERNS[huntTarget]
+          ? { bossStamina: BOSS_PATTERNS[huntTarget].stamina.initial, rageUsed: false }
+          : null;
+        playerStunTimer = 0;
+        lastEnemyAttack = null;
+        if (!isSimulating) battleLog = [...battleLog, `— ${retryMon.name} 자동 재도전 —`];
+      }
+    }
   }
 
   // 3) 전투 (타이머 기반)
@@ -804,6 +832,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           }
         }
         const totalProfArts = Object.values(profTypeCount).reduce((a, b) => a + b, 0);
+        const profGainParts: string[] = [];
         if (!monDef.isTraining && totalProfArts > 0 && (monDef.baseProficiency ?? 0) > 0) {
           const baseProfGain = monDef.baseProficiency!;
           const monsterGrade = monDef.grade >= 1 ? monDef.grade : 1;
@@ -812,6 +841,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
             const multiplier = Math.pow(2.5, monsterGrade - currentGrade);
             const gain = baseProfGain * multiplier * (count / totalProfArts);
             proficiency[pType] = (proficiency[pType] ?? 0) + gain;
+            profGainParts.push(`${PROF_LABEL[pType] ?? pType} +${gain.toFixed(1)}`);
           }
         }
 
@@ -902,7 +932,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         if (battleMode === 'explore') {
           explorePendingRewards.simdeuk += simdeuk;
           explorePendingRewards.drops.push(...drops);
-          battleLog.push(`— ${monDef.name} 처치. 심득 +${simdeuk} —`);
+          battleLog.push(`— ${monDef.name} 처치. 심득 +${simdeuk}${profGainParts.length > 0 ? `  ${profGainParts.join('  ')}` : ''} —`);
 
           // 히든 처치 = 답파 즉시 승리
           if (monDef.isHidden) {
@@ -992,7 +1022,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         } else if (battleMode === 'hunt') {
           totalSimdeuk += simdeuk;
           applySimdeuk(ownedArts, equippedArts, equippedSimbeop, simdeuk, state.tier, battleLog);
-          battleLog.push(`— ${monDef.name} 처치. 심득 +${simdeuk} —`);
+          battleLog.push(`— ${monDef.name} 처치. 심득 +${simdeuk}${profGainParts.length > 0 ? `  ${profGainParts.join('  ')}` : ''} —`);
 
           if (huntTarget) {
             const nextMon = getMonsterDef(huntTarget);
@@ -1143,6 +1173,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           message: '사망! 전투 종료.',
           deathLog,
         };
+        pendingHuntRetry = true;
       }
       battleMode = 'none';
       currentEnemy = null;
@@ -1217,7 +1248,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     stamina, ultCooldowns, currentBattleDuration,
     equipmentInventory,
     bossPatternState, playerStunTimer, lastEnemyAttack,
-    proficiency,
+    proficiency, pendingHuntRetry,
   };
 
   if (!isSimulating) {
@@ -1457,6 +1488,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         : null,
       playerStunTimer: 0,
       lastEnemyAttack: null,
+      pendingHuntRetry: false,
     });
   },
 
@@ -1497,7 +1529,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   dismissBattleResult: () => {
-    set({ battleResult: null });
+    set({ battleResult: null, pendingHuntRetry: false });
   },
 
   // ─────────────────────────────────────────────
