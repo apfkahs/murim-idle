@@ -110,6 +110,7 @@ export const TRAINING_MONSTERS: MonsterDef[] = [
     name: '철인형',
     hp: 30, attackPower: 0, attackInterval: 0, regen: 2, simdeuk: 3, baseProficiency: 100,
     drops: [{ artId: 'samjae_simbeop', chance: 1.0 }],
+    materialDrops: [{ materialId: 'iron_fragment', chance: 0.4 }],
     isTraining: true, grade: 0,
     imageKey: 'training_iron',
     description: '단단한 무쇠로 빚어진 수련 인형. 아무리 강한 일격도 흠집조차 남기기 어렵다 하나, 올바른 내공을 담은 일격만은 통한다고 한다. 몸 전체로 내력을 느끼게 하는 최고의 스승.',

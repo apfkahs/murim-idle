@@ -278,7 +278,7 @@ function ItemsScreen({ onBack }: { onBack: () => void }) {
                       && m.materialDrops?.some(d => d.materialId === mat.id)
                     )
                     .map(m => ({ monster: m, chance: m.materialDrops!.find(d => d.materialId === mat.id)!.chance }));
-                  const relatedRecipes = RECIPES.filter(r => r.materialCosts.some(c => c.materialId === mat.id));
+                  const relatedRecipes = RECIPES.filter(r => r.materialId === mat.id);
 
                   return (
                     <div key={mat.id} className="card" style={{ marginBottom: 6 }}>
@@ -325,7 +325,6 @@ function ItemsScreen({ onBack }: { onBack: () => void }) {
                               {relatedRecipes.map(recipe => {
                                 const known = craftedRecipes.includes(recipe.id);
                                 const resultDef = known ? EQUIPMENT.find(e => e.id === recipe.resultEquipId) : null;
-                                const cost = recipe.materialCosts.find(c => c.materialId === mat.id);
                                 return (
                                   <div key={recipe.id} style={{
                                     background: 'var(--bg-elevated)', borderRadius: 6,
@@ -333,7 +332,7 @@ function ItemsScreen({ onBack }: { onBack: () => void }) {
                                   }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                       <span style={{ fontSize: 12, fontWeight: 500 }}>
-                                        {mat.name} × {cost?.count} →{' '}
+                                        {mat.name} 1~{recipe.maxUnits}개 →{' '}
                                         <span style={{ color: known ? 'var(--text-primary)' : 'var(--text-dim)' }}>
                                           {known ? recipe.name : '???'}
                                         </span>

@@ -200,7 +200,7 @@ export interface GameActions {
   unequipItem: (slot: EquipSlot) => void;
   discardEquipment: (instanceId: string) => void;
 
-  craft: (recipeId: string) => void;
+  craft: (recipeId: string, materialCount: number) => boolean;
 
   getQiPerSec: () => number;
   getAttackInterval: () => number;
@@ -1789,30 +1789,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ equipmentInventory: newInventory });
   },
 
-  craft: (recipeId: string) => {
+  craft: (recipeId: string, materialCount: number) => {
     const recipe = RECIPES.find(r => r.id === recipeId);
-    if (!recipe) return;
+    if (!recipe) return false;
+    const count = Math.max(1, Math.min(materialCount, recipe.maxUnits));
     const state = get();
-    for (const cost of recipe.materialCosts) {
-      if ((state.materials[cost.materialId] ?? 0) < cost.count) return;
-    }
+    if ((state.materials[recipe.materialId] ?? 0) < count) return false;
     const newMaterials = { ...state.materials };
-    for (const cost of recipe.materialCosts) {
-      newMaterials[cost.materialId] = (newMaterials[cost.materialId] ?? 0) - cost.count;
+    newMaterials[recipe.materialId] = (newMaterials[recipe.materialId] ?? 0) - count;
+    const success = Math.random() < count * recipe.probabilityPerUnit;
+    if (success) {
+      const instance: EquipmentInstance = {
+        instanceId: `eq_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        defId: recipe.resultEquipId,
+        obtainedFrom: 'craft',
+        obtainedAt: Date.now(),
+      };
+      const newCraftedRecipes = state.craftedRecipes.includes(recipe.id)
+        ? state.craftedRecipes
+        : [...state.craftedRecipes, recipe.id];
+      const newKnownEquipment = state.knownEquipment.includes(recipe.resultEquipId)
+        ? state.knownEquipment
+        : [...state.knownEquipment, recipe.resultEquipId];
+      set({ materials: newMaterials, equipmentInventory: [...state.equipmentInventory, instance], craftedRecipes: newCraftedRecipes, knownEquipment: newKnownEquipment });
+    } else {
+      set({ materials: newMaterials });
     }
-    const instance: EquipmentInstance = {
-      instanceId: `eq_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      defId: recipe.resultEquipId,
-      obtainedFrom: 'craft',
-      obtainedAt: Date.now(),
-    };
-    const newCraftedRecipes = state.craftedRecipes.includes(recipe.id)
-      ? state.craftedRecipes
-      : [...state.craftedRecipes, recipe.id];
-    const newKnownEquipment = state.knownEquipment.includes(recipe.resultEquipId)
-      ? state.knownEquipment
-      : [...state.knownEquipment, recipe.resultEquipId];
-    set({ materials: newMaterials, equipmentInventory: [...state.equipmentInventory, instance], craftedRecipes: newCraftedRecipes, knownEquipment: newKnownEquipment });
+    return success;
   },
 
   // ─────────────────────────────────────────────
