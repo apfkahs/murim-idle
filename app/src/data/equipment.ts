@@ -36,6 +36,22 @@ export interface EquipmentInstance {
 // 장비 정의
 export const EQUIPMENT: EquipmentDef[] = [
   {
+    id: 'crude_wooden_sword',
+    name: '조잡한 목검',
+    slot: 'weapon',
+    rarity: 'common',
+    stats: { bonusAtk: 3 },
+    description: '나무 조각을 대충 깎아 만든 목검. 쥐는 느낌이 영 어색하지만 없는 것보다는 낫다. 공격력이 3 증가한다.',
+  },
+  {
+    id: 'sturdy_wooden_sword',
+    name: '튼튼한 목검',
+    slot: 'weapon',
+    rarity: 'refined',
+    stats: { bonusAtk: 6 },
+    description: '반듯하게 다듬어진 목검. 무게 중심이 잘 잡혀 실전에도 무리가 없다. 공격력이 6 증가한다.',
+  },
+  {
     id: 'gusan_gloves',
     name: '구산팔해(九山八海)의 풍요',
     slot: 'gloves',

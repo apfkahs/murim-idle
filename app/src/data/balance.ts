@@ -42,4 +42,7 @@ export const BALANCE_PARAMS = {
 
   // ── KILL BONUS ──
   KILL_BONUS_RATIO: 0.20,
+
+  // ── PROFICIENCY QI MULTIPLIER ──
+  PROF_QI_MAX_MULT: 10,  // 숙련도 등급당 1배 증가, 최대 10배
 } as const;

@@ -13,6 +13,7 @@ import { FIELDS, getFieldDef, generateExploreOrder } from '../data/fields';
 import { ACHIEVEMENTS, type AchievementContext } from '../data/achievements';
 import { BALANCE_PARAMS } from '../data/balance';
 import { getEquipmentDef, type EquipSlot, type EquipStats, type EquipmentInstance } from '../data/equipment';
+import { MATERIALS, RECIPES } from '../data/materials';
 
 // ============================================================
 // Constants (shorthand)
@@ -111,6 +112,16 @@ export interface GameState {
   // 장비 시스템
   equipment: Record<EquipSlot, EquipmentInstance | null>;
   equipmentInventory: EquipmentInstance[];
+
+  // 재료 보관함
+  materials: Record<string, number>;
+
+  // 제작 이력 (한 번이라도 만든 레시피 ID)
+  craftedRecipes: string[];
+
+  // 도감 해금
+  obtainedMaterials: string[];  // 한 번이라도 얻은 재료 materialId
+  knownEquipment: string[];     // 한 번이라도 얻은 장비 defId
 }
 
 export interface BattleResult {
@@ -189,6 +200,8 @@ export interface GameActions {
   unequipItem: (slot: EquipSlot) => void;
   discardEquipment: (instanceId: string) => void;
 
+  craft: (recipeId: string) => void;
+
   getQiPerSec: () => number;
   getAttackInterval: () => number;
   getTotalStats: () => number;
@@ -266,6 +279,10 @@ export function createInitialState(): GameState {
     pendingEnlightenments: [],
     equipment: { weapon: null, armor: null, gloves: null, boots: null },
     equipmentInventory: [],
+    materials: {},
+    craftedRecipes: [],
+    obtainedMaterials: [],
+    knownEquipment: [],
   };
 }
 
@@ -404,7 +421,10 @@ export function calcQiPerSec(state: GameState): number {
       const rate = artDef.growth.qiGrowthRate ?? B.QI_GROWTH_RATE;
       const grown = artDef.growth.baseQiPerSec + rate * Math.sqrt(owned.totalSimdeuk);
       const capped = Math.min(grown, artDef.growth.maxQiPerSec ?? Infinity);
-      total += capped;
+      // 심법 숙련도 등급에 따라 기운 생산 최대 10배
+      const mentalProf = state.proficiency?.mental ?? 1;
+      const profMult = Math.min(getProficiencyGrade(mentalProf), B.PROF_QI_MAX_MULT);
+      total += capped * profMult;
     }
   }
 
@@ -537,6 +557,9 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   } = state;
   let hiddenRevealedInField = { ...state.hiddenRevealedInField };
   let equipmentInventory = [...state.equipmentInventory];
+  let materials = { ...state.materials };
+  let obtainedMaterials = [...state.obtainedMaterials];
+  let knownEquipment = [...state.knownEquipment];
   let ultCooldowns = { ...state.ultCooldowns };
   if (bossPatternState) bossPatternState = { ...bossPatternState };
   const stats = { ...state.stats };
@@ -744,6 +767,9 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         }
       }
 
+      // 무기 고정 공격력 적용 (치명타 배율 포함)
+      damage += (equipStats.bonusAtk ?? 0);
+
       // 치명타 판정
       if (Math.random() < critRate) {
         damage *= critDmg / 100;
@@ -879,8 +905,23 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                   obtainedAt: Date.now(),
                 };
                 equipmentInventory.push(instance);
+                if (!knownEquipment.includes(eqDrop.equipId)) knownEquipment.push(eqDrop.equipId);
                 battleLog.push(`${eqDef.name}을(를) 획득했다!`);
               }
+            }
+          }
+        }
+
+        // 재료 드롭 처리
+        if (monDef.materialDrops) {
+          for (const mDrop of monDef.materialDrops) {
+            if (Math.random() < mDrop.chance) {
+              materials[mDrop.materialId] = (materials[mDrop.materialId] ?? 0) + 1;
+              if (!obtainedMaterials.includes(mDrop.materialId)) {
+                obtainedMaterials.push(mDrop.materialId);
+              }
+              const matName = MATERIALS.find(m => m.id === mDrop.materialId)?.name ?? mDrop.materialId;
+              battleLog.push(`${matName}을(를) 주웠다! (${materials[mDrop.materialId]}개)`);
             }
           }
         }
@@ -1246,7 +1287,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     fieldUnlocks, inventory,
     discoveredMasteries, pendingEnlightenments,
     stamina, ultCooldowns, currentBattleDuration,
-    equipmentInventory,
+    equipmentInventory, materials, obtainedMaterials, knownEquipment,
     bossPatternState, playerStunTimer, lastEnemyAttack,
     proficiency, pendingHuntRetry,
   };
@@ -1748,6 +1789,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ equipmentInventory: newInventory });
   },
 
+  craft: (recipeId: string) => {
+    const recipe = RECIPES.find(r => r.id === recipeId);
+    if (!recipe) return;
+    const state = get();
+    for (const cost of recipe.materialCosts) {
+      if ((state.materials[cost.materialId] ?? 0) < cost.count) return;
+    }
+    const newMaterials = { ...state.materials };
+    for (const cost of recipe.materialCosts) {
+      newMaterials[cost.materialId] = (newMaterials[cost.materialId] ?? 0) - cost.count;
+    }
+    const instance: EquipmentInstance = {
+      instanceId: `eq_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      defId: recipe.resultEquipId,
+      obtainedFrom: 'craft',
+      obtainedAt: Date.now(),
+    };
+    const newCraftedRecipes = state.craftedRecipes.includes(recipe.id)
+      ? state.craftedRecipes
+      : [...state.craftedRecipes, recipe.id];
+    const newKnownEquipment = state.knownEquipment.includes(recipe.resultEquipId)
+      ? state.knownEquipment
+      : [...state.knownEquipment, recipe.resultEquipId];
+    set({ materials: newMaterials, equipmentInventory: [...state.equipmentInventory, instance], craftedRecipes: newCraftedRecipes, knownEquipment: newKnownEquipment });
+  },
+
   // ─────────────────────────────────────────────
   // Save / Load / Reset
   // ─────────────────────────────────────────────
@@ -1796,6 +1863,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentBattleDuration: state.currentBattleDuration,
       equipment: state.equipment,
       equipmentInventory: state.equipmentInventory,
+      materials: state.materials,
+      craftedRecipes: state.craftedRecipes,
+      obtainedMaterials: state.obtainedMaterials,
+      knownEquipment: state.knownEquipment,
       currentSaveSlot: targetSlot,
       lastTickTime: Date.now(),
       savedAt: Date.now(),
@@ -1866,6 +1937,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         currentBattleDuration: data.currentBattleDuration ?? 0,
         equipment: data.equipment ?? { weapon: null, armor: null, gloves: null, boots: null },
         equipmentInventory: data.equipmentInventory ?? [],
+        materials: data.materials ?? {},
+        craftedRecipes: data.craftedRecipes ?? [],
+        obtainedMaterials: data.obtainedMaterials ?? [],
+        knownEquipment: data.knownEquipment ?? [],
         currentSaveSlot: slot,
         battleResult: null,
         battleLog: [],

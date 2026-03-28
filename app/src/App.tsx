@@ -5,12 +5,12 @@ import ArtsTab from './components/ArtsTab';
 import BattleTab from './components/BattleTab';
 import InventoryTab from './components/InventoryTab';
 import EquipmentTab from './components/EquipmentTab';
-import AchievementTab from './components/AchievementTab';
+import EncyclopediaTab from './components/EncyclopediaTab';
 import SaveSlotModal from './components/SaveSlotModal';
 import OfflineResultModal from './components/OfflineResultModal';
 import EnlightenmentModal from './components/EnlightenmentModal';
 
-type TabId = 'neigong' | 'arts' | 'equipment' | 'inventory' | 'battle' | 'achievement';
+type TabId = 'neigong' | 'arts' | 'equipment' | 'inventory' | 'battle' | 'encyclopedia';
 
 const TABS: { id: TabId; icon: string; label: string }[] = [
   { id: 'neigong', icon: '☯', label: '내공/경맥' },
@@ -18,7 +18,7 @@ const TABS: { id: TabId; icon: string; label: string }[] = [
   { id: 'equipment', icon: '🛡', label: '장비' },
   { id: 'inventory', icon: '📜', label: '전낭' },
   { id: 'battle', icon: '⛰', label: '전장' },
-  { id: 'achievement', icon: '★', label: '업적' },
+  { id: 'encyclopedia', icon: '📖', label: '도감' },
 ];
 
 export default function App() {
@@ -104,7 +104,7 @@ export default function App() {
         {activeTab === 'equipment' && <EquipmentTab />}
         {activeTab === 'inventory' && <InventoryTab />}
         {activeTab === 'battle' && <BattleTab />}
-        {activeTab === 'achievement' && <AchievementTab />}
+        {activeTab === 'encyclopedia' && <EncyclopediaTab />}
       </main>
 
       <nav className="tab-bar">
