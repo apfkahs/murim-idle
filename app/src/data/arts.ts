@@ -32,6 +32,7 @@ export interface MasteryEffects {
   };
   killBonusEnabled?: boolean;
   synergyArtId?: string;
+  dodgeCounterEnabled?: boolean;  // 회피 성공 시 50% 확률 카운터 공격 활성화
 }
 
 // ── 초(招) 정의 ──
@@ -95,6 +96,7 @@ export interface ArtDef {
   masteries: MasteryDef[];
 
   // 확장
+  baseEffects?: MasteryEffects;    // 무공 장착 시 mastery 없이도 적용되는 기본 효과
   descriptionByStage?: string[];
   imageKey?: string;
 }
@@ -288,11 +290,12 @@ export const ARTS: ArtDef[] = [
 
     proficiencyType: 'footwork',
     proficiencyCoefficient: 0.02,
+    baseEffects: { bonusAtkSpeed: 0.2 },
     descriptionByStage: [
-      '야산 곳곳에서 주운 낡은 보법서 조각들을 이어붙였다. 아직 읽을 수 없는 부분이 많다.',
-      '첫 초식의 윤곽이 잡혔다. 어설프지만 발이 조금 빠르다.',
-      '두 번째 초식을 익혔다. 몸이 한결 가볍게 느껴진다.',
-      '마침내 보법서가 완전히 복원되었다. 바람처럼 움직일 수 있게 되었다.',
+      '야산 곳곳에서 주운 낡은 보법서 조각들을 이어붙였다. 완전하지 않지만 몸이 조금 가벼워진 것 같다.',
+      '첫 초식의 윤곽이 잡혔다. 발이 한결 더 빨라졌다.',
+      '두 번째 초식을 익혔다. 적의 공격을 흘리는 법을 터득했다.',
+      '마침내 보법서가 완전히 복원되었다. 적의 빈틈을 읽고 강력한 일격을 가할 수 있게 되었다.',
     ],
     growth: {},
     masteries: [
@@ -300,36 +303,36 @@ export const ARTS: ArtDef[] = [
         stage: 1,
         id: 'crude_bobeop_1',
         name: '허술한 발놀림',
-        description: '공격 속도 1초 감소',
-        flavorText: '어설프지만 발이 조금 빨라지는 것 같다.',
+        description: '공격 속도 0.1초 추가 감소',
+        flavorText: '발이 한결 더 빨라지는 것 같다.',
         requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 1,
-        effects: { bonusAtkSpeed: 1.0 },
+        effects: { bonusAtkSpeed: 0.1 },
       },
       {
         stage: 2,
         id: 'crude_bobeop_2',
         name: '가벼운 보법',
-        description: '공격 속도 1초 추가 감소',
-        flavorText: '몸이 한결 가볍게 느껴진다.',
+        description: '공격 속도 0.1초 추가 감소, 회피 +10%',
+        flavorText: '몸이 한결 가볍게 느껴지며 적의 공격을 흘릴 수 있게 되었다.',
         requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 1,
         requires: ['crude_bobeop_1'],
-        effects: { bonusAtkSpeed: 1.0 },
+        effects: { bonusAtkSpeed: 0.1, bonusDodge: 10 },
       },
       {
         stage: 3,
         id: 'crude_bobeop_3',
         name: '바람걸음',
-        description: '공격 속도 1초 추가 감소, 회피 +5%',
-        flavorText: '바람처럼 움직이며 적의 공격을 흘릴 수 있게 되었다.',
+        description: '공격 속도 0.1초 추가 감소, 회피 성공 시 50% 확률로 다음 공격 최종 피해 1.2배',
+        flavorText: '바람처럼 흘리고 나면 적의 빈틈이 보인다.',
         requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 1,
         requires: ['crude_bobeop_2'],
-        effects: { bonusAtkSpeed: 1.0, bonusDodge: 5 },
+        effects: { bonusAtkSpeed: 0.1, dodgeCounterEnabled: true },
       },
     ],
   },

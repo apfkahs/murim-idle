@@ -85,6 +85,7 @@ export interface GameState {
   bossPatternState: { bossStamina: number; rageUsed: boolean } | null;
   playerStunTimer: number;
   lastEnemyAttack: { enemyName: string; attackMessage: string } | null;
+  dodgeCounterActive: boolean;  // 다음 공격에 최종 피해 1.2배 적용 여부
 
   tutorialFlags: {
     equippedSword: boolean;
@@ -295,6 +296,7 @@ export function createInitialState(): GameState {
     unlockedRecipes: [],
     obtainedMaterials: [],
     knownEquipment: [],
+    dodgeCounterActive: false,
   };
 }
 
@@ -341,6 +343,15 @@ export function gatherMasteryEffects(state: GameState): MasteryEffects {
   const result: MasteryEffects = {};
   const { activeMasteries, equippedArts, equippedSimbeop } = state;
 
+  // baseEffects 적용 (mastery 없이도 장착 시 효과)
+  for (const artId of [...equippedArts, ...(equippedSimbeop ? [equippedSimbeop] : [])]) {
+    const artDef = getArtDef(artId);
+    if (!artDef?.baseEffects) continue;
+    const eff = artDef.baseEffects;
+    if (eff.bonusAtkSpeed) result.bonusAtkSpeed = (result.bonusAtkSpeed ?? 0) + eff.bonusAtkSpeed;
+    if (eff.bonusDodge) result.bonusDodge = (result.bonusDodge ?? 0) + eff.bonusDodge;
+  }
+
   for (const [artId, masteryIds] of Object.entries(activeMasteries)) {
     const artDef = getArtDef(artId);
     if (!artDef) continue;
@@ -370,6 +381,7 @@ export function gatherMasteryEffects(state: GameState): MasteryEffects {
       if (eff.normalMultiplierCapIncrease) result.normalMultiplierCapIncrease = (result.normalMultiplierCapIncrease ?? 0) + eff.normalMultiplierCapIncrease;
       if (eff.ultChange) result.ultChange = eff.ultChange; // 마지막 것이 우선
       if (eff.killBonusEnabled) result.killBonusEnabled = true;
+      if (eff.dodgeCounterEnabled) result.dodgeCounterEnabled = true;
     }
   }
   return result;
@@ -577,6 +589,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     bossPatternState, playerStunTimer, lastEnemyAttack,
     pendingHuntRetry,
   } = state;
+  let dodgeCounterActive = state.dodgeCounterActive ?? false;
   let totalKills = state.totalKills ?? 0;
   let hiddenRevealedInField = { ...state.hiddenRevealedInField };
   let equipmentInventory = [...state.equipmentInventory];
@@ -801,6 +814,14 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         isCritical = true;
       }
 
+      // 회피 카운터 배율 적용 (치명타 후, floor 전)
+      let isCounterHit = false;
+      if (dodgeCounterActive) {
+        damage *= 1.2;
+        dodgeCounterActive = false;
+        isCounterHit = true;
+      }
+
       damage = Math.floor(damage);
       currentEnemy.hp -= damage;
       currentBattleDamageDealt += damage;
@@ -820,6 +841,9 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         battleLog.push(`치명타! ${attackName} ${eName}에게 ${damage} 피해!`);
       } else {
         battleLog.push(`${attackName} ${eName}에게 ${damage} 피해를 입혔다.`);
+      }
+      if (isCounterHit) {
+        battleLog.push('적의 공격을 간파하고 강력한 공격을 가했다!');
       }
 
       if (!isSimulating) {
@@ -940,7 +964,12 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         }
 
         // 재료 드롭 처리
-        if (monDef.materialDrops) {
+        if (monDef.id === 'training_wood' && killCounts[monDef.id] === 1) {
+          // 나무인형 첫 처치: 나무 조각 확정 드랍
+          materials['wood_fragment'] = (materials['wood_fragment'] ?? 0) + 1;
+          if (!obtainedMaterials.includes('wood_fragment')) obtainedMaterials.push('wood_fragment');
+          battleLog.push('나무 조각 1개를 주웠다. 무언가를 만드는 데 쓸 수 있을 것 같다...');
+        } else if (monDef.materialDrops) {
           for (const mDrop of monDef.materialDrops) {
             if (Math.random() < mDrop.chance) {
               materials[mDrop.materialId] = (materials[mDrop.materialId] ?? 0) + 1;
@@ -1020,6 +1049,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
             currentBattleDamageDealt = 0;
             bossPatternState = null;
             playerStunTimer = 0;
+            dodgeCounterActive = false;
             battleLog.push('괴이한 존재를 물리치고 답파에 성공했다!');
           } else {
             const nextStep = exploreStep + 1;
@@ -1088,6 +1118,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
               currentBattleDamageDealt = 0;
               bossPatternState = null;
               playerStunTimer = 0;
+              dodgeCounterActive = false;
               battleLog.push('답파 승리!');
             }
           }
@@ -1158,6 +1189,9 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                     floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: '회피!', type: 'evade' as const, timestamp: Date.now() }];
                     if (floatingTexts.length > 15) floatingTexts = floatingTexts.slice(-15);
                   }
+                  if (masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) {
+                    dodgeCounterActive = true;
+                  }
                 } else {
                   playerStunTimer = skill.stunDuration ?? 4;
                   battleLog.push(logMsg);
@@ -1193,6 +1227,9 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                     floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: '회피!', type: 'evade' as const, timestamp: Date.now() }];
                     if (floatingTexts.length > 15) floatingTexts = floatingTexts.slice(-15);
                   }
+                  if (masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) {
+                    dodgeCounterActive = true;
+                  }
                 }
               }
               break; // 최우선 스킬 하나만 발동
@@ -1206,6 +1243,9 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
               if (!isSimulating) {
                 floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: '회피!', type: 'evade' as const, timestamp: Date.now() }];
                 if (floatingTexts.length > 15) floatingTexts = floatingTexts.slice(-15);
+              }
+              if (masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) {
+                dodgeCounterActive = true;
               }
             } else {
               const incomingDmg = Math.floor(currentEnemy.attackPower * (1 - dmgReduction / 100));
@@ -1256,6 +1296,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       currentBattleDamageDealt = 0;
       bossPatternState = null;
       playerStunTimer = 0;
+      dodgeCounterActive = false;
     }
 
     // 보스 타이머
@@ -1276,6 +1317,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         currentBattleDamageDealt = 0;
         bossPatternState = null;
         playerStunTimer = 0;
+        dodgeCounterActive = false;
       }
     }
   }
@@ -1324,7 +1366,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     stamina, ultCooldowns, currentBattleDuration, currentBattleDamageDealt,
     equipmentInventory, materials, obtainedMaterials, knownEquipment,
     bossPatternState, playerStunTimer, lastEnemyAttack,
-    proficiency, pendingHuntRetry,
+    proficiency, pendingHuntRetry, dodgeCounterActive,
   };
 
   if (!isSimulating) {
@@ -1586,6 +1628,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         bossPatternState: null,
         playerStunTimer: 0,
         lastEnemyAttack: null,
+        dodgeCounterActive: false,
         battleResult: {
           type: 'explore_fail',
           simdeuk: 0,
@@ -1604,6 +1647,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         bossPatternState: null,
         playerStunTimer: 0,
         lastEnemyAttack: null,
+        dodgeCounterActive: false,
         battleResult: null,
       });
     }
@@ -1942,6 +1986,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       unlockedRecipes: state.unlockedRecipes,
       obtainedMaterials: state.obtainedMaterials,
       knownEquipment: state.knownEquipment,
+      proficiency: state.proficiency,
       currentSaveSlot: targetSlot,
       lastTickTime: Date.now(),
       savedAt: Date.now(),
@@ -2022,6 +2067,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         unlockedRecipes: data.unlockedRecipes ?? [],
         obtainedMaterials: data.obtainedMaterials ?? [],
         knownEquipment: data.knownEquipment ?? [],
+        dodgeCounterActive: data.dodgeCounterActive ?? false,
         currentSaveSlot: slot,
         battleResult: null,
         battleLog: [],
