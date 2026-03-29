@@ -33,6 +33,7 @@ export default function App() {
   const setGameSpeed = useGameStore(s => s.setGameSpeed);
   const inventoryCount = useGameStore(s => s.inventory.length);
   const saveTimerRef = useRef(0);
+  const hiddenAtRef = useRef<number | null>(null);
 
   // Load game on mount + offline progress
   useEffect(() => {
@@ -57,6 +58,28 @@ export default function App() {
       }
     }
   }, [loadGame]);
+
+  // Tab visibility: catch background time via processOfflineProgress
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        hiddenAtRef.current = Date.now();
+      } else {
+        if (hiddenAtRef.current !== null) {
+          const elapsed = (Date.now() - hiddenAtRef.current) / 1000;
+          hiddenAtRef.current = null;
+          if (elapsed >= 5) {
+            const result = useGameStore.getState().processOfflineProgress(elapsed);
+            if (result.elapsedTime > 0) {
+              setOfflineResult(result);
+            }
+          }
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   // Game loop: 1s ticks
   useEffect(() => {

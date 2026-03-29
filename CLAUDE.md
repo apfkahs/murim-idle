@@ -30,7 +30,7 @@
 ### 접혔을 때 핵심 수치 요약
 - `active`: `피해 N` (절초 해금 시 `피해 N / 절초명 M`)
 - `simbeop`: `기운 +X/초`
-- `passive`: 현재 단계 설명 텍스트 앞 30자
+- `passive`: `formatPassiveEffectSummary(def, activeMasteryIds)` — baseEffects + 활성화된 심득 효과 수치 요약 (예: `공속 +0.5s · 회피 +10% · 회피반격`)
 
 ### 데미지 계산 공식
 - 초식: `floor(proficiencyCoefficient × proficiency[type])`

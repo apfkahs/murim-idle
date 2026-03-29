@@ -28,13 +28,15 @@ export default function InventoryTab() {
   const hasMaterials = MATERIALS.some(m => (materials[m.id] ?? 0) > 0);
   const isEmpty = scrollItems.length === 0 && !hasMaterials;
 
-  const hasTornPaper = (materials['torn_paper'] ?? 0) > 0;
-  const hasCrudeBobeop = ownedArts.some(a => a.id === 'crude_bobeop');
-  const showArtRecipes = hasTornPaper || hasCrudeBobeop;
   const visibleArtRecipes = ART_RECIPES.filter(r => {
     if (r.requiresArtId && !ownedArts.some(a => a.id === r.requiresArtId)) return false;
     if (r.requiresMasteryId && !discoveredMasteries.includes(r.requiresMasteryId)) return false;
-    return true;
+    const isDone = r.resultArtId
+      ? ownedArts.some(a => a.id === r.resultArtId)
+      : r.resultMasteryId
+        ? discoveredMasteries.includes(r.resultMasteryId)
+        : false;
+    return !isDone;
   });
 
   // 제작 창에 표시할 레시피: 재료 보유 + 해금 조건 충족
@@ -214,6 +216,58 @@ export default function InventoryTab() {
             );
           })}
         </div>
+
+        {/* 비급 복원 섹션 */}
+        {visibleRecipes.length > 0 && visibleArtRecipes.length > 0 && (
+          <div style={{ height: 1, background: 'var(--border)', margin: '12px 0' }} />
+        )}
+        {visibleArtRecipes.length > 0 && (
+          <div>
+            <div className="card-label" style={{ fontSize: 12, marginBottom: 8 }}>비급 복원</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {visibleArtRecipes.map(r => {
+                const have = materials[r.materialId] ?? 0;
+                const canDo = have >= r.materialCount;
+                const btnLabel = r.resultArtId ? '복원' : '해금';
+                return (
+                  <div key={r.id} style={{
+                    background: 'var(--bg-card)', borderRadius: 6, padding: '10px 12px',
+                    border: `1px solid ${canDo ? 'var(--accent)' : 'var(--border)'}`,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                          {r.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>
+                          {r.description}
+                        </div>
+                        <div style={{ fontSize: 12, color: canDo ? 'var(--accent)' : 'var(--text-secondary)' }}>
+                          찢겨진 종이 {r.materialCount}장 필요 · 보유 {have}장
+                        </div>
+                      </div>
+                      <div style={{ flexShrink: 0 }}>
+                        <button
+                          className={`inventory-btn${canDo ? ' learn' : ''}`}
+                          onClick={() => craftArtRecipe(r.id)}
+                          disabled={!canDo}
+                          style={{ opacity: canDo ? 1 : 0.4, cursor: canDo ? 'pointer' : 'default' }}
+                        >
+                          {btnLabel}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {visibleRecipes.length === 0 && visibleArtRecipes.length === 0 && (
+          <div style={{ color: 'var(--text-dim)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
+            제작 가능한 항목이 없습니다.
+          </div>
+        )}
       </div>
     );
   }
@@ -223,9 +277,15 @@ export default function InventoryTab() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <span className="card-label" style={{ marginBottom: 0 }}>전낭</span>
-        <span className="text-dim" style={{ fontSize: 11 }}>
-          {isEmpty ? '비어 있음' : `비급 ${scrollItems.length}개${hasMaterials ? ' · 재료 보유 중' : ''}`}
-        </span>
+        <button
+          onClick={() => setView('craft')}
+          style={{
+            padding: '4px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+            background: 'rgba(255,215,0,0.12)', color: 'rgba(255,215,0,0.75)', border: '1px solid rgba(255,215,0,0.25)', fontWeight: 600,
+          }}
+        >
+          ⚒ 제작
+        </button>
       </div>
 
       {/* 재료 섹션 */}
@@ -245,78 +305,6 @@ export default function InventoryTab() {
                 </span>
               </div>
             ))}
-          </div>
-
-          {/* 제작 창 진입 버튼 */}
-          <button
-            onClick={() => setView('craft')}
-            style={{
-              width: '100%', padding: '8px 12px', borderRadius: 6,
-              border: '1px solid var(--accent)', background: 'transparent',
-              color: 'var(--accent)', fontSize: 13, cursor: 'pointer',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}
-          >
-            <span>제작</span>
-            <span style={{ fontSize: 12, opacity: 0.7 }}>→</span>
-          </button>
-        </div>
-      )}
-
-      {/* 비급 복원 섹션 */}
-      {showArtRecipes && visibleArtRecipes.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <div className="card-label" style={{ fontSize: 12, marginBottom: 8 }}>비급 복원</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {visibleArtRecipes.map(r => {
-              const have = materials[r.materialId] ?? 0;
-              const isDone = r.resultArtId
-                ? ownedArts.some(a => a.id === r.resultArtId)
-                : r.resultMasteryId
-                  ? discoveredMasteries.includes(r.resultMasteryId)
-                  : false;
-              const canDo = !isDone && have >= r.materialCount;
-              const btnLabel = r.resultArtId ? '복원' : '해금';
-
-              return (
-                <div key={r.id} style={{
-                  background: 'var(--bg-card)', borderRadius: 6, padding: '10px 12px',
-                  border: `1px solid ${isDone ? 'var(--border)' : canDo ? 'var(--accent)' : 'var(--border)'}`,
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: isDone ? 'var(--text-dim)' : 'var(--text-primary)', marginBottom: 4 }}>
-                        {r.name}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>
-                        {r.description}
-                      </div>
-                      <div style={{ fontSize: 12, color: canDo ? 'var(--accent)' : 'var(--text-secondary)' }}>
-                        찢겨진 종이 {r.materialCount}장 필요 · 보유 {have}장
-                      </div>
-                    </div>
-                    <div style={{ flexShrink: 0 }}>
-                      {isDone ? (
-                        <span style={{
-                          fontSize: 11, padding: '3px 8px', borderRadius: 4,
-                          background: 'var(--bg-elevated)', color: 'var(--text-dim)',
-                          border: '1px solid var(--border)',
-                        }}>완료</span>
-                      ) : (
-                        <button
-                          className={`inventory-btn${canDo ? ' learn' : ''}`}
-                          onClick={() => craftArtRecipe(r.id)}
-                          disabled={!canDo}
-                          style={{ opacity: canDo ? 1 : 0.4, cursor: canDo ? 'pointer' : 'default' }}
-                        >
-                          {btnLabel}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
       )}

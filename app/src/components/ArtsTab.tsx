@@ -8,6 +8,42 @@ import { getArtDef, getMasteryDefsForArt, getMasteryDef, type ArtDef, type Maste
 import { getTierDef, getMaxSimdeuk } from '../data/tiers';
 import { BALANCE_PARAMS } from '../data/balance';
 
+function formatPassiveEffectSummary(def: ArtDef, activeMasteryIds: string[]): string {
+  let atkSpeed = 0;
+  let dodge = 0;
+  let critRate = 0;
+  let regenPerSec = 0;
+  let dodgeCounter = false;
+
+  const collect = (eff: ArtDef['baseEffects']) => {
+    if (!eff) return;
+    if (eff.bonusAtkSpeed) atkSpeed += eff.bonusAtkSpeed;
+    if (eff.bonusDodge) dodge += eff.bonusDodge;
+    if (eff.bonusCritRate) critRate += eff.bonusCritRate;
+    if (eff.bonusRegenPerSec) regenPerSec += eff.bonusRegenPerSec;
+    if (eff.dodgeCounterEnabled) dodgeCounter = true;
+  };
+
+  collect(def.baseEffects);
+  for (const mId of activeMasteryIds) {
+    const mDef = def.masteries.find(m => m.id === mId);
+    collect(mDef?.effects);
+  }
+
+  const fmt = (n: number) => {
+    const rounded = Math.round(n * 10) / 10;
+    return Number(rounded.toFixed(1)).toString();
+  };
+
+  const parts: string[] = [];
+  if (atkSpeed > 0) parts.push(`공속 +${fmt(atkSpeed)}s`);
+  if (dodge > 0) parts.push(`회피 +${dodge}%`);
+  if (critRate > 0) parts.push(`치명 +${critRate}%`);
+  if (regenPerSec > 0) parts.push(`회복 +${fmt(regenPerSec)}/초`);
+  if (dodgeCounter) parts.push('회피반격');
+  return parts.join(' · ');
+}
+
 export default function ArtsTab() {
   const ownedArts = useGameStore(s => s.ownedArts);
   const equippedArts = useGameStore(s => s.equippedArts);
@@ -310,6 +346,8 @@ export default function ArtsTab() {
           let collapsedSummary: string;
           if (def.artType === 'active') {
             collapsedSummary = `피해 ${normalDmg}`;
+          } else if (def.artType === 'passive') {
+            collapsedSummary = formatPassiveEffectSummary(def, activeMasteries[owned.id] ?? []);
           } else {
             collapsedSummary = stageDesc ? stageDesc.slice(0, 24) + (stageDesc.length > 24 ? '…' : '') : '';
           }

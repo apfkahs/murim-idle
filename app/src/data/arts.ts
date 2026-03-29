@@ -99,6 +99,7 @@ export interface ArtDef {
   baseEffects?: MasteryEffects;    // 무공 장착 시 mastery 없이도 적용되는 기본 효과
   descriptionByStage?: string[];
   imageKey?: string;
+  autoActivateMastery?: boolean;   // true이면 craftArtRecipe로 심득 해금 시 자동 활성화 (pointCost 무시)
 }
 
 // ============================================================
@@ -287,6 +288,7 @@ export const ARTS: ArtDef[] = [
     cost: 0,
     baseGrade: 1,
     imageKey: 'crude_bobeop',
+    autoActivateMastery: true,
 
     proficiencyType: 'footwork',
     proficiencyCoefficient: 0.02,
@@ -307,7 +309,7 @@ export const ARTS: ArtDef[] = [
         flavorText: '발이 한결 더 빨라지는 것 같다.',
         requiredSimdeuk: 0,
         requiredTier: 0,
-        pointCost: 1,
+        pointCost: 0,
         effects: { bonusAtkSpeed: 0.1 },
       },
       {
@@ -318,7 +320,7 @@ export const ARTS: ArtDef[] = [
         flavorText: '몸이 한결 가볍게 느껴지며 적의 공격을 흘릴 수 있게 되었다.',
         requiredSimdeuk: 0,
         requiredTier: 0,
-        pointCost: 1,
+        pointCost: 0,
         requires: ['crude_bobeop_1'],
         effects: { bonusAtkSpeed: 0.1, bonusDodge: 10 },
       },
@@ -330,7 +332,7 @@ export const ARTS: ArtDef[] = [
         flavorText: '바람처럼 흘리고 나면 적의 빈틈이 보인다.',
         requiredSimdeuk: 0,
         requiredTier: 0,
-        pointCost: 1,
+        pointCost: 0,
         requires: ['crude_bobeop_2'],
         effects: { bonusAtkSpeed: 0.1, dodgeCounterEnabled: true },
       },

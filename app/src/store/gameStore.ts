@@ -1926,7 +1926,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newDiscoveredMasteries = recipe.resultMasteryId
       ? [...state.discoveredMasteries, recipe.resultMasteryId]
       : state.discoveredMasteries;
-    set({ materials: newMaterials, ownedArts: newOwnedArts, discoveredMasteries: newDiscoveredMasteries });
+    // autoActivateMastery: 종이로 심득 해금 시 포인트 소모 없이 바로 활성화
+    const requiresArtDef = recipe.requiresArtId ? getArtDef(recipe.requiresArtId) : null;
+    const newActiveMasteries =
+      (recipe.resultMasteryId && recipe.requiresArtId && requiresArtDef?.autoActivateMastery)
+        ? {
+            ...state.activeMasteries,
+            [recipe.requiresArtId]: [...(state.activeMasteries[recipe.requiresArtId] ?? []), recipe.resultMasteryId],
+          }
+        : state.activeMasteries;
+    set({ materials: newMaterials, ownedArts: newOwnedArts, discoveredMasteries: newDiscoveredMasteries, activeMasteries: newActiveMasteries });
     return true;
   },
 
