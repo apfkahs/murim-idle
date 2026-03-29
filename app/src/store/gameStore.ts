@@ -900,23 +900,22 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           }
         }
 
-        // 숙련도 획득·분배
-        const profTypeCount: Partial<Record<ProficiencyType, number>> = {};
-        for (const artId of [...equippedArts, ...(equippedSimbeop ? [equippedSimbeop] : [])]) {
-          const artDef = getArtDef(artId);
-          if (artDef?.proficiencyType) {
-            profTypeCount[artDef.proficiencyType] = (profTypeCount[artDef.proficiencyType] ?? 0) + 1;
-          }
-        }
-        const totalProfArts = Object.values(profTypeCount).reduce((a, b) => a + b, 0);
+        // 숙련도 독립 획득 (타입별 1회, 분배 없음)
         const profGainParts: string[] = [];
-        if (!monDef.isTraining && totalProfArts > 0 && (monDef.baseProficiency ?? 0) > 0) {
+        if (!monDef.isTraining && (monDef.baseProficiency ?? 0) > 0) {
           const baseProfGain = monDef.baseProficiency!;
           const monsterGrade = monDef.grade >= 1 ? monDef.grade : 1;
-          for (const [pType, count] of Object.entries(profTypeCount) as [ProficiencyType, number][]) {
+          const profGainMap: Partial<Record<ProficiencyType, number>> = {};
+          for (const artId of [...equippedArts, ...(equippedSimbeop ? [equippedSimbeop] : [])]) {
+            const artDef = getArtDef(artId);
+            if (!artDef?.proficiencyType) continue;
+            const pType = artDef.proficiencyType;
+            if (pType in profGainMap) continue;
             const currentGrade = getProficiencyGrade(proficiency[pType] ?? 0);
             const multiplier = Math.pow(2.5, monsterGrade - currentGrade);
-            const gain = baseProfGain * multiplier * (count / totalProfArts);
+            profGainMap[pType] = baseProfGain * multiplier;
+          }
+          for (const [pType, gain] of Object.entries(profGainMap) as [ProficiencyType, number][]) {
             proficiency[pType] = (proficiency[pType] ?? 0) + gain;
             profGainParts.push(`${PROF_LABEL[pType] ?? pType} +${gain.toFixed(1)}`);
           }
