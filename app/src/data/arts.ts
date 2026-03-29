@@ -289,10 +289,10 @@ export const ARTS: ArtDef[] = [
     proficiencyType: 'footwork',
     proficiencyCoefficient: 0.02,
     descriptionByStage: [
-      '산군의 몸 속에서 나온 무공서. 아무런 효과도 없는 것 같다..',
-      '산군의 몸 속에서 나온 무공서. 발놀림이 조금 빨라진 것 같다.',
-      '산군의 몸 속에서 나온 무공서. 몸이 한결 가벼워졌다.',
-      '산군의 몸 속에서 나온 무공서. 바람처럼 움직일 수 있게 되었다.',
+      '야산 곳곳에서 주운 낡은 보법서 조각들을 이어붙였다. 아직 읽을 수 없는 부분이 많다.',
+      '첫 초식의 윤곽이 잡혔다. 어설프지만 발이 조금 빠르다.',
+      '두 번째 초식을 익혔다. 몸이 한결 가볍게 느껴진다.',
+      '마침내 보법서가 완전히 복원되었다. 바람처럼 움직일 수 있게 되었다.',
     ],
     growth: {},
     masteries: [
@@ -305,7 +305,6 @@ export const ARTS: ArtDef[] = [
         requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 1,
-        discovery: { type: 'boss', bossId: 'tiger_boss' },
         effects: { bonusAtkSpeed: 1.0 },
       },
       {
@@ -318,7 +317,6 @@ export const ARTS: ArtDef[] = [
         requiredTier: 0,
         pointCost: 1,
         requires: ['crude_bobeop_1'],
-        discovery: { type: 'boss', bossId: 'tiger_boss' },
         effects: { bonusAtkSpeed: 1.0 },
       },
       {
@@ -331,7 +329,6 @@ export const ARTS: ArtDef[] = [
         requiredTier: 0,
         pointCost: 1,
         requires: ['crude_bobeop_2'],
-        discovery: { type: 'boss', bossId: 'tiger_boss' },
         effects: { bonusAtkSpeed: 1.0, bonusDodge: 5 },
       },
     ],

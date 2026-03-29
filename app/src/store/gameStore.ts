@@ -13,7 +13,7 @@ import { FIELDS, getFieldDef, generateExploreOrder } from '../data/fields';
 import { ACHIEVEMENTS, type AchievementContext } from '../data/achievements';
 import { BALANCE_PARAMS } from '../data/balance';
 import { getEquipmentDef, type EquipSlot, type EquipStats, type EquipmentInstance } from '../data/equipment';
-import { MATERIALS, RECIPES } from '../data/materials';
+import { MATERIALS, RECIPES, ART_RECIPES } from '../data/materials';
 
 // ============================================================
 // Constants (shorthand)
@@ -48,6 +48,7 @@ export interface GameState {
   stamina: number;               // 현재 내력
   ultCooldowns: Record<string, number>;  // 무공별 절초 쿨타임
   currentBattleDuration: number; // 현재 적과의 전투 경과 시간
+  currentBattleDamageDealt: number; // 현재 적과의 교전에서 가한 누적 피해량
 
   equippedSimbeop: string | null;
   ownedArts: { id: string; totalSimdeuk: number }[];
@@ -73,9 +74,11 @@ export interface GameState {
   enemyAttackTimer: number;
 
   achievements: string[];
+  achievementCount: number;  // 달성한 업적 수 (경지 돌파 조건에 사용)
   killCounts: Record<string, number>;
   bossKillCounts: Record<string, number>;
   totalYasanKills: number;
+  totalKills: number;        // 전체 몬스터 처치 누계
   hiddenRevealedInField: Record<string, string | null>;
 
   // 보스 패턴
@@ -118,6 +121,9 @@ export interface GameState {
 
   // 제작 이력 (한 번이라도 만든 레시피 ID)
   craftedRecipes: string[];
+
+  // 해금된 레시피 (requiresUnlock=true인 레시피는 이 목록에 있어야 제작 창에 표시)
+  unlockedRecipes: string[];
 
   // 도감 해금
   obtainedMaterials: string[];  // 한 번이라도 얻은 재료 materialId
@@ -201,6 +207,8 @@ export interface GameActions {
   discardEquipment: (instanceId: string) => void;
 
   craft: (recipeId: string, materialCount: number) => boolean;
+  unlockRecipe: (recipeId: string) => void;
+  craftArtRecipe: (recipeId: string) => boolean;
 
   getQiPerSec: () => number;
   getAttackInterval: () => number;
@@ -231,6 +239,7 @@ export function createInitialState(): GameState {
     stamina: 0,
     ultCooldowns: {},
     currentBattleDuration: 0,
+    currentBattleDamageDealt: 0,
 
     equippedSimbeop: null,
     ownedArts: [],
@@ -250,9 +259,11 @@ export function createInitialState(): GameState {
     playerAttackTimer: 0,
     enemyAttackTimer: 0,
     achievements: [],
+    achievementCount: 0,
     killCounts: {},
     bossKillCounts: {},
     totalYasanKills: 0,
+    totalKills: 0,
     hiddenRevealedInField: {},
     bossPatternState: null,
     playerStunTimer: 0,
@@ -281,6 +292,7 @@ export function createInitialState(): GameState {
     equipmentInventory: [],
     materials: {},
     craftedRecipes: [],
+    unlockedRecipes: [],
     obtainedMaterials: [],
     knownEquipment: [],
   };
@@ -295,19 +307,24 @@ export function calcCritDmg(): number {
   return B.CRITD_BASE;
 }
 
-/** HP = HP_BASE + 체 × K_CHE + hpBonus (선형) */
-export function calcMaxHp(che: number, hpBonus: number = 0): number {
-  return Math.floor(B.HP_BASE + che * B.STAT_K_CHE + hpBonus);
+/** 경지 돌파 누적 배율: 1.1^tier */
+export function calcTierMultiplier(tier: number): number {
+  return Math.pow(1.1, tier);
 }
 
-/** STAMINA = STAM_BASE + 심 × K_SIM (선형) */
-export function calcStamina(sim: number): number {
-  return Math.floor(B.STAM_BASE + sim * B.STAT_K_SIM);
+/** HP = HP_BASE + 체 × K_CHE × tierMult + hpBonus (선형) */
+export function calcMaxHp(che: number, hpBonus: number = 0, tierMult: number = 1): number {
+  return Math.floor(B.HP_BASE + che * B.STAT_K_CHE * tierMult + hpBonus);
 }
 
-/** STAMINA_REGEN = REGEN_BASE + 기 × K_GI (선형) */
-export function calcStaminaRegen(gi: number): number {
-  return B.REGEN_BASE + gi * B.STAT_K_GI;
+/** STAMINA = STAM_BASE + 심 × K_SIM × tierMult (선형) */
+export function calcStamina(sim: number, tierMult: number = 1): number {
+  return Math.floor(B.STAM_BASE + sim * B.STAT_K_SIM * tierMult);
+}
+
+/** STAMINA_REGEN = REGEN_BASE + 기 × K_GI × tierMult (선형) */
+export function calcStaminaRegen(gi: number, tierMult: number = 1): number {
+  return B.REGEN_BASE + gi * B.STAT_K_GI * tierMult;
 }
 
 /** 숙련도 등급: floor(숙련도 / 20000) + 1 */
@@ -394,7 +411,8 @@ export function calcCritRate(state: GameState): number {
 /** 스탯 기반 회복 + 해금된 MasteryDef bonusRegenPerSec 합산 */
 export function calcEffectiveRegen(state: GameState): number {
   const effects = gatherMasteryEffects(state);
-  return calcStaminaRegen(state.stats.gi) + (effects.bonusRegenPerSec ?? 0);
+  const tierMult = calcTierMultiplier(state.tier);
+  return calcStaminaRegen(state.stats.gi, tierMult) + (effects.bonusRegenPerSec ?? 0);
 }
 
 /** 해금된 MasteryDef bonusDmgReduction 합산 */
@@ -409,7 +427,7 @@ export function calcDodge(state: GameState): number {
   return Math.min((effects.bonusDodge ?? 0) / 100, B.DODGE_CAP);
 }
 
-/** BASE_QI_PER_SEC + 심법 심득 성장분 + 해금된 MasteryDef bonusQiPerSec 합산 */
+/** BASE_QI_PER_SEC + 심법 심득 성장분 + 해금된 MasteryDef bonusQiPerSec 합산, 경지 배율 적용 */
 export function calcQiPerSec(state: GameState): number {
   let total = B.BASE_QI_PER_SEC;
 
@@ -431,6 +449,9 @@ export function calcQiPerSec(state: GameState): number {
   // 초(招) bonusQiPerSec
   const effects = gatherMasteryEffects(state);
   total += effects.bonusQiPerSec ?? 0;
+
+  // 경지 돌파 배율 (1.1^tier)
+  total *= calcTierMultiplier(state.tier);
 
   return total;
 }
@@ -501,7 +522,7 @@ export function spawnEnemy(monDef: MonsterDef): GameState['currentEnemy'] {
   };
 }
 
-function buildAchievementContext(state: GameState): AchievementContext {
+function buildAchievementContext(state: GameState & { totalKills?: number }): AchievementContext {
   const artSimdeuks: Record<string, number> = {};
   for (const a of state.ownedArts) artSimdeuks[a.id] = a.totalSimdeuk;
   return {
@@ -515,6 +536,7 @@ function buildAchievementContext(state: GameState): AchievementContext {
     achievements: state.achievements,
     hiddenRevealedInField: state.hiddenRevealedInField,
     fieldUnlocks: state.fieldUnlocks,
+    totalKills: state.totalKills ?? 0,
   };
 }
 
@@ -551,10 +573,11 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     floatingTexts, nextFloatingId, playerAnim, enemyAnim,
     fieldUnlocks, inventory,
     discoveredMasteries, pendingEnlightenments,
-    stamina, currentBattleDuration,
+    stamina, currentBattleDuration, currentBattleDamageDealt,
     bossPatternState, playerStunTimer, lastEnemyAttack,
     pendingHuntRetry,
   } = state;
+  let totalKills = state.totalKills ?? 0;
   let hiddenRevealedInField = { ...state.hiddenRevealedInField };
   let equipmentInventory = [...state.equipmentInventory];
   let materials = { ...state.materials };
@@ -604,7 +627,8 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     B.DODGE_CAP
   );
   const dmgReduction = calcDmgReduction(state) + (equipStats.bonusDmgReduction ?? 0);
-  const maxStamina = calcStamina(sim);
+  const tierMult = calcTierMultiplier(state.tier);
+  const maxStamina = calcStamina(sim, tierMult);
   const effectiveRegen = calcEffectiveRegen(state);
   const qiPerSec = calcQiPerSec(state);
   const combatQiRatio = calcCombatQiRatio(state);
@@ -624,7 +648,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
   // 2) HP 자동회복 (전투 외)
   if (!isBattling) {
-    maxHp = calcMaxHp(che, equipStats.bonusHp ?? 0);
+    maxHp = calcMaxHp(che, equipStats.bonusHp ?? 0, tierMult);
     hp = Math.min(hp + maxHp * 0.05 * dt, maxHp);
 
     // 재도전 대기 중 + HP 완전 회복 → 자동 재전투 시작
@@ -640,6 +664,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         stamina = 0;
         ultCooldowns = {};
         currentBattleDuration = 0;
+        currentBattleDamageDealt = 0;
         bossPatternState = BOSS_PATTERNS[huntTarget]
           ? { bossStamina: BOSS_PATTERNS[huntTarget].stamina.initial, rageUsed: false }
           : null;
@@ -778,6 +803,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
       damage = Math.floor(damage);
       currentEnemy.hp -= damage;
+      currentBattleDamageDealt += damage;
 
       // 로그 생성
       const monDef = getMonsterDef(currentEnemy.id);
@@ -819,6 +845,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         }
 
         killCounts[monDef.id] = (killCounts[monDef.id] ?? 0) + 1;
+        totalKills++;
 
         const yasanIds = ['squirrel','rabbit','fox','deer','boar','wolf','bear'];
         if (yasanIds.includes(monDef.id) || monDef.isHidden) {
@@ -990,6 +1017,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
             stamina = 0;
             ultCooldowns = {};
             currentBattleDuration = 0;
+            currentBattleDamageDealt = 0;
             bossPatternState = null;
             playerStunTimer = 0;
             battleLog.push('괴이한 존재를 물리치고 답파에 성공했다!');
@@ -1001,6 +1029,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                 currentEnemy = spawnEnemy(nextMon);
                 exploreStep = nextStep;
                 currentBattleDuration = 0;
+                currentBattleDamageDealt = 0;
                 stamina = 0;
                 ultCooldowns = {};
                 battleLog.push(`— ${nextMon.name} 등장 —`);
@@ -1027,6 +1056,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                   bossTimer = field.bossTimer ?? 60;
                   currentEnemy = spawnEnemy(bossMon);
                   currentBattleDuration = 0;
+                  currentBattleDamageDealt = 0;
                   stamina = 0;
                   ultCooldowns = {};
                   battleLog.push(`— 보스 등장! ${bossMon.name}이(가) 나타났다! —`);
@@ -1055,6 +1085,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
               stamina = 0;
               ultCooldowns = {};
               currentBattleDuration = 0;
+              currentBattleDamageDealt = 0;
               bossPatternState = null;
               playerStunTimer = 0;
               battleLog.push('답파 승리!');
@@ -1071,6 +1102,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
               currentEnemy = spawnEnemy(nextMon);
               // hunt: 내력 유지 (지정 사냥 중 몬스터 간 내력 유지)
               currentBattleDuration = 0;
+              currentBattleDamageDealt = 0;
               playerAttackTimer = B.BASE_ATTACK_INTERVAL;
               enemyAttackTimer = nextMon.attackInterval;
               // 패턴 초기화 (보스/히든 사냥 시)
@@ -1221,6 +1253,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       stamina = 0;
       ultCooldowns = {};
       currentBattleDuration = 0;
+      currentBattleDamageDealt = 0;
       bossPatternState = null;
       playerStunTimer = 0;
     }
@@ -1240,6 +1273,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         stamina = 0;
         ultCooldowns = {};
         currentBattleDuration = 0;
+        currentBattleDamageDealt = 0;
         bossPatternState = null;
         playerStunTimer = 0;
       }
@@ -1248,12 +1282,13 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
   // 4) 업적 체크
   let achievements = [...state.achievements];
-  let artPoints = state.artPoints;
+  let achievementCount = state.achievementCount ?? 0;
+  const artPoints = state.artPoints;
 
   const ctx = buildAchievementContext({
     ...state, killCounts, bossKillCounts, ownedArts,
     totalSimdeuk, achievements, hiddenRevealedInField,
-    totalYasanKills, fieldUnlocks,
+    totalYasanKills, fieldUnlocks, totalKills,
   });
 
   for (const ach of ACHIEVEMENTS) {
@@ -1261,8 +1296,8 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     if (ach.prerequisite && !achievements.includes(ach.prerequisite)) continue;
     if (ach.check(ctx)) {
       achievements.push(ach.id);
-      artPoints += 1;
-      battleLog.push(`업적 달성: ${ach.name}! 포인트 +1`);
+      achievementCount += 1;
+      battleLog.push(`업적 달성: ${ach.name}!`);
     }
   }
 
@@ -1279,14 +1314,14 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     qi, hp, maxHp, battleMode, currentEnemy,
     exploreStep, exploreOrder, isBossPhase, bossTimer,
     explorePendingRewards, battleLog, killCounts,
-    bossKillCounts, totalSimdeuk, totalYasanKills,
+    bossKillCounts, totalSimdeuk, totalYasanKills, totalKills,
     ownedArts, battleResult,
-    achievements, artPoints, hiddenRevealedInField,
+    achievements, achievementCount, artPoints, hiddenRevealedInField,
     tutorialFlags, totalSpentQi,
     playerAttackTimer, enemyAttackTimer,
     fieldUnlocks, inventory,
     discoveredMasteries, pendingEnlightenments,
-    stamina, ultCooldowns, currentBattleDuration,
+    stamina, ultCooldowns, currentBattleDuration, currentBattleDamageDealt,
     equipmentInventory, materials, obtainedMaterials, knownEquipment,
     bossPatternState, playerStunTimer, lastEnemyAttack,
     proficiency, pendingHuntRetry,
@@ -1359,7 +1394,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newStats = { ...state.stats, [stat]: level + 1 };
     const newTotalSpent = state.totalSpentQi + cost;
     const eqStats = gatherEquipmentStats(state);
-    const newMaxHp = calcMaxHp(newStats.che, eqStats.bonusHp ?? 0);
+    const tierMult = calcTierMultiplier(state.tier);
+    const newMaxHp = calcMaxHp(newStats.che, eqStats.bonusHp ?? 0, tierMult);
 
     set({
       qi: state.qi - cost,
@@ -1492,6 +1528,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       stamina: 0,
       ultCooldowns: {},
       currentBattleDuration: 0,
+      currentBattleDamageDealt: 0,
       bossPatternState: BOSS_PATTERNS[order[0]]
         ? { bossStamina: BOSS_PATTERNS[order[0]].stamina.initial, rageUsed: false }
         : null,
@@ -1524,6 +1561,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       stamina: 0,
       ultCooldowns: {},
       currentBattleDuration: 0,
+      currentBattleDamageDealt: 0,
       bossPatternState: BOSS_PATTERNS[monsterId]
         ? { bossStamina: BOSS_PATTERNS[monsterId].stamina.initial, rageUsed: false }
         : null,
@@ -1544,6 +1582,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         stamina: 0,
         ultCooldowns: {},
         currentBattleDuration: 0,
+        currentBattleDamageDealt: 0,
         bossPatternState: null,
         playerStunTimer: 0,
         lastEnemyAttack: null,
@@ -1561,6 +1600,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         stamina: 0,
         ultCooldowns: {},
         currentBattleDuration: 0,
+        currentBattleDamageDealt: 0,
         bossPatternState: null,
         playerStunTimer: 0,
         lastEnemyAttack: null,
@@ -1590,6 +1630,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (reqs.totalStats && totalStats < reqs.totalStats) return;
     if (reqs.totalSimdeuk && state.totalSimdeuk < reqs.totalSimdeuk) return;
     if (reqs.bossKills && (state.bossKillCounts['tiger_boss'] ?? 0) < reqs.bossKills) return;
+    if (reqs.achievementCount && (state.achievementCount ?? 0) < reqs.achievementCount) return;
 
     let newPoints = state.artPoints;
     if (tierDef.rewards?.artPoints) {
@@ -1749,7 +1790,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // HP 재계산
     const eqStats = gatherEquipmentStats({ ...state, equipment: newEquipment });
-    const newMaxHp = calcMaxHp(state.stats.che, eqStats.bonusHp ?? 0);
+    const newMaxHp = calcMaxHp(state.stats.che, eqStats.bonusHp ?? 0, calcTierMultiplier(state.tier));
 
     set({
       equipment: newEquipment,
@@ -1773,7 +1814,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // HP 재계산
     const eqStats = gatherEquipmentStats({ ...state, equipment: newEquipment });
-    const newMaxHp = calcMaxHp(state.stats.che, eqStats.bonusHp ?? 0);
+    const newMaxHp = calcMaxHp(state.stats.che, eqStats.bonusHp ?? 0, calcTierMultiplier(state.tier));
 
     set({
       equipment: newEquipment,
@@ -1818,6 +1859,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return success;
   },
 
+  unlockRecipe: (recipeId: string) => {
+    set(state => ({
+      unlockedRecipes: state.unlockedRecipes.includes(recipeId)
+        ? state.unlockedRecipes
+        : [...state.unlockedRecipes, recipeId],
+    }));
+  },
+
+  craftArtRecipe: (recipeId: string) => {
+    const recipe = ART_RECIPES.find(r => r.id === recipeId);
+    if (!recipe) return false;
+    const state = get();
+    const have = state.materials[recipe.materialId] ?? 0;
+    if (have < recipe.materialCount) return false;
+    if (recipe.resultArtId && state.ownedArts.some(a => a.id === recipe.resultArtId)) return false;
+    if (recipe.resultMasteryId && state.discoveredMasteries.includes(recipe.resultMasteryId)) return false;
+    const newMaterials = { ...state.materials, [recipe.materialId]: have - recipe.materialCount };
+    const newOwnedArts = recipe.resultArtId
+      ? [...state.ownedArts, { id: recipe.resultArtId, totalSimdeuk: 0 }]
+      : state.ownedArts;
+    const newDiscoveredMasteries = recipe.resultMasteryId
+      ? [...state.discoveredMasteries, recipe.resultMasteryId]
+      : state.discoveredMasteries;
+    set({ materials: newMaterials, ownedArts: newOwnedArts, discoveredMasteries: newDiscoveredMasteries });
+    return true;
+  },
+
   // ─────────────────────────────────────────────
   // Save / Load / Reset
   // ─────────────────────────────────────────────
@@ -1838,9 +1906,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       equippedArts: state.equippedArts,
       artPoints: state.artPoints,
       achievements: state.achievements,
+      achievementCount: state.achievementCount,
       killCounts: state.killCounts,
       bossKillCounts: state.bossKillCounts,
       totalYasanKills: state.totalYasanKills,
+      totalKills: state.totalKills,
       hiddenRevealedInField: state.hiddenRevealedInField,
       bossPatternState: state.bossPatternState,
       playerStunTimer: state.playerStunTimer,
@@ -1864,10 +1934,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       stamina: state.stamina,
       ultCooldowns: state.ultCooldowns,
       currentBattleDuration: state.currentBattleDuration,
+      currentBattleDamageDealt: state.currentBattleDamageDealt,
       equipment: state.equipment,
       equipmentInventory: state.equipmentInventory,
       materials: state.materials,
       craftedRecipes: state.craftedRecipes,
+      unlockedRecipes: state.unlockedRecipes,
       obtainedMaterials: state.obtainedMaterials,
       knownEquipment: state.knownEquipment,
       currentSaveSlot: targetSlot,
@@ -1895,7 +1967,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return;
       }
 
-      const maxHp = calcMaxHp(data.stats?.che ?? 0);
+      const tier = data.tier ?? 0;
+      const tierMult = calcTierMultiplier(tier);
+      const maxHp = calcMaxHp(data.stats?.che ?? 0, 0, tierMult);
       set({
         qi: data.qi ?? 0,
         totalSimdeuk: data.totalSimdeuk ?? 0,
@@ -1904,15 +1978,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
         proficiency: data.proficiency ?? { sword: 1, palm: 1, footwork: 1, mental: 1 },
         hp: Math.min(data.hp ?? maxHp, maxHp),
         maxHp,
-        tier: data.tier ?? 0,
+        tier,
         equippedSimbeop: data.equippedSimbeop ?? null,
         ownedArts: data.ownedArts ?? [],
         equippedArts: data.equippedArts ?? [],
         artPoints: data.artPoints ?? 3,
         achievements: data.achievements ?? [],
+        achievementCount: data.achievementCount ?? 0,
         killCounts: data.killCounts ?? {},
         bossKillCounts: data.bossKillCounts ?? {},
         totalYasanKills: data.totalYasanKills ?? 0,
+        totalKills: data.totalKills ?? 0,
         hiddenRevealedInField: data.hiddenRevealedInField ?? {},
         bossPatternState: data.bossPatternState ?? null,
         playerStunTimer: data.playerStunTimer ?? 0,
@@ -1938,10 +2014,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         stamina: data.stamina ?? 0,
         ultCooldowns: data.ultCooldowns ?? {},
         currentBattleDuration: data.currentBattleDuration ?? 0,
+        currentBattleDamageDealt: data.currentBattleDamageDealt ?? 0,
         equipment: data.equipment ?? { weapon: null, armor: null, gloves: null, boots: null },
         equipmentInventory: data.equipmentInventory ?? [],
         materials: data.materials ?? {},
         craftedRecipes: data.craftedRecipes ?? [],
+        unlockedRecipes: data.unlockedRecipes ?? [],
         obtainedMaterials: data.obtainedMaterials ?? [],
         knownEquipment: data.knownEquipment ?? [],
         currentSaveSlot: slot,
@@ -2050,7 +2128,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       if (!shouldCheckAchievements) {
         changes.achievements = currentState.achievements;
-        changes.artPoints = currentState.artPoints;
+        changes.achievementCount = currentState.achievementCount;
       }
 
       if (currentState.battleMode !== 'none') {

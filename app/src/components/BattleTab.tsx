@@ -314,18 +314,18 @@ function BattleScreen() {
   const maxHp = useGameStore(s => s.maxHp);
   const stamina = useGameStore(s => s.stamina);
   const stats = useGameStore(s => s.stats);
-  const qi = useGameStore(s => s.qi);
   const equippedArts = useGameStore(s => s.equippedArts);
   const equippedSimbeop = useGameStore(s => s.equippedSimbeop);
   const ownedArts = useGameStore(s => s.ownedArts);
   const battleLog = useGameStore(s => s.battleLog);
   const abandonBattle = useGameStore(s => s.abandonBattle);
   const getAttackInterval = useGameStore(s => s.getAttackInterval);
-  const getTotalStats = useGameStore(s => s.getTotalStats);
   const killCounts = useGameStore(s => s.killCounts);
   const tier = useGameStore(s => s.tier);
   const bossPatternState = useGameStore(s => s.bossPatternState);
   const playerStunTimer = useGameStore(s => s.playerStunTimer);
+  const currentBattleDuration = useGameStore(s => s.currentBattleDuration);
+  const currentBattleDamageDealt = useGameStore(s => s.currentBattleDamageDealt);
 
   const logRef = useRef<HTMLDivElement>(null);
 
@@ -343,7 +343,10 @@ function BattleScreen() {
   // 전투 중 이름: 1회 이상 처치했으면 이름, 아니면 ???
   const enemyName = reveal >= 1 ? (monDef?.name ?? currentEnemy.id) : '???';
   const atkInterval = getAttackInterval();
-  const totalStats = getTotalStats();
+  const playerDps = currentBattleDuration >= 1
+    ? Math.floor(currentBattleDamageDealt / currentBattleDuration)
+    : 0;
+  const maxStamina = calcStamina(stats.sim);
   const enemyImg = getEnemyImage(currentEnemy.id);
   const player = getPlayerByTier(tier);
   const bgUrl = currentField ? getFieldBackground(currentField) : null;
@@ -409,7 +412,7 @@ function BattleScreen() {
           {/* HP 바 오버레이 */}
           <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2 }}>내 HP</div>
+              <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2 }}>HP {Math.floor(hp)}/{maxHp}</div>
               <div className="hp-bar-container">
                 <div className="hp-bar-fill" style={{ width: `${(hp / maxHp) * 100}%` }} />
               </div>
@@ -420,20 +423,17 @@ function BattleScreen() {
                 </div>
               )}
               {/* 내력 게이지 */}
-              {(() => {
-                const maxStamina = calcStamina(stats.sim);
-                return maxStamina > 0 ? (
-                  <div style={{ marginTop: 4 }}>
-                    <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2 }}>내력 {Math.floor(stamina)}/{maxStamina}</div>
-                    <div className="hp-bar-container">
-                      <div className="hp-bar-fill" style={{
-                        width: `${(stamina / maxStamina) * 100}%`,
-                        background: 'var(--blue, #4a9eff)',
-                      }} />
-                    </div>
+              {maxStamina > 0 && (
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2 }}>내력 {Math.floor(stamina)}/{maxStamina}</div>
+                  <div className="hp-bar-container">
+                    <div className="hp-bar-fill" style={{
+                      width: `${(stamina / maxStamina) * 100}%`,
+                      background: 'var(--blue, #4a9eff)',
+                    }} />
                   </div>
-                ) : null;
-              })()}
+                </div>
+              )}
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2, textAlign: 'right' }}>{enemyName}</div>
@@ -468,23 +468,63 @@ function BattleScreen() {
         </div>
       </div>
 
-      {/* 정보 바 (DPS 제거, 공격 간격으로 대체) */}
+      {/* 내 스탯 바 */}
       <div className="info-bar">
         <div className="info-bar-item">
+          <div className="info-bar-value">{formatNumber(maxHp)}</div>
+          <div className="info-bar-label">최대HP</div>
+        </div>
+        <div className="info-bar-item">
+          <div className="info-bar-value">{formatNumber(playerDps)}</div>
+          <div className="info-bar-label">DPS</div>
+        </div>
+        <div className="info-bar-item">
+          <div className="info-bar-value">{maxStamina > 0 ? formatNumber(maxStamina) : '-'}</div>
+          <div className="info-bar-label">최대내력</div>
+        </div>
+        <div className="info-bar-item">
           <div className="info-bar-value">{atkInterval.toFixed(1)}초</div>
-          <div className="info-bar-label">공격간격</div>
+          <div className="info-bar-label">공격속도</div>
+        </div>
+      </div>
+
+      {/* 적 스탯 바 */}
+      <div className="info-bar" style={{ borderTop: '1px solid var(--border)', opacity: 0.85 }}>
+        <div className="info-bar-item">
+          <div className="info-bar-value">
+            {reveal >= 2 ? formatNumber(currentEnemy.maxHp) : '???'}
+          </div>
+          <div className="info-bar-label">적 최대HP</div>
         </div>
         <div className="info-bar-item">
-          <div className="info-bar-value">{Math.floor(hp)}</div>
-          <div className="info-bar-label">HP</div>
+          <div className="info-bar-value">
+            {reveal >= 4
+              ? (currentEnemy.attackInterval > 0
+                  ? formatNumber(Math.floor(currentEnemy.attackPower / currentEnemy.attackInterval))
+                  : '-')
+              : '???'}
+          </div>
+          <div className="info-bar-label">적 DPS</div>
         </div>
         <div className="info-bar-item">
-          <div className="info-bar-value">{formatNumber(Math.floor(qi))}</div>
-          <div className="info-bar-label">기운</div>
+          <div className="info-bar-value">
+            {reveal >= 4
+              ? (BOSS_PATTERNS[currentEnemy.id]
+                  ? formatNumber(BOSS_PATTERNS[currentEnemy.id].stamina.max)
+                  : '-')
+              : '???'}
+          </div>
+          <div className="info-bar-label">적 최대내력</div>
         </div>
         <div className="info-bar-item">
-          <div className="info-bar-value">{totalStats}</div>
-          <div className="info-bar-label">경맥합</div>
+          <div className="info-bar-value">
+            {reveal >= 4
+              ? (currentEnemy.attackInterval > 0
+                  ? currentEnemy.attackInterval.toFixed(1) + '초'
+                  : '-')
+              : '???'}
+          </div>
+          <div className="info-bar-label">적 공격속도</div>
         </div>
       </div>
 
