@@ -1201,6 +1201,8 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                 triggered = true;
               }
               if (!triggered) continue;
+              // dot_apply·double_hit은 일반 공격 명중 후 처리하므로 여기서는 건너뜀
+              if (skill.type === 'dot_apply' || skill.type === 'double_hit') continue;
 
               skillUsed = true;
               const logMsg = skill.logMessages[Math.floor(Math.random() * skill.logMessages.length)];
