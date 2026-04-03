@@ -72,7 +72,7 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
       {
         id: 'hwahyul_burst', type: 'freeze_attack',
         triggerCondition: 'stamina_full', staminaCost: 3,
-        fixedDamage: 300, undodgeable: false, priority: 1,
+        fixedDamage: 400, undodgeable: false, priority: 1,
         logMessages: ['화혈분화(火血噴火)! 온몸에 퍼진 독이 한꺼번에 터졌다!'],
       },
       {
@@ -347,7 +347,7 @@ export const SAEWOE_MONSTERS: MonsterDef[] = [
   {
     id: 'hwahyulsa',
     name: '화혈사(火血蛇)',
-    hp: 1500, attackPower: 1, attackInterval: 2, regen: 5, simdeuk: 30,
+    hp: 12000, attackPower: 25, attackInterval: 2, regen: 5, simdeuk: 30,
     drops: [],
     grade: 3,
     imageKey: 'hwahyulsa',
@@ -357,7 +357,7 @@ export const SAEWOE_MONSTERS: MonsterDef[] = [
   {
     id: 'eunrang',
     name: '은랑(銀狼)',
-    hp: 2500, attackPower: 75, attackInterval: 1.5, regen: 8, simdeuk: 45,
+    hp: 20000, attackPower: 75, attackInterval: 1.5, regen: 8, simdeuk: 45,
     drops: [],
     grade: 3,
     imageKey: 'eunrang',
