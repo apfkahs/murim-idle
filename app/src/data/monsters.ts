@@ -6,7 +6,10 @@
 // ── 보스 스킬/패턴 ──
 export interface BossSkillDef {
   id: string;
-  type: 'stun' | 'rage_attack' | 'replace_normal' | 'charged_attack';
+  type: 'stun' | 'rage_attack' | 'replace_normal' | 'charged_attack'
+     | 'dot_apply'
+     | 'double_hit'
+     | 'freeze_attack';
   triggerCondition: 'stamina_full' | 'hp_threshold' | 'default';
   staminaCost?: number;
   staminaGain?: number;
@@ -18,11 +21,16 @@ export interface BossSkillDef {
   undodgeable?: boolean;
   logMessages: string[];
   priority?: number;
+  chance?: number;
+  fixedDamage?: number;
+  freezeAttacks?: number;
 }
 
 export interface BossPatternDef {
   stamina: { initial: number; max: number; regenPerSec: number };
   skills: BossSkillDef[];
+  dotDamagePerStack?: number;
+  staminaLabel?: string;
 }
 
 export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
@@ -53,6 +61,40 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
         id: 'harvest_qi', type: 'replace_normal', triggerCondition: 'default',
         staminaGain: 10, useNormalDamage: false, undodgeable: false, priority: 0,
         logMessages: ['당강이 풍년의 기운을 내뿜었다!', '당강의 몸에서 대지의 기운이 흘러나왔다!', '당강이 뿔을 들이밀며 기운을 모은다!'],
+      },
+    ],
+  },
+  hwahyulsa: {
+    stamina: { initial: 0, max: 3, regenPerSec: 0 },
+    dotDamagePerStack: 7,
+    staminaLabel: '화혈독',
+    skills: [
+      {
+        id: 'hwahyul_burst', type: 'freeze_attack',
+        triggerCondition: 'stamina_full', staminaCost: 3,
+        fixedDamage: 300, undodgeable: false, priority: 1,
+        logMessages: ['화혈분화(火血噴火)! 온몸에 퍼진 독이 한꺼번에 터졌다!'],
+      },
+      {
+        id: 'hwahyul_bite', type: 'dot_apply',
+        triggerCondition: 'default', chance: 0.4, staminaGain: 1, priority: 0,
+        logMessages: ['화혈사의 독니가 살을 파고들었다! 화혈독이 퍼진다!'],
+      },
+    ],
+  },
+  eunrang: {
+    stamina: { initial: 0, max: 3, regenPerSec: 0 },
+    skills: [
+      {
+        id: 'hwanyeong_ice', type: 'freeze_attack',
+        triggerCondition: 'stamina_full', staminaCost: 3,
+        fixedDamage: 300, freezeAttacks: 3, undodgeable: false, priority: 1,
+        logMessages: ['환영빙습(幻影氷襲)! 은랑의 형체가 흐릿해지더니 순식간에 덮쳐왔다!'],
+      },
+      {
+        id: 'jeonkwang', type: 'double_hit',
+        triggerCondition: 'default', chance: 0.2, staminaGain: 1, priority: 0,
+        logMessages: ['전광석화(電光石火)! 은랑이 번개처럼 두 번 덮쳤다!'],
       },
     ],
   },
@@ -305,7 +347,7 @@ export const SAEWOE_MONSTERS: MonsterDef[] = [
   {
     id: 'hwahyulsa',
     name: '화혈사(火血蛇)',
-    hp: 500, attackPower: 40, attackInterval: 2.5, regen: 5, simdeuk: 30,
+    hp: 1500, attackPower: 1, attackInterval: 2, regen: 5, simdeuk: 30,
     drops: [],
     grade: 3,
     imageKey: 'hwahyulsa',
@@ -315,7 +357,7 @@ export const SAEWOE_MONSTERS: MonsterDef[] = [
   {
     id: 'eunrang',
     name: '은랑(銀狼)',
-    hp: 700, attackPower: 55, attackInterval: 2.0, regen: 8, simdeuk: 45,
+    hp: 2500, attackPower: 75, attackInterval: 1.5, regen: 8, simdeuk: 45,
     drops: [],
     grade: 3,
     imageKey: 'eunrang',

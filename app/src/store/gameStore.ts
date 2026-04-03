@@ -82,7 +82,7 @@ export interface GameState {
   hiddenRevealedInField: Record<string, string | null>;
 
   // 보스 패턴
-  bossPatternState: { bossStamina: number; rageUsed: boolean } | null;
+  bossPatternState: { bossStamina: number; rageUsed: boolean; playerFreezeLeft?: number } | null;
   playerStunTimer: number;
   lastEnemyAttack: { enemyName: string; attackMessage: string } | null;
   dodgeCounterActive: boolean;  // 다음 공격에 최종 피해 1.2배 적용 여부
@@ -679,7 +679,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         currentBattleDuration = 0;
         currentBattleDamageDealt = 0;
         bossPatternState = BOSS_PATTERNS[huntTarget]
-          ? { bossStamina: BOSS_PATTERNS[huntTarget].stamina.initial, rageUsed: false }
+          ? { bossStamina: BOSS_PATTERNS[huntTarget].stamina.initial, rageUsed: false, playerFreezeLeft: 0 }
           : null;
         playerStunTimer = 0;
         lastEnemyAttack = null;
@@ -713,6 +713,15 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       }
     }
 
+    // 화혈독 초당 피해 처리
+    if (bossPatternState && currentEnemy) {
+      const dotPattern = BOSS_PATTERNS[currentEnemy.id];
+      if (dotPattern?.dotDamagePerStack && bossPatternState.bossStamina > 0) {
+        const dotDmg = dotPattern.dotDamagePerStack * bossPatternState.bossStamina * dt * (1 - dmgReduction / 100);
+        hp -= dotDmg;
+      }
+    }
+
     // 스턴 타이머 감소
     if (playerStunTimer > 0) {
       playerStunTimer = Math.max(0, playerStunTimer - dt);
@@ -729,9 +738,14 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         if (ultCooldowns[artId] <= 0) delete ultCooldowns[artId];
       }
 
-      // 플레이어 공격 타이머
-      playerAttackTimer -= dt;
+      // 플레이어 공격 타이머 (빙결 중 속도 절반)
+      const freezeMultiplier = (bossPatternState?.playerFreezeLeft ?? 0) > 0 ? 2 : 1;
+      playerAttackTimer -= dt / freezeMultiplier;
       if (playerAttackTimer <= 0) {
+        // 빙결 카운트 차감
+        if (bossPatternState?.playerFreezeLeft) {
+          bossPatternState.playerFreezeLeft = Math.max(0, bossPatternState.playerFreezeLeft - 1);
+        }
       const atkSpeedBonus = (masteryEffects?.bonusAtkSpeed ?? 0) + (equipStats.bonusAtkSpeed ?? 0);
       const attackInterval = Math.max(B.BASE_ATTACK_INTERVAL - atkSpeedBonus, B.ATK_SPEED_MIN);
       playerAttackTimer += attackInterval;
@@ -1070,7 +1084,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                 }
                 // 패턴 초기화 (히든 당강 등)
                 bossPatternState = BOSS_PATTERNS[nextMon.id]
-                  ? { bossStamina: BOSS_PATTERNS[nextMon.id].stamina.initial, rageUsed: false }
+                  ? { bossStamina: BOSS_PATTERNS[nextMon.id].stamina.initial, rageUsed: false, playerFreezeLeft: 0 }
                   : null;
                 playerStunTimer = 0;
                 playerAttackTimer = B.BASE_ATTACK_INTERVAL;
@@ -1091,7 +1105,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                   battleLog.push(`— 보스 등장! ${bossMon.name}이(가) 나타났다! —`);
                   // 보스 패턴 초기화
                   bossPatternState = BOSS_PATTERNS[bossMon.id]
-                    ? { bossStamina: BOSS_PATTERNS[bossMon.id].stamina.initial, rageUsed: false }
+                    ? { bossStamina: BOSS_PATTERNS[bossMon.id].stamina.initial, rageUsed: false, playerFreezeLeft: 0 }
                     : null;
                   playerStunTimer = 0;
                   playerAttackTimer = B.BASE_ATTACK_INTERVAL;
@@ -1152,7 +1166,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
               enemyAttackTimer = nextMon.attackInterval;
               // 패턴 초기화 (보스/히든 사냥 시)
               if (BOSS_PATTERNS[huntTarget]) {
-                bossPatternState = { bossStamina: BOSS_PATTERNS[huntTarget].stamina.initial, rageUsed: false };
+                bossPatternState = { bossStamina: BOSS_PATTERNS[huntTarget].stamina.initial, rageUsed: false, playerFreezeLeft: 0 };
               }
               playerStunTimer = 0;
             }
@@ -1220,6 +1234,28 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                   );
                 }
                 battleLog.push(logMsg);
+              } else if (skill.type === 'freeze_attack') {
+                const dmg = skill.fixedDamage ?? Math.floor(currentEnemy.attackPower * (skill.damageMultiplier ?? 1) * (1 - dmgReduction / 100));
+                if (skill.undodgeable || Math.random() >= dodgeRate) {
+                  hp -= dmg;
+                  if (skill.freezeAttacks && bossPatternState) {
+                    bossPatternState.playerFreezeLeft = skill.freezeAttacks;
+                  }
+                  const freezeSuffix = skill.freezeAttacks ? ' 빙결!' : '';
+                  const attackMsg = `${logMsg} ${dmg} 피해!${freezeSuffix}`;
+                  battleLog.push(attackMsg);
+                  lastEnemyAttack = { enemyName: eName, attackMessage: attackMsg };
+                  if (!isSimulating) enemyAnim = 'attack';
+                } else {
+                  battleLog.push(`${eName}의 공격을 가볍게 피했다!`);
+                  if (!isSimulating) {
+                    floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: '회피!', type: 'evade' as const, timestamp: Date.now() }];
+                    if (floatingTexts.length > 15) floatingTexts = floatingTexts.slice(-15);
+                  }
+                  if (masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) {
+                    dodgeCounterActive = true;
+                  }
+                }
               } else {
                 // 데미지 스킬 (rage_attack, charged_attack)
                 if (skill.oneTime && skill.type === 'rage_attack') {
@@ -1271,6 +1307,40 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
               }
               if (!isSimulating) {
                 enemyAnim = 'attack';
+              }
+              // dot_apply: 명중 시 확률로 독 스택 추가 (회피 시에는 실행 안 됨)
+              const dotPattern2 = bossPatternState ? BOSS_PATTERNS[currentEnemy.id] : null;
+              if (dotPattern2 && bossPatternState) {
+                const dotSkill = dotPattern2.skills.find(s => s.type === 'dot_apply');
+                if (dotSkill && Math.random() < (dotSkill.chance ?? 0)) {
+                  bossPatternState.bossStamina = Math.min(
+                    bossPatternState.bossStamina + (dotSkill.staminaGain ?? 1),
+                    dotPattern2.stamina.max
+                  );
+                  const dmsg = dotSkill.logMessages[Math.floor(Math.random() * dotSkill.logMessages.length)];
+                  battleLog.push(dmsg);
+                }
+                // double_hit: 확률로 2번째 공격 + 내력 획득
+                const dblSkill = dotPattern2.skills.find(s => s.type === 'double_hit');
+                if (dblSkill && Math.random() < (dblSkill.chance ?? 0)) {
+                  const dmsg = dblSkill.logMessages[Math.floor(Math.random() * dblSkill.logMessages.length)];
+                  if (Math.random() >= dodgeRate) {
+                    const dmg2 = Math.floor(currentEnemy.attackPower * (1 - dmgReduction / 100));
+                    hp -= dmg2;
+                    battleLog.push(`${dmsg} ${dmg2} 피해!`);
+                  } else {
+                    battleLog.push(`${dmsg} — 회피!`);
+                    if (masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) {
+                      dodgeCounterActive = true;
+                    }
+                  }
+                  if (dblSkill.staminaGain) {
+                    bossPatternState.bossStamina = Math.min(
+                      bossPatternState.bossStamina + dblSkill.staminaGain,
+                      dotPattern2.stamina.max
+                    );
+                  }
+                }
               }
             }
           }
@@ -1586,7 +1656,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentBattleDuration: 0,
       currentBattleDamageDealt: 0,
       bossPatternState: BOSS_PATTERNS[order[0]]
-        ? { bossStamina: BOSS_PATTERNS[order[0]].stamina.initial, rageUsed: false }
+        ? { bossStamina: BOSS_PATTERNS[order[0]].stamina.initial, rageUsed: false, playerFreezeLeft: 0 }
         : null,
       playerStunTimer: 0,
       lastEnemyAttack: null,
@@ -1619,7 +1689,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentBattleDuration: 0,
       currentBattleDamageDealt: 0,
       bossPatternState: BOSS_PATTERNS[monsterId]
-        ? { bossStamina: BOSS_PATTERNS[monsterId].stamina.initial, rageUsed: false }
+        ? { bossStamina: BOSS_PATTERNS[monsterId].stamina.initial, rageUsed: false, playerFreezeLeft: 0 }
         : null,
       playerStunTimer: 0,
       lastEnemyAttack: null,

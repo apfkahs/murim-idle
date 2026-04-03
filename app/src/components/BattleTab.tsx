@@ -543,6 +543,12 @@ function BattleScreen() {
                   경직! ({playerStunTimer.toFixed(1)}초)
                 </div>
               )}
+              {/* 빙결 표시 */}
+              {(bossPatternState?.playerFreezeLeft ?? 0) > 0 && (
+                <div style={{ fontSize: 11, color: '#88ccff', fontWeight: 600, marginTop: 4 }}>
+                  빙결! (공격 {bossPatternState!.playerFreezeLeft}회 남음)
+                </div>
+              )}
               {/* 내력 게이지 */}
               {maxStamina > 0 && (
                 <div style={{ marginTop: 4 }}>
@@ -574,7 +580,8 @@ function BattleScreen() {
               {bossPatternState != null && BOSS_PATTERNS[currentEnemy.id] && (
                 <div style={{ marginTop: 4 }}>
                   <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2, textAlign: 'right' }}>
-                    내력 {Math.floor(bossPatternState.bossStamina)}/{BOSS_PATTERNS[currentEnemy.id].stamina.max}
+                    {BOSS_PATTERNS[currentEnemy.id].staminaLabel ?? '내력'}{' '}
+                    {Math.floor(bossPatternState.bossStamina)}/{BOSS_PATTERNS[currentEnemy.id].stamina.max}
                   </div>
                   <div className="hp-bar-container">
                     <div className="hp-bar-fill" style={{
