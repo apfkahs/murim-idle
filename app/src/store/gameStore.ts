@@ -137,6 +137,7 @@ export interface BattleResult {
   drops: string[];
   message: string;
   deathLog?: string;
+  recentBattleLog?: string[];
 }
 
 export interface FloatingText {
@@ -170,7 +171,7 @@ export interface SaveMeta {
 // ============================================================
 export interface GameActions {
   tick: (forceDt?: number) => void;
-  investStat: (stat: 'gi' | 'sim' | 'che') => void;
+  investStat: (stat: 'gi' | 'sim' | 'che', amount?: number) => void;
   healWithQi: () => void;
 
   equipArt: (artId: string) => void;
@@ -1356,6 +1357,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       const deathLog = lastEnemyAttack
         ? `${lastEnemyAttack.enemyName}의 공격을 받아 쓰러졌습니다...`
         : undefined;
+      const recentBattleLog = battleLog.slice(-8);
       if (battleMode === 'explore') {
         battleResult = {
           type: 'death',
@@ -1363,6 +1365,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           drops: [],
           message: '패배... 보상이 없습니다.',
           deathLog,
+          recentBattleLog,
         };
       } else {
         battleResult = {
@@ -1371,6 +1374,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           drops: [],
           message: '사망! 전투 종료.',
           deathLog,
+          recentBattleLog,
         };
         pendingHuntRetry = true;
       }
@@ -1511,24 +1515,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // ─────────────────────────────────────────────
   // Stat investment
   // ─────────────────────────────────────────────
-  investStat: (stat) => {
+  investStat: (stat, amount = 1) => {
     const state = get();
     if (state.battleMode !== 'none') return;
 
-    const level = state.stats[stat];
-    const cost = calcStatCost(level);
-    if (state.qi < cost) return;
+    let qi = state.qi;
+    let level = state.stats[stat];
+    let totalSpent = state.totalSpentQi;
+    let invested = 0;
 
-    const newStats = { ...state.stats, [stat]: level + 1 };
-    const newTotalSpent = state.totalSpentQi + cost;
+    for (let i = 0; i < amount; i++) {
+      const cost = calcStatCost(level);
+      if (qi < cost) break;
+      qi -= cost;
+      totalSpent += cost;
+      level += 1;
+      invested += 1;
+    }
+
+    if (invested === 0) return;
+
+    const newStats = { ...state.stats, [stat]: level };
     const eqStats = gatherEquipmentStats(state);
     const tierMult = calcTierMultiplier(state.tier);
     const newMaxHp = calcMaxHp(newStats.che, eqStats.bonusHp ?? 0, tierMult);
 
     set({
-      qi: state.qi - cost,
+      qi,
       stats: newStats,
-      totalSpentQi: newTotalSpent,
+      totalSpentQi: totalSpent,
       maxHp: newMaxHp,
       hp: Math.min(state.hp, newMaxHp),
     });

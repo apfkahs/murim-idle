@@ -737,9 +737,14 @@ function BattleResultScreen() {
         {battleResult.message}
       </div>
 
-      {battleResult.deathLog && (
-        <div style={{ fontSize: 12, color: '#ff6666', marginBottom: 8, fontStyle: 'italic' }}>
-          {battleResult.deathLog}
+      {battleResult.recentBattleLog && battleResult.recentBattleLog.length > 0 && (
+        <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,80,80,0.25)', borderRadius: 4, padding: '8px 10px', marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: '#ff8888', marginBottom: 6, letterSpacing: 1 }}>— 마지막 전투 기록 —</div>
+          {battleResult.recentBattleLog.map((log, i) => (
+            <div key={i} style={{ fontSize: 11, color: i === battleResult.recentBattleLog!.length - 1 ? '#ff6666' : 'var(--text-dim)', lineHeight: 1.6, fontStyle: i === battleResult.recentBattleLog!.length - 1 ? 'italic' : 'normal' }}>
+              {log}
+            </div>
+          ))}
         </div>
       )}
 

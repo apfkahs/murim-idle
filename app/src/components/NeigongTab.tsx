@@ -167,13 +167,27 @@ export default function NeigongTab() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="stat-level">Lv.{level}</span>
                 <span className="stat-cost">{formatNumber(cost)}</span>
-                <button
-                  className="btn btn-plus"
-                  onClick={() => investStat(key)}
-                  disabled={battling || qi < cost}
-                >
-                  +
-                </button>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {([1, 10, 100] as const).map(n => (
+                    <button
+                      key={n}
+                      className="btn btn-plus"
+                      style={{ fontSize: 11, padding: '2px 6px' }}
+                      onClick={() => investStat(key, n)}
+                      disabled={battling || qi < cost}
+                    >
+                      +{n}
+                    </button>
+                  ))}
+                  <button
+                    className="btn btn-plus"
+                    style={{ fontSize: 11, padding: '2px 6px' }}
+                    onClick={() => investStat(key, 999999)}
+                    disabled={battling || qi < cost}
+                  >
+                    최대
+                  </button>
+                </div>
               </div>
             </div>
           );
