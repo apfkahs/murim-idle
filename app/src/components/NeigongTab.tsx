@@ -2,6 +2,7 @@
  * 자연의 기운/경맥 탭 — v4.1
  * 기(氣)/심(心)/체(體) 스탯. 내력 게이지 추가.
  */
+import { useState } from 'react';
 import { useGameStore, calcMaxHp, calcStamina, calcStaminaRegen, calcEffectiveRegen } from '../store/gameStore';
 import { getTierDef, TIERS } from '../data/tiers';
 import { getArtDef } from '../data/arts';
@@ -29,6 +30,7 @@ export default function NeigongTab() {
   const battleMode = useGameStore(s => s.battleMode);
 
   const battling = battleMode !== 'none';
+  const [investMode, setInvestMode] = useState<1 | 10 | 100 | 'max'>(1);
   const tierDef = getTierDef(tier);
   const qiRate = getQiPerSec();
   const totalStats = getTotalStats();
@@ -152,6 +154,18 @@ export default function NeigongTab() {
           <span className="card-label" style={{ marginBottom: 0 }}>경맥</span>
           <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>공격간격 {atkInterval.toFixed(1)}초</span>
         </div>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+          {([1, 10, 100, 'max'] as const).map(mode => (
+            <button
+              key={String(mode)}
+              className={`btn btn-small${investMode === mode ? ' btn-gold' : ''}`}
+              style={{ flex: 1 }}
+              onClick={() => setInvestMode(mode)}
+            >
+              {mode === 'max' ? '최대' : `+${mode}`}
+            </button>
+          ))}
+        </div>
         {statEntries.map(({ key, name, sub, dot, desc }) => {
           const level = stats[key];
           const cost = getStatCost(level);
@@ -167,27 +181,13 @@ export default function NeigongTab() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="stat-level">Lv.{level}</span>
                 <span className="stat-cost">{formatNumber(cost)}</span>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {([1, 10, 100] as const).map(n => (
-                    <button
-                      key={n}
-                      className="btn btn-plus"
-                      style={{ fontSize: 11, padding: '2px 6px' }}
-                      onClick={() => investStat(key, n)}
-                      disabled={battling || qi < cost}
-                    >
-                      +{n}
-                    </button>
-                  ))}
-                  <button
-                    className="btn btn-plus"
-                    style={{ fontSize: 11, padding: '2px 6px' }}
-                    onClick={() => investStat(key, 999999)}
-                    disabled={battling || qi < cost}
-                  >
-                    최대
-                  </button>
-                </div>
+                <button
+                  className="btn btn-plus"
+                  onClick={() => investStat(key, investMode === 'max' ? 999999 : investMode)}
+                  disabled={battling || qi < cost}
+                >
+                  +
+                </button>
               </div>
             </div>
           );
