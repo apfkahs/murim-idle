@@ -123,7 +123,7 @@ export const YASAN_MONSTERS: MonsterDef[] = [
     id: 'squirrel', name: '다람쥐',
     hp: 25, attackPower: 4, attackInterval: 3.5, regen: 0, simdeuk: 2, baseProficiency: 1,
     drops: [], grade: 1, imageKey: 'squirrel',
-    materialDrops: [{ materialId: 'torn_paper', chance: 0.10 }],
+    materialDrops: [{ materialId: 'torn_paper', chance: 0.01 }],
     attackMessages: ['다람쥐가 재빠르게 물었다!', '다람쥐가 도토리를 던졌다!'],
     description: '야산 어귀를 쉼 없이 오가는 작은 짐승이다. 도토리 하나를 지키기 위해 사람에게도 달려드는 대담함이 있으나, 내공 앞엔 어이없이 무너진다. 수련을 막 시작한 무인이 기운을 익히기에 적당한 상대.',
   },
@@ -131,7 +131,7 @@ export const YASAN_MONSTERS: MonsterDef[] = [
     id: 'rabbit', name: '토끼',
     hp: 40, attackPower: 5, attackInterval: 3.0, regen: 0, simdeuk: 4, baseProficiency: 1,
     drops: [], grade: 1, imageKey: 'rabbit',
-    materialDrops: [{ materialId: 'torn_paper', chance: 0.10 }],
+    materialDrops: [{ materialId: 'torn_paper', chance: 0.02 }],
     attackMessages: ['토끼가 뒷발로 찼다!', '토끼가 돌진했다!'],
     description: '언뜻 보면 무해한 야생 토끼이지만, 위협받으면 뒷발 차기를 날린다. 몸이 가볍고 방향 전환이 빨라 허점을 잡기 전까진 의외로 성가신 상대다.',
   },
@@ -139,7 +139,7 @@ export const YASAN_MONSTERS: MonsterDef[] = [
     id: 'fox', name: '여우',
     hp: 70, attackPower: 8, attackInterval: 2.8, regen: 0, simdeuk: 7, baseProficiency: 2,
     drops: [], grade: 1, imageKey: 'fox',
-    materialDrops: [{ materialId: 'torn_paper', chance: 0.10 }],
+    materialDrops: [{ materialId: 'torn_paper', chance: 0.04 }],
     attackMessages: ['여우가 꼬리를 휘둘렀다!', '여우가 날카롭게 물었다!'],
     description: '영리하고 간사하여 상대의 허점을 끈질기게 기다릴 줄 안다. 날카로운 이빨과 꼬리치기가 특기이며, 섣불리 덤볐다간 제법 쪽팔린 꼴을 당하기 쉽다.',
   },
@@ -147,7 +147,7 @@ export const YASAN_MONSTERS: MonsterDef[] = [
     id: 'deer', name: '사슴',
     hp: 110, attackPower: 6, attackInterval: 3.0, regen: 0, simdeuk: 9, baseProficiency: 2,
     drops: [], grade: 1, imageKey: 'deer',
-    materialDrops: [{ materialId: 'torn_paper', chance: 0.10 }],
+    materialDrops: [{ materialId: 'torn_paper', chance: 0.06 }],
     attackMessages: ['사슴이 뿔로 받았다!', '사슴이 돌진해왔다!'],
     description: '야산에서 가장 온순한 외모를 지닌 짐승이나, 뿔로 들이받는 힘은 결코 가볍지 않다. 분노하면 무작정 돌진하는 성질이 있으니, 겉모습에 방심했다간 혼이 날 것이다.',
   },
@@ -155,7 +155,7 @@ export const YASAN_MONSTERS: MonsterDef[] = [
     id: 'boar', name: '멧돼지',
     hp: 90, attackPower: 14, attackInterval: 2.2, regen: 0, simdeuk: 10, baseProficiency: 3,
     drops: [], grade: 1, imageKey: 'boar',
-    materialDrops: [{ materialId: 'torn_paper', chance: 0.10 }],
+    materialDrops: [{ materialId: 'torn_paper', chance: 0.08 }],
     attackMessages: ['멧돼지가 이빨로 들이받았다!', '멧돼지의 돌진!'],
     description: '울퉁불퉁한 몸통과 날카로운 엄니로 야산을 누비는 짐승이다. 한번 달려들면 방향을 바꾸지 않는 단순한 습성이지만, 그 돌진의 파괴력은 초보 무인에겐 충분히 위협적이다.',
   },
@@ -163,7 +163,7 @@ export const YASAN_MONSTERS: MonsterDef[] = [
     id: 'wolf', name: '늑대',
     hp: 160, attackPower: 16, attackInterval: 2.0, regen: 0, simdeuk: 15, baseProficiency: 2,
     drops: [], grade: 2, imageKey: 'wolf',
-    materialDrops: [{ materialId: 'torn_paper', chance: 0.20 }],
+    materialDrops: [{ materialId: 'torn_paper', chance: 0.12 }],
     attackMessages: ['늑대가 발톱으로 할퀴었다!', '늑대가 물어뜯었다!'],
     description: '홀로 산을 떠도는 이리다. 무리에서 쫓겨난 것인지 스스로 선택한 고독인지는 알 수 없다. 발톱이 날카롭고 반응이 빠르며, 상대가 흔들리는 순간을 귀신같이 포착한다.',
   },
@@ -171,7 +171,7 @@ export const YASAN_MONSTERS: MonsterDef[] = [
     id: 'bear', name: '곰',
     hp: 280, attackPower: 22, attackInterval: 2.5, regen: 0, simdeuk: 25, baseProficiency: 2,
     drops: [], grade: 3, imageKey: 'bear',
-    materialDrops: [{ materialId: 'torn_paper', chance: 0.30 }],
+    materialDrops: [{ materialId: 'torn_paper', chance: 0.20 }],
     attackMessages: ['곰이 거대한 앞발로 내리쳤다!', '곰의 포효와 함께 강타!'],
     description: '야산의 군주라 불리는 큰 곰이다. 맞닥뜨리는 순간 터져 나오는 포효 하나만으로 간담을 서늘하게 만든다. 거대한 앞발 한 방이면 웬만한 무인은 날아간다는 말이 있다.',
   },
@@ -299,9 +299,34 @@ export const YASAN_BOSS: MonsterDef = {
   description: '야산 전체를 세력권으로 삼는 호랑이의 왕이다. 산군(山君)이라 불리며 야산의 모든 생명이 그 앞에 머리를 조아린다. 포효 하나로 하늘을 진동시키고, 노하면 3리 밖에서도 그 살기가 느껴진다.',
 };
 
+// 새외(塞外) 몬스터 — 천산 대맥(天山大脈)
+// 스펙은 임시 수치. 정확한 수치는 별도 채팅에서 결정.
+export const SAEWOE_MONSTERS: MonsterDef[] = [
+  {
+    id: 'hwahyulsa',
+    name: '화혈사(火血蛇)',
+    hp: 500, attackPower: 40, attackInterval: 2.5, regen: 5, simdeuk: 30,
+    drops: [],
+    grade: 3,
+    imageKey: 'hwahyulsa',
+    attackMessages: ['화혈사가 불타는 독니로 물었다!', '화혈사의 뜨거운 몸이 스쳤다!'],
+    description: '천산의 추위를 버티기 위해 피를 뜨겁게 만든 뱀. 하지만 한계가 있어 천산의 기슭에서만 서식한다.',
+  },
+  {
+    id: 'eunrang',
+    name: '은랑(銀狼)',
+    hp: 700, attackPower: 55, attackInterval: 2.0, regen: 8, simdeuk: 45,
+    drops: [],
+    grade: 3,
+    imageKey: 'eunrang',
+    attackMessages: ['은랑이 날카로운 발톱으로 할퀴었다!', '은랑이 빙판 위를 미끄러지듯 덮쳤다!'],
+    description: '은빛 털을 가진 거대 늑대. 눈 위를 달려도 발자국이 남지 않는다.',
+  },
+];
+
 export function getMonsterDef(id: string): MonsterDef | undefined {
   return [...TRAINING_MONSTERS, ...YASAN_MONSTERS, ...HIDDEN_MONSTERS, YASAN_BOSS,
-          ...INN_MONSTERS, ...INN_HIDDEN_MONSTERS, INN_BOSS]
+          ...INN_MONSTERS, ...INN_HIDDEN_MONSTERS, INN_BOSS, ...SAEWOE_MONSTERS]
     .find(m => m.id === id);
 }
 

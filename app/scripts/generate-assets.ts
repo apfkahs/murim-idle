@@ -155,6 +155,16 @@ const ASSETS: AssetEntry[] = [
   { file: 'enemies/bandit_leader.png', category: 'character', size: '1024x1024',
     prompt: 'bandit faction leader, massive greatsword, black wind aura, intimidating, full armor, war banner' },
 
+  // 새외 배경
+  { file: 'backgrounds/cheonsan_daebaek.png', category: 'background', size: '1536x1024',
+    prompt: 'Tianshan mountain range extreme altitude, endless sea of white snow, howling blizzard winds, towering jagged peaks piercing through clouds, desolate and majestic, no signs of life, eternal ice and snow, cold blue-white palette' },
+
+  // 새외 몬스터 (천산 대맥)
+  { file: 'enemies/hwahyulsa.png', category: 'character', size: '1024x1024',
+    prompt: 'giant serpent snake with glowing red blood veins visible through translucent scales, fire element, high altitude snowy mountain setting, fearsome predator' },
+  { file: 'enemies/eunrang.png', category: 'character', size: '1024x1024',
+    prompt: 'giant silver wolf with pristine silver-white fur, massive and powerful, ethereal and ghostly elegant, high altitude snowy mountain predator, no footprints' },
+
   // 플레이어 캐릭터 (4단계 진화)
   { file: 'player/tier0_hucheon.png', category: 'character', size: '1024x1024',
     prompt: 'young martial artist beginner, simple white hanbok, wooden training sword, humble stance' },

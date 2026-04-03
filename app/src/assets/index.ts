@@ -50,6 +50,9 @@ const ENEMY_EMOJI: Record<string, string> = {
   masked_swordsman: '🎭',
   innkeeper_true: '👤',
   bandit_leader: '⚔️',
+  // 새외 몬스터
+  hwahyulsa: '🐍',
+  eunrang: '🐺',
 };
 
 export function getEnemyImage(key: string): string | null {
@@ -76,6 +79,10 @@ const FIELD_BG_MAP: Record<string, string> = {
   training: 'training_ground',
   yasan: 'mountain_forest',
   inn: 'inn_interior',
+  cheonsan: 'cheonsan_daebaek',
+  cheonsan_jangmak: 'cheonsan_daebaek',
+  cheonsan_godo: 'cheonsan_daebaek',
+  cheonsan_simjang: 'cheonsan_daebaek',
 };
 
 export function getFieldBackground(fieldId: string): string | null {

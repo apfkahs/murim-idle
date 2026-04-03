@@ -20,6 +20,10 @@ export interface FieldDef {
   unlockCondition?: FieldUnlockCondition; // 선언적 해금 조건
   hiddenRate?: number;              // 히든 출현 확률 (기본 0.05)
   hiddenRequiresBossKill?: boolean; // 보스 처치 후 히든 출현 (기본 false)
+  region?: string;           // 'jungwon' | 'saewoe' 등, 기본값 'jungwon'
+  location?: string;         // 지역 그룹명 (예: '천산 대맥')
+  sequential?: boolean;      // true이면 몬스터를 순서대로 배치 (랜덤 아님)
+  totalMonsterSlots?: number; // 총 몬스터 슬롯 수 (미구현 슬롯은 ??? 표시)
 }
 
 export const FIELDS: FieldDef[] = [
@@ -55,6 +59,43 @@ export const FIELDS: FieldDef[] = [
     canExplore: true,
     unlockCondition: { bossKill: 'tiger_boss' },
   },
+  // ── 새외(塞外) — 천산 대맥(天山大脈) ──
+  {
+    id: 'cheonsan_jangmak',
+    name: '백색의 장막',
+    region: 'saewoe',
+    location: '천산 대맥',
+    monsters: ['hwahyulsa', 'eunrang'],
+    hiddenMonsters: [],
+    canExplore: true,
+    sequential: true,
+    totalMonsterSlots: 5,
+    unlockCondition: { bossKill: 'tiger_boss' },
+  },
+  {
+    id: 'cheonsan_godo',
+    name: '백색의 고도',
+    region: 'saewoe',
+    location: '천산 대맥',
+    monsters: [],
+    hiddenMonsters: [],
+    canExplore: true,
+    sequential: true,
+    totalMonsterSlots: 5,
+    unlockCondition: { bossKill: 'jangmak_boss' },
+  },
+  {
+    id: 'cheonsan_simjang',
+    name: '백색의 심장',
+    region: 'saewoe',
+    location: '천산 대맥',
+    monsters: [],
+    hiddenMonsters: [],
+    canExplore: true,
+    sequential: true,
+    totalMonsterSlots: 5,
+    unlockCondition: { bossKill: 'godo_boss' },
+  },
 ];
 
 export function getFieldDef(id: string): FieldDef | undefined {
@@ -68,6 +109,11 @@ export function getFieldDef(id: string): FieldDef | undefined {
  * - 1~4번째: 약→강, 역행불가, 종류 최대화, 각각 5%로 히든 대체
  */
 export function generateExploreOrder(field: FieldDef, bossKillCounts?: Record<string, number>): string[] {
+  // 순차 필드: 몬스터를 정의된 순서대로 반환
+  if (field.sequential) {
+    return [...field.monsters];
+  }
+
   const monsters = [...field.monsters]; // weak to strong
   const hidden = field.hiddenMonsters;
   const result: string[] = [];

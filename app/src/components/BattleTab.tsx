@@ -1,8 +1,7 @@
 /**
- * 전장 탭 — v1.1
- * 2단계 네비게이션 (전장목록 → 전장상세 → 전투)
- * 몬스터 정보 숨김 시스템 (getMonsterRevealLevel)
- * DPS 제거, 타이머 기반
+ * 전장 탭 — v1.2
+ * 독립 지역 섹션 네비게이션 (중원 / 새외)
+ * 천산 대맥 3단계 구조 추가
  */
 import { useEffect, useRef, useState } from 'react';
 import { useGameStore, getMonsterRevealLevel, calcStamina } from '../store/gameStore';
@@ -16,6 +15,9 @@ const FIELD_DESCRIPTIONS: Record<string, string> = {
   training: '스승이 세워둔 수련 인형들이 묵묵히 서 있다.',
   yasan: '야생의 기운이 감도는 울창한 산길. 무엇이 나올지 모른다.',
   inn: '삐걱거리는 나무 바닥, 수상한 눈빛들. 방심하면 안 된다.',
+  cheonsan_jangmak: '영원한 눈보라가 몰아치는 천산의 초입. 차가운 바람이 뼈를 파고든다.',
+  cheonsan_godo: '구름 위에 솟은 고원. 공기가 희박하여 내공이 없으면 발을 들이기도 어렵다.',
+  cheonsan_simjang: '천산의 심장부. 이곳에 이르는 자는 거의 없다.',
 };
 
 export default function BattleTab() {
@@ -28,33 +30,44 @@ export default function BattleTab() {
 }
 
 // ─────────────────────────────────────────────
-// 2단계 네비게이션: 전장 목록 → 전장 상세
+// 네비게이션: 전장 목록 → (천산 대맥) → 전장 상세
 // ─────────────────────────────────────────────
 function FieldNavigation() {
   const [selectedField, setSelectedField] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
 
   if (selectedField) {
     return <FieldDetailScreen fieldId={selectedField} onBack={() => setSelectedField(null)} />;
   }
-  return <FieldListScreen onSelect={setSelectedField} />;
+  if (selectedLocation === 'cheonsan') {
+    return <CheonsanDetailScreen
+      onSelect={setSelectedField}
+      onBack={() => setSelectedLocation(null)}
+    />;
+  }
+  return <FieldListScreen onSelectField={setSelectedField} onSelectLocation={setSelectedLocation} />;
 }
 
 // ─────────────────────────────────────────────
-// 1단계: 전장 목록 (4장)
+// 전장 목록 — 중원(中原) / 새외(塞外) 독립 섹션
 // ─────────────────────────────────────────────
-function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
+function FieldListScreen({
+  onSelectField,
+  onSelectLocation,
+}: {
+  onSelectField: (id: string) => void;
+  onSelectLocation: (loc: string) => void;
+}) {
   const fieldUnlocks = useGameStore(s => s.fieldUnlocks);
   const killCounts = useGameStore(s => s.killCounts);
 
   return (
     <div>
-      <div className="card-label" style={{ padding: '0 4px', marginBottom: 8 }}>전장</div>
+      {/* ── 중원(中原) ── */}
+      <div className="card-label" style={{ padding: '0 4px', marginBottom: 8 }}>중원(中原)</div>
 
       {/* 수련장 */}
-      <div
-        className="card field-card"
-        onClick={() => onSelect('training')}
-      >
+      <div className="card field-card" onClick={() => onSelectField('training')}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <span style={{ fontWeight: 500, fontSize: 13 }}>수련장</span>
@@ -66,19 +79,14 @@ function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
 
       {/* 야산 */}
       {fieldUnlocks.yasan ? (
-        <div
-          className="card field-card"
-          onClick={() => onSelect('yasan')}
-        >
+        <div className="card field-card" onClick={() => onSelectField('yasan')}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <span style={{ fontWeight: 500, fontSize: 13 }}>야산</span>
               <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
-                수련장 너머 펼쳐진 야산 · {Object.keys(killCounts).filter(id =>
-                  YASAN_MONSTERS.some(m => m.id === id) && killCounts[id] > 0
-                ).length > 0 ? (
-                  `${YASAN_MONSTERS.filter(m => (killCounts[m.id] ?? 0) > 0).length}종 발견`
-                ) : '???'}
+                수련장 너머 펼쳐진 야산 · {YASAN_MONSTERS.filter(m => (killCounts[m.id] ?? 0) > 0).length > 0
+                  ? `${YASAN_MONSTERS.filter(m => (killCounts[m.id] ?? 0) > 0).length}종 발견`
+                  : '???'}
               </div>
             </div>
             <span style={{ fontSize: 14, opacity: 0.3 }}>→</span>
@@ -95,10 +103,7 @@ function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
 
       {/* 허름한 객잔 */}
       {fieldUnlocks.inn ? (
-        <div
-          className="card field-card"
-          onClick={() => onSelect('inn')}
-        >
+        <div className="card field-card" onClick={() => onSelectField('inn')}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <span style={{ fontWeight: 500, fontSize: 13 }}>허름한 객잔</span>
@@ -119,6 +124,104 @@ function FieldListScreen({ onSelect }: { onSelect: (id: string) => void }) {
           </div>
         </div>
       ) : null}
+
+      {/* ── 새외(塞外) — tiger_boss 처치 후 독립 섹션으로 등장 ── */}
+      {fieldUnlocks.cheonsan_jangmak && (
+        <>
+          <div className="card-label" style={{ padding: '0 4px', marginTop: 16, marginBottom: 8 }}>새외(塞外)</div>
+
+          {/* 천산 대맥 — 독립 위치 카드 */}
+          <div className="card field-card" onClick={() => onSelectLocation('cheonsan')}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontWeight: 500, fontSize: 13 }}>천산 대맥(天山大脈)</span>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                  하늘의 옥좌, 신의 계단 · 3단계
+                </div>
+              </div>
+              <span style={{ fontSize: 14, opacity: 0.3 }}>→</span>
+            </div>
+          </div>
+          {/* 미래: 하남성, 길림성 등 추가 시 이 섹션 아래에 카드 추가 */}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// 천산 대맥 3단계 선택 화면
+// ─────────────────────────────────────────────
+const CHEONSAN_STAGES = [
+  { id: 'cheonsan_jangmak', name: '백색의 장막' },
+  { id: 'cheonsan_godo', name: '백색의 고도' },
+  { id: 'cheonsan_simjang', name: '백색의 심장' },
+] as const;
+
+function CheonsanDetailScreen({
+  onSelect,
+  onBack,
+}: {
+  onSelect: (id: string) => void;
+  onBack: () => void;
+}) {
+  const fieldUnlocks = useGameStore(s => s.fieldUnlocks);
+  const bossKillCounts = useGameStore(s => s.bossKillCounts);
+  const killCounts = useGameStore(s => s.killCounts);
+  const cheonsanBg = getFieldBackground('cheonsan');
+
+  return (
+    <div>
+      <div className="field-detail-banner" style={cheonsanBg ? { backgroundImage: `url(${cheonsanBg})` } : {}}>
+        <div className="field-detail-banner-overlay">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="field-back-btn" onClick={onBack}>←</button>
+            <div>
+              <div style={{ fontWeight: 500, fontSize: 14 }}>천산 대맥(天山大脈)</div>
+              <div style={{ fontSize: 11, opacity: 0.7, fontStyle: 'italic' }}>
+                하늘의 옥좌, 신의 계단. 새외와 천축으로 향하는 위대한 여정, 그 시작.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        {CHEONSAN_STAGES.map((stage, i) => {
+          const unlocked = fieldUnlocks[stage.id];
+          const fieldDef = getFieldDef(stage.id);
+          const cleared = fieldDef?.boss
+            ? (bossKillCounts[fieldDef.boss] ?? 0) > 0
+            : fieldDef?.monsters.length
+              ? (killCounts[fieldDef.monsters[fieldDef.monsters.length - 1]] ?? 0) > 0
+              : false;
+
+          if (unlocked) {
+            return (
+              <div
+                key={stage.id}
+                className="stat-row"
+                style={{ cursor: 'pointer', padding: '8px 0' }}
+                onClick={() => onSelect(stage.id)}
+              >
+                <div>
+                  <div style={{ fontSize: 13 }}>{i + 1}단계. {stage.name}</div>
+                  {cleared && <span style={{ fontSize: 11, color: 'var(--green)' }}>답파 완료</span>}
+                </div>
+                <span style={{ fontSize: 14, opacity: 0.3 }}>→</span>
+              </div>
+            );
+          }
+          return (
+            <div key={stage.id} className="stat-row" style={{ opacity: 0.3, padding: '8px 0' }}>
+              <div>
+                <div style={{ fontSize: 13 }}>{i + 1}단계. ???</div>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>이전 단계 답파 필요</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -242,8 +345,20 @@ function FieldDetailScreen({ fieldId, onBack }: { fieldId: string; onBack: () =>
           );
         })}
 
+        {/* 미구현 몬스터 슬롯 (??? 표시) */}
+        {field.totalMonsterSlots && field.totalMonsterSlots > field.monsters.length && (
+          Array.from({ length: field.totalMonsterSlots - field.monsters.length }).map((_, i) => (
+            <div key={`unknown_${i}`} className="stat-row" style={{ opacity: 0.3, alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="monster-emoji-thumb" style={{ opacity: 0.3 }}>?</div>
+                <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>???</span>
+              </div>
+            </div>
+          ))
+        )}
+
         {/* 보스 */}
-        {boss && (
+        {boss ? (
           <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.03)' }}>
             {(() => {
               const bossKills = killCounts[boss.id] ?? 0;
@@ -270,6 +385,12 @@ function FieldDetailScreen({ fieldId, onBack }: { fieldId: string; onBack: () =>
                 </div>
               );
             })()}
+          </div>
+        ) : field.totalMonsterSlots && (
+          <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.03)' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', opacity: 0.4 }}>
+              보스: ???
+            </div>
           </div>
         )}
 

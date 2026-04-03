@@ -285,7 +285,7 @@ export function createInitialState(): GameState {
     activeMasteries: {},
     gameSpeed: 1,
     currentSaveSlot: 0,
-    fieldUnlocks: { training: true, yasan: false, inn: false },
+    fieldUnlocks: { training: true, yasan: false, inn: false, cheonsan_jangmak: false, cheonsan_godo: false, cheonsan_simjang: false },
     inventory: [],
     discoveredMasteries: [],
     pendingEnlightenments: [],
@@ -1097,6 +1097,21 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                   playerAttackTimer = B.BASE_ATTACK_INTERVAL;
                   enemyAttackTimer = bossMon.attackInterval;
                 }
+              } else {
+                // 보스 미구현 필드 (임시): 몬스터 소진 시 즉시 답파 완료
+                // 보스가 구현되면 위 if 분기에서 처리되므로 이 분기는 실행되지 않음
+                totalSimdeuk += explorePendingRewards.simdeuk;
+                applySimdeuk(ownedArts, equippedArts, equippedSimbeop, explorePendingRewards.simdeuk, state.tier, battleLog);
+                battleResult = {
+                  type: 'explore_win',
+                  simdeuk: explorePendingRewards.simdeuk,
+                  drops: explorePendingRewards.drops,
+                  message: '답파 완료!',
+                };
+                battleMode = 'none';
+                currentEnemy = null;
+                stamina = 0;
+                ultCooldowns = {};
               }
             } else {
               // 보스 처치 성공
@@ -2060,7 +2075,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         playerAttackTimer: data.playerAttackTimer ?? 0,
         enemyAttackTimer: data.enemyAttackTimer ?? 0,
         activeMasteries: data.activeMasteries ?? {},
-        fieldUnlocks: data.fieldUnlocks ?? { training: true, yasan: false, inn: false },
+        fieldUnlocks: data.fieldUnlocks ?? { training: true, yasan: false, inn: false, cheonsan_jangmak: false, cheonsan_godo: false, cheonsan_simjang: false },
         inventory: data.inventory ?? [],
         discoveredMasteries: data.discoveredMasteries ?? [],
         pendingEnlightenments: data.pendingEnlightenments ?? [],

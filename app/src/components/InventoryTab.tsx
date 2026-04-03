@@ -218,10 +218,10 @@ export default function InventoryTab() {
         </div>
 
         {/* 비급 복원 섹션 */}
-        {visibleRecipes.length > 0 && visibleArtRecipes.length > 0 && (
+        {visibleRecipes.length > 0 && visibleArtRecipes.length > 0 && (materials['torn_paper'] ?? 0) > 0 && (
           <div style={{ height: 1, background: 'var(--border)', margin: '12px 0' }} />
         )}
-        {visibleArtRecipes.length > 0 && (
+        {visibleArtRecipes.length > 0 && (materials['torn_paper'] ?? 0) > 0 && (
           <div>
             <div className="card-label" style={{ fontSize: 12, marginBottom: 8 }}>비급 복원</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -263,7 +263,7 @@ export default function InventoryTab() {
             </div>
           </div>
         )}
-        {visibleRecipes.length === 0 && visibleArtRecipes.length === 0 && (
+        {visibleRecipes.length === 0 && ((materials['torn_paper'] ?? 0) === 0 || visibleArtRecipes.length === 0) && (
           <div style={{ color: 'var(--text-dim)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
             제작 가능한 항목이 없습니다.
           </div>
