@@ -31,6 +31,30 @@ export default function NeigongTab() {
 
   const battling = battleMode !== 'none';
   const [investMode, setInvestMode] = useState<1 | 10 | 100 | 'max'>(1);
+
+  function calcFixedCost(level: number, count: number): number {
+    let total = 0;
+    let lv = level;
+    for (let i = 0; i < count; i++) {
+      total += getStatCost(lv);
+      lv += 1;
+    }
+    return total;
+  }
+
+  function calcMaxLevels(level: number): number {
+    let remaining = qi;
+    let lv = level;
+    let count = 0;
+    while (true) {
+      const c = getStatCost(lv);
+      if (remaining < c) break;
+      remaining -= c;
+      lv += 1;
+      count += 1;
+    }
+    return count;
+  }
   const tierDef = getTierDef(tier);
   const qiRate = getQiPerSec();
   const totalStats = getTotalStats();
@@ -168,7 +192,9 @@ export default function NeigongTab() {
         </div>
         {statEntries.map(({ key, name, sub, dot, desc }) => {
           const level = stats[key];
-          const cost = getStatCost(level);
+          const nextCost = getStatCost(level);
+          const maxLevels = investMode === 'max' ? calcMaxLevels(level) : null;
+          const modeCost = investMode !== 'max' ? calcFixedCost(level, investMode) : null;
           return (
             <div key={key} className="stat-row">
               <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -180,11 +206,14 @@ export default function NeigongTab() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="stat-level">Lv.{level}</span>
-                <span className="stat-cost">{formatNumber(cost)}</span>
+                {investMode === 'max'
+                  ? <span style={{ fontSize: 12, color: 'var(--blue, #4a9eff)' }}>+{maxLevels}레벨</span>
+                  : <span className="stat-cost" style={{ color: qi < modeCost! ? 'var(--text-dim)' : undefined }}>{formatNumber(modeCost!)}</span>
+                }
                 <button
                   className="btn btn-plus"
                   onClick={() => investStat(key, investMode === 'max' ? 999999 : investMode)}
-                  disabled={battling || qi < cost}
+                  disabled={battling || qi < nextCost}
                 >
                   +
                 </button>
