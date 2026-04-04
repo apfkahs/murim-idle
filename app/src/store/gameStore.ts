@@ -330,6 +330,11 @@ export function calcStaminaRegen(gi: number, tierMult: number = 1): number {
   return B.REGEN_BASE + gi * B.STAT_K_GI * tierMult;
 }
 
+/** 데미지에 ±10% 분산 적용 */
+function applyVariance(value: number): number {
+  return value * (0.9 + Math.random() * 0.2);
+}
+
 // ============================================================
 // 숙련도 5단계/12성 (60성) 시스템
 // ============================================================
@@ -869,7 +874,10 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
         const ultProfType = chosenDef.proficiencyType;
         const ultProf = proficiency[ultProfType] ?? 0;
-        damage = (chosenDef.ultBaseDamage ?? 0) + Math.floor(chosenDef.ultMultiplier! * getProfDamageValue(ultProf));
+        damage = applyVariance(
+          (chosenDef.ultBaseDamage ?? 0) + Math.floor(chosenDef.ultMultiplier! * getProfDamageValue(ultProf))
+          + (equipStats.bonusAtk ?? 0)
+        );
         stamina -= chosenDef.ultCost!;
         ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
         attackName = ultChangeName ?? chosenDef.ultMessages?.[0] ?? '절초';
@@ -884,7 +892,10 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
           const normalProfType = chosen.def.proficiencyType;
           const normalProf = proficiency[normalProfType] ?? 0;
-          damage = (chosen.def.baseDamage ?? 0) + Math.floor(chosen.def.proficiencyCoefficient * getProfDamageValue(normalProf));
+          damage = applyVariance(
+            (chosen.def.baseDamage ?? 0) + Math.floor(chosen.def.proficiencyCoefficient * getProfDamageValue(normalProf))
+            + (equipStats.bonusAtk ?? 0)
+          );
 
           // 초식 메시지 랜덤 선택
           if (chosen.def.normalMessages && chosen.def.normalMessages.length > 0) {
@@ -897,9 +908,6 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           damage = 1;
         }
       }
-
-      // 무기 고정 공격력 적용 (치명타 배율 포함)
-      damage += (equipStats.bonusAtk ?? 0);
 
       // 치명타 판정
       if (Math.random() < critRate) {
@@ -1316,7 +1324,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                 }
                 battleLog.push(logMsg);
               } else if (skill.type === 'freeze_attack') {
-                const dmg = skill.fixedDamage ?? Math.floor(currentEnemy.attackPower * (skill.damageMultiplier ?? 1) * (1 - dmgReduction / 100));
+                const dmg = skill.fixedDamage ?? Math.floor(applyVariance(currentEnemy.attackPower) * (skill.damageMultiplier ?? 1) * (1 - dmgReduction / 100));
                 if (skill.undodgeable || Math.random() >= dodgeRate) {
                   hp -= dmg;
                   if (skill.freezeAttacks && bossPatternState) {
@@ -1343,7 +1351,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                   bossPatternState.rageUsed = true;
                 }
                 const mult = skill.damageMultiplier ?? 1;
-                const skillDmg = Math.floor(currentEnemy.attackPower * mult * (1 - dmgReduction / 100));
+                const skillDmg = Math.floor(applyVariance(currentEnemy.attackPower) * mult * (1 - dmgReduction / 100));
 
                 if (skill.undodgeable || Math.random() >= dodgeRate) {
                   hp -= skillDmg;
@@ -1379,7 +1387,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                 dodgeCounterActive = true;
               }
             } else {
-              const incomingDmg = Math.floor(currentEnemy.attackPower * (1 - dmgReduction / 100));
+              const incomingDmg = Math.floor(applyVariance(currentEnemy.attackPower) * (1 - dmgReduction / 100));
               hp -= incomingDmg;
               if (incomingDmg > 0 && monDef) {
                 const attackMsg = getMonsterAttackMsg(monDef, incomingDmg);
@@ -1406,7 +1414,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                 if (dblSkill && Math.random() < (dblSkill.chance ?? 0)) {
                   const dmsg = dblSkill.logMessages[Math.floor(Math.random() * dblSkill.logMessages.length)];
                   if (Math.random() >= dodgeRate) {
-                    const dmg2 = Math.floor(currentEnemy.attackPower * (1 - dmgReduction / 100));
+                    const dmg2 = Math.floor(applyVariance(currentEnemy.attackPower) * (1 - dmgReduction / 100));
                     hp -= dmg2;
                     battleLog.push(`${dmsg} ${dmg2} 피해!`);
                   } else {

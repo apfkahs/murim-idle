@@ -33,9 +33,11 @@
 - `passive`: `formatPassiveEffectSummary(def, activeMasteryIds)` — baseEffects + 활성화된 심득 효과 수치 요약 (예: `공속 +0.5s · 회피 +10% · 회피반격`)
 
 ### 데미지 계산 공식
-- 초식: `floor(proficiencyCoefficient × proficiency[type])`
-- 절초: `floor(ultMultiplier × proficiency[type])`
+- 초식: `floor(applyVariance(baseDamage + floor(proficiencyCoefficient × proficiency[type]) + bonusAtk))`
+- 절초: `floor(applyVariance(ultBaseDamage + floor(ultMultiplier × proficiency[type]) + bonusAtk))`
+- 분산: `applyVariance(x) = x × (0.9 + random × 0.2)` — 기본 데미지 + 무기 공격력 합계에 ±10% 분산 적용 후, 치명타·회피카운터 배율 곱하고 floor
 - 치명타: `floor(damage × 1.5)` (CRITD_BASE = 150%)
+- 몬스터 데미지: `floor(applyVariance(attackPower) × multiplier × (1 - dmgReduction/100))` — fixedDamage와 DoT는 분산 제외
 
 ## 프로젝트 구조
 - 앱 코드: `app/` 디렉토리 (Vite + React + TypeScript + Zustand)
