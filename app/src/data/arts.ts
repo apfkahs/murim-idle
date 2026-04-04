@@ -78,7 +78,7 @@ export interface ArtDef {
 
   // 숙련도
   proficiencyType: ProficiencyType;
-  proficiencyCoefficient: number;  // 초식 데미지 = baseDamage + floor(proficiencyCoefficient × 숙련도)
+  proficiencyCoefficient: number;  // 초식/passive 계수. active: baseDamage + floor(coeff × getProfDamageValue(prof)), passive: 0이면 비활성
   baseDamage?: number;             // 초식 기본 피해 (숙련도 0일 때 기저값)
   ultBaseDamage?: number;          // 절초 기본 피해
 
@@ -117,10 +117,10 @@ export const ARTS: ArtDef[] = [
     baseGrade: 1,
 
     proficiencyType: 'sword',
-    proficiencyCoefficient: 0.00475,  // 초식: 5 + floor(0.00475 × prof) → prof=20000에서 100
+    proficiencyCoefficient: 1,  // 초식: baseDamage + floor(1 × getProfDamageValue(prof))
     baseDamage: 5,
     ultBaseDamage: 15,
-    ultMultiplier: 0.01425,           // 절초: 15 + floor(0.01425 × prof) → prof=20000에서 300
+    ultMultiplier: 3,           // 절초: ultBaseDamage + floor(3 × getProfDamageValue(prof)) (3:1 비율 유지)
 
     normalMultiplierCap: 1.3,
     normalMessages: ['삼재검법의 검기가 빛난다!', '삼재의 이치를 담은 일격!'],
@@ -291,7 +291,7 @@ export const ARTS: ArtDef[] = [
     autoActivateMastery: true,
 
     proficiencyType: 'footwork',
-    proficiencyCoefficient: 0.02,
+    proficiencyCoefficient: 0,  // 0이면 숙련도 스케일링 비활성
     baseEffects: { bonusAtkSpeed: 0.2 },
     descriptionByStage: [
       '야산 곳곳에서 주운 낡은 보법서 조각들을 이어붙였다. 완전하지 않지만 몸이 조금 가벼워진 것 같다.',

@@ -330,9 +330,84 @@ export function calcStaminaRegen(gi: number, tierMult: number = 1): number {
   return B.REGEN_BASE + gi * B.STAT_K_GI * tierMult;
 }
 
-/** 숙련도 등급: floor(숙련도 / 20000) + 1 */
-export function getProficiencyGrade(prof: number): number {
-  return Math.floor(prof / 20000) + 1;
+// ============================================================
+// 숙련도 5단계/12성 (60성) 시스템
+// ============================================================
+
+export const PROF_STAGES = ['입문', '숙련', '달인', '화경', '무극'] as const;
+
+const MA_BALANCE = {
+  BASE_DAMAGE: 10,
+  START_EXP: 5000,
+  START_EFFICIENCY: 0.002,
+  LEVEL_UP_MULTIPLIER: 2.0,
+  STAR_MULTIPLIER: 1.15,
+  EFFICIENCY_DECAY: 0.98,
+  STARS_PER_STAGE: 12,
+  TOTAL_STARS: 60,
+} as const;
+
+interface ProfStarEntry { reqExp: number; cumExp: number; profDamage: number; }
+
+function buildProfTable(): ProfStarEntry[] {
+  const table: ProfStarEntry[] = [];
+  let rawExp = MA_BALANCE.START_EXP;
+  let eff = MA_BALANCE.START_EFFICIENCY;
+  let dmg = MA_BALANCE.BASE_DAMAGE;
+  let totalExp = 0;
+  for (let i = 1; i <= MA_BALANCE.TOTAL_STARS; i++) {
+    if (i === 1) {
+      totalExp += rawExp;
+      table.push({ reqExp: rawExp, cumExp: totalExp, profDamage: 0 });
+    } else {
+      rawExp *= (i - 1) % MA_BALANCE.STARS_PER_STAGE === 0
+        ? MA_BALANCE.LEVEL_UP_MULTIPLIER
+        : MA_BALANCE.STAR_MULTIPLIER;
+      eff *= MA_BALANCE.EFFICIENCY_DECAY;
+      const disp = i <= MA_BALANCE.STARS_PER_STAGE
+        ? Math.round(rawExp / 100) * 100
+        : Math.round(rawExp / 1000) * 1000;
+      dmg += disp * eff;
+      totalExp += disp;
+      table.push({ reqExp: disp, cumExp: totalExp, profDamage: Math.floor(dmg) - MA_BALANCE.BASE_DAMAGE });
+    }
+  }
+  return table;
+}
+
+export const PROF_TABLE = buildProfTable();
+
+export interface ProfStarInfo {
+  stageIndex: number; // 0-4
+  star: number;       // 1-12
+  starIndex: number;  // 1-60
+  progress: number;   // 0-1 (다음 성 향한 진행도)
+}
+
+export function getProfStarInfo(cumExp: number): ProfStarInfo {
+  if (cumExp < PROF_TABLE[0].cumExp) {
+    return { stageIndex: 0, star: 1, starIndex: 1, progress: cumExp / PROF_TABLE[0].reqExp };
+  }
+  let si = 0;
+  for (let i = 0; i < PROF_TABLE.length; i++) {
+    if (cumExp >= PROF_TABLE[i].cumExp) si = i;
+    else break;
+  }
+  const stageIndex = Math.floor(si / MA_BALANCE.STARS_PER_STAGE);
+  const star = (si % MA_BALANCE.STARS_PER_STAGE) + 1;
+  const isMax = si >= PROF_TABLE.length - 1;
+  const progress = isMax ? 1 : (cumExp - PROF_TABLE[si].cumExp) / PROF_TABLE[si + 1].reqExp;
+  return { stageIndex, star, starIndex: si + 1, progress };
+}
+
+export function getProfDamageValue(cumExp: number): number {
+  const { starIndex } = getProfStarInfo(cumExp);
+  return PROF_TABLE[starIndex - 1].profDamage;
+}
+
+/** 숙련도 단계(1-5) 반환. 5단계 구조 기준 */
+export function getProficiencyGrade(cumExp: number): number {
+  return getProfStarInfo(cumExp).stageIndex + 1;
 }
 
 // ============================================================
@@ -349,8 +424,11 @@ export function gatherMasteryEffects(state: GameState): MasteryEffects {
     const artDef = getArtDef(artId);
     if (!artDef?.baseEffects) continue;
     const eff = artDef.baseEffects;
-    if (eff.bonusAtkSpeed) result.bonusAtkSpeed = (result.bonusAtkSpeed ?? 0) + eff.bonusAtkSpeed;
-    if (eff.bonusDodge) result.bonusDodge = (result.bonusDodge ?? 0) + eff.bonusDodge;
+    const profBonus = artDef.proficiencyCoefficient > 0
+      ? getProfDamageValue(state.proficiency?.[artDef.proficiencyType] ?? 0) * artDef.proficiencyCoefficient
+      : 0;
+    if (eff.bonusAtkSpeed) result.bonusAtkSpeed = (result.bonusAtkSpeed ?? 0) + eff.bonusAtkSpeed + profBonus;
+    if (eff.bonusDodge) result.bonusDodge = (result.bonusDodge ?? 0) + eff.bonusDodge + profBonus;
   }
 
   for (const [artId, masteryIds] of Object.entries(activeMasteries)) {
@@ -452,9 +530,9 @@ export function calcQiPerSec(state: GameState): number {
       const rate = artDef.growth.qiGrowthRate ?? B.QI_GROWTH_RATE;
       const grown = artDef.growth.baseQiPerSec + rate * Math.sqrt(owned.totalSimdeuk);
       const capped = Math.min(grown, artDef.growth.maxQiPerSec ?? Infinity);
-      // 심법 숙련도 등급에 따라 기운 생산 최대 10배
+      // 심법 숙련도에 따라 기운 생산 배율 증가
       const mentalProf = state.proficiency?.mental ?? 1;
-      const profMult = Math.min(getProficiencyGrade(mentalProf), B.PROF_QI_MAX_MULT);
+      const profMult = 1 + getProfDamageValue(mentalProf) * B.PROF_QI_SCALE;
       total += capped * profMult;
     }
   }
@@ -791,7 +869,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
         const ultProfType = chosenDef.proficiencyType;
         const ultProf = proficiency[ultProfType] ?? 0;
-        damage = (chosenDef.ultBaseDamage ?? 0) + Math.floor(chosenDef.ultMultiplier! * ultProf);
+        damage = (chosenDef.ultBaseDamage ?? 0) + Math.floor(chosenDef.ultMultiplier! * getProfDamageValue(ultProf));
         stamina -= chosenDef.ultCost!;
         ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
         attackName = ultChangeName ?? chosenDef.ultMessages?.[0] ?? '절초';
@@ -806,7 +884,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
           const normalProfType = chosen.def.proficiencyType;
           const normalProf = proficiency[normalProfType] ?? 0;
-          damage = (chosen.def.baseDamage ?? 0) + Math.floor(chosen.def.proficiencyCoefficient * normalProf);
+          damage = (chosen.def.baseDamage ?? 0) + Math.floor(chosen.def.proficiencyCoefficient * getProfDamageValue(normalProf));
 
           // 초식 메시지 랜덤 선택
           if (chosen.def.normalMessages && chosen.def.normalMessages.length > 0) {
@@ -926,7 +1004,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
             if (!artDef?.proficiencyType) continue;
             const pType = artDef.proficiencyType;
             if (pType in profGainMap) continue;
-            const currentGrade = getProficiencyGrade(proficiency[pType] ?? 0);
+            const currentGrade = getProfStarInfo(proficiency[pType] ?? 0).starIndex;
             const multiplier = Math.pow(2.5, monsterGrade - currentGrade);
             profGainMap[pType] = baseProfGain * multiplier;
           }

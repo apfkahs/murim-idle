@@ -3,7 +3,7 @@
  * 삼재검법 + 삼재심법. 초식/절초/초(招) 패널.
  */
 import { useState } from 'react';
-import { useGameStore, calcQiPerSec, calcCombatQiRatio, calcEffectiveRegen, calcStaminaRegen, gatherMasteryEffects, getArtCurrentGrade, getProficiencyGrade } from '../store/gameStore';
+import { useGameStore, calcQiPerSec, calcCombatQiRatio, calcEffectiveRegen, calcStaminaRegen, gatherMasteryEffects, getArtCurrentGrade, getProfStarInfo, getProfDamageValue } from '../store/gameStore';
 import { getArtDef, getMasteryDefsForArt, getMasteryDef, type ArtDef, type MasteryDef, type ProficiencyType } from '../data/arts';
 import { getTierDef, getMaxSimdeuk } from '../data/tiers';
 import { BALANCE_PARAMS } from '../data/balance';
@@ -43,6 +43,11 @@ function formatPassiveEffectSummary(def: ArtDef, activeMasteryIds: string[]): st
   if (dodgeCounter) parts.push('회피반격');
   return parts.join(' · ');
 }
+
+const PROF_STAGE_LABELS = [
+  '입문(入門)', '숙련(熟鍊)', '달인(達人)', '화경(化境)', '무극(無極)'
+] as const;
+const STAR_HANJA = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'] as const;
 
 export default function ArtsTab() {
   const ownedArts = useGameStore(s => s.ownedArts);
@@ -110,26 +115,30 @@ export default function ArtsTab() {
           <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>장착한 무공이 없습니다.</div>
         )}
         {equippedProfTypes.map(pType => {
-          const pVal = proficiency?.[pType] ?? 0;
-          const pGrade = getProficiencyGrade(pVal);
-          const gradeStart = (pGrade - 1) * 20000;
-          const gradeEnd = pGrade * 20000;
-          const pct = Math.min(100, ((pVal - gradeStart) / (gradeEnd - gradeStart)) * 100);
+          const cumExp = proficiency?.[pType] ?? 0;
+          const { stageIndex, star, starIndex, progress } = getProfStarInfo(cumExp);
+          const isMax = starIndex >= 60;
+          const stageLabel = PROF_STAGE_LABELS[stageIndex];
+          const starLabel = STAR_HANJA[star - 1];
+
           return (
             <div key={pType} style={{ marginBottom: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                <span style={{ fontSize: 12 }}>
+                <span style={{ fontSize: 13 }}>
                   {PROF_TYPE_LABEL[pType]}
-                  <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 6 }}>{pGrade}등급</span>
+                  <span style={{ color: 'var(--gold)', marginLeft: 4, fontSize: 11 }}>
+                    {stageLabel}
+                  </span>
                 </span>
-                <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{pct.toFixed(2)}%</span>
+                <span style={{ fontSize: 16, color: 'var(--gold)', fontFamily: "'Ma Shan Zheng', serif" }}>
+                  {starLabel}星
+                </span>
               </div>
               <div className="hp-bar-container">
-                <div className="hp-bar-fill" style={{
-                  width: `${pct}%`,
-                  background: 'var(--gold)',
-                  opacity: 0.85,
-                }} />
+                <div className="hp-bar-fill" style={{ width: `${progress * 100}%`, background: 'var(--gold)', opacity: 0.85 }} />
+              </div>
+              <div style={{ textAlign: 'right', fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
+                {isMax ? '無極之境' : `${(progress * 100).toFixed(1)}%`}
               </div>
             </div>
           );
@@ -158,11 +167,11 @@ export default function ArtsTab() {
       {/* 삼재검법 카드 */}
       {swordDef && swordOwned && (() => {
         const prof = proficiency?.sword ?? 0;
-        const normalDmg = (swordDef.baseDamage ?? 0) + Math.floor(swordDef.proficiencyCoefficient * prof);
+        const normalDmg = (swordDef.baseDamage ?? 0) + Math.floor(swordDef.proficiencyCoefficient * getProfDamageValue(prof));
         const normalCrit = Math.floor(normalDmg * 1.5);
         const showUlt = effects.unlockUlt && !!swordDef.ultMultiplier;
         const ultName = effects.ultChange?.name ?? '강한 내려치기';
-        const ultDmg = (swordDef.ultBaseDamage ?? 0) + Math.floor((swordDef.ultMultiplier ?? 0) * prof);
+        const ultDmg = (swordDef.ultBaseDamage ?? 0) + Math.floor((swordDef.ultMultiplier ?? 0) * getProfDamageValue(prof));
         const ultCrit = Math.floor(ultDmg * 1.5);
         return (
           <div className="card" style={{ marginBottom: 12, padding: 12 }}>
@@ -339,7 +348,7 @@ export default function ArtsTab() {
 
           // active 무공 데미지
           const prof = proficiency?.[def.proficiencyType] ?? 0;
-          const normalDmg = (def.baseDamage ?? 0) + Math.floor(def.proficiencyCoefficient * prof);
+          const normalDmg = (def.baseDamage ?? 0) + Math.floor(def.proficiencyCoefficient * getProfDamageValue(prof));
           const normalCrit = Math.floor(normalDmg * 1.5);
 
           // 접힌 요약
