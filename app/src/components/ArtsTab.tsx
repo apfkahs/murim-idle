@@ -3,10 +3,11 @@
  * 삼재검법 + 삼재심법. 초식/절초/초(招) 패널.
  */
 import { useState } from 'react';
-import { useGameStore, calcQiPerSec, calcCombatQiRatio, calcEffectiveRegen, calcStaminaRegen, gatherMasteryEffects, getArtCurrentGrade, getProfStarInfo, getProfDamageValue } from '../store/gameStore';
+import { useGameStore, calcQiPerSec, calcCombatQiRatio, calcEffectiveRegen, calcStaminaRegen, gatherMasteryEffects, getArtCurrentGrade, getProfStarInfo, getProfDamageValue, getArtGradeInfo } from '../store/gameStore';
 import { getArtDef, getMasteryDefsForArt, getMasteryDef, type ArtDef, type MasteryDef, type ProficiencyType } from '../data/arts';
 import { getTierDef, getMaxSimdeuk } from '../data/tiers';
 import { BALANCE_PARAMS } from '../data/balance';
+import { getBijupDefByMastery } from '../data/materials';
 
 function formatPassiveEffectSummary(def: ArtDef, activeMasteryIds: string[]): string {
   let atkSpeed = 0;
@@ -48,6 +49,31 @@ const PROF_STAGE_LABELS = [
   '입문(入門)', '숙련(熟鍊)', '달인(達人)', '화경(化境)', '무극(無極)'
 ] as const;
 const STAR_HANJA = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'] as const;
+const GRADE_KOREAN = ['1성', '2성', '3성', '4성', '5성'] as const;
+
+function ArtGradeBar({ artId, artGradeExp }: {
+  artId: string;
+  artGradeExp: Record<string, number>;
+}) {
+  const cumExp = artGradeExp[artId] ?? 0;
+  const { starIndex, progress } = getArtGradeInfo(cumExp);
+  const isMax = starIndex >= 60;
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+        <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+          {isMax ? '최고경지' : '다음 등급까지'}
+        </span>
+        <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+          {isMax ? '' : `${(progress * 100).toFixed(1)}%`}
+        </span>
+      </div>
+      <div className="hp-bar-container">
+        <div className="hp-bar-fill" style={{ width: `${progress * 100}%`, background: 'var(--gold)', opacity: 0.7 }} />
+      </div>
+    </div>
+  );
+}
 
 export default function ArtsTab() {
   const ownedArts = useGameStore(s => s.ownedArts);
@@ -58,6 +84,8 @@ export default function ArtsTab() {
   const battleMode = useGameStore(s => s.battleMode);
   const activeMasteries = useGameStore(s => s.activeMasteries);
   const discoveredMasteries = useGameStore(s => s.discoveredMasteries);
+  const artGradeExp = useGameStore(s => s.artGradeExp);
+  const materials = useGameStore(s => s.materials);
   const equipArt = useGameStore(s => s.equipArt);
   const unequipArt = useGameStore(s => s.unequipArt);
   const equipSimbeop = useGameStore(s => s.equipSimbeop);
@@ -183,7 +211,7 @@ export default function ArtsTab() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{swordDef.name}</span>
                 <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                  {getArtCurrentGrade('samjae_sword', activeMasteries)}등급
+                  {GRADE_KOREAN[getArtCurrentGrade('samjae_sword', artGradeExp) - 1]}
                 </span>
                 {/* 접혔을 때 데미지 요약 */}
                 {!swordExpanded && (
@@ -214,6 +242,9 @@ export default function ArtsTab() {
                   화려함 없이 순리를 따르되, 어떤 상황에서도 흔들림이 없다.
                 </div>
 
+                {/* 등급 진행 바 */}
+                <ArtGradeBar artId="samjae_sword" artGradeExp={artGradeExp} />
+
                 {/* 초식 데미지 */}
                 <div style={{ marginTop: 10, padding: '7px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
                   <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>삼재검법 · 초식</div>
@@ -239,15 +270,12 @@ export default function ArtsTab() {
                   </div>
                 )}
 
-                {/* 심득 */}
-                <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 8 }}>
-                  심득 {swordOwned.totalSimdeuk}
-                </div>
-
                 {/* 초(招) 패널 */}
                 <MasteryPanel
                   artId="samjae_sword"
                   totalSimdeuk={swordOwned.totalSimdeuk}
+                  artGradeExp={artGradeExp['samjae_sword'] ?? 0}
+                  materials={materials}
                   tier={tier}
                   discoveredMasteries={discoveredMasteries}
                 />
@@ -271,7 +299,7 @@ export default function ArtsTab() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{simbeopDef.name}</span>
                 <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                  {getArtCurrentGrade('samjae_simbeop', activeMasteries)}등급
+                  {GRADE_KOREAN[getArtCurrentGrade('samjae_simbeop', artGradeExp) - 1]}
                 </span>
                 {!simbeopExpanded && (
                   <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 4 }}>
@@ -298,6 +326,9 @@ export default function ArtsTab() {
                   마음이 고요해질수록 기운의 흐름이 맑아진다.
                 </div>
 
+                {/* 등급 진행 바 */}
+                <ArtGradeBar artId="samjae_simbeop" artGradeExp={artGradeExp} />
+
                 <div style={{ marginTop: 10, padding: '7px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
                   <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>삼재심법 · 효과</div>
                   <div style={{ fontSize: 14, fontWeight: 500 }}>
@@ -315,13 +346,11 @@ export default function ArtsTab() {
                   )}
                 </div>
 
-                <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 8 }}>
-                  심득 {simbeopOwned.totalSimdeuk}
-                </div>
-
                 <MasteryPanel
                   artId="samjae_simbeop"
                   totalSimdeuk={simbeopOwned.totalSimdeuk}
+                  artGradeExp={artGradeExp['samjae_simbeop'] ?? 0}
+                  materials={materials}
                   tier={tier}
                   discoveredMasteries={discoveredMasteries}
                 />
@@ -371,7 +400,7 @@ export default function ArtsTab() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{def.name}</span>
                   <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                    {getArtCurrentGrade(owned.id, activeMasteries)}등급
+                    {GRADE_KOREAN[getArtCurrentGrade(owned.id, artGradeExp) - 1]}
                   </span>
                   {!expanded && collapsedSummary && (
                     <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 4 }}>
@@ -400,6 +429,9 @@ export default function ArtsTab() {
                     </div>
                   )}
 
+                  {/* 등급 진행 바 */}
+                  <ArtGradeBar artId={owned.id} artGradeExp={artGradeExp} />
+
                   {def.artType === 'active' && (
                     <div style={{ marginTop: 10, padding: '7px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
                       <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>{def.name} · 초식</div>
@@ -411,13 +443,11 @@ export default function ArtsTab() {
                     </div>
                   )}
 
-                  <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 8 }}>
-                    심득 {owned.totalSimdeuk}
-                  </div>
-
                   <MasteryPanel
                     artId={owned.id}
                     totalSimdeuk={owned.totalSimdeuk}
+                    artGradeExp={artGradeExp[owned.id] ?? 0}
+                    materials={materials}
                     tier={tier}
                     discoveredMasteries={discoveredMasteries}
                   />
@@ -444,15 +474,18 @@ export default function ArtsTab() {
 }
 
 // ── 초(招) 패널 ──
-function MasteryPanel({ artId, totalSimdeuk, tier, discoveredMasteries }: {
+function MasteryPanel({ artId, totalSimdeuk, artGradeExp, materials, tier, discoveredMasteries }: {
   artId: string;
   totalSimdeuk: number;
+  artGradeExp: number;
+  materials: Record<string, number>;
   tier: number;
   discoveredMasteries: string[];
 }) {
   const activeMasteries = useGameStore(s => s.activeMasteries);
   const activateMastery = useGameStore(s => s.activateMastery);
   const deactivateMastery = useGameStore(s => s.deactivateMastery);
+  const useBijup = useGameStore(s => s.useBijup);
   const equippedArts = useGameStore(s => s.equippedArts);
   const equippedSimbeop = useGameStore(s => s.equippedSimbeop);
   const battleMode = useGameStore(s => s.battleMode);
@@ -466,6 +499,8 @@ function MasteryPanel({ artId, totalSimdeuk, tier, discoveredMasteries }: {
   const currentActive = activeMasteries[artId] ?? [];
   const isEquipped = equippedArts.includes(artId) || equippedSimbeop === artId;
 
+  const currentGrade = getArtGradeInfo(artGradeExp).stageIndex + 1;
+
   return (
     <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.03)', fontSize: 12 }}>
       <div className="mastery-panel">
@@ -477,6 +512,80 @@ function MasteryPanel({ artId, totalSimdeuk, tier, discoveredMasteries }: {
 
         {masteries.map((m, idx) => {
           const isActive = currentActive.includes(m.id);
+          const isBijupType = m.discovery?.type === 'bijup';
+
+          // ── 비급 타입 처리 ──
+          if (isBijupType) {
+            // 이미 활성화됨 → 활성 표시만 (해제 버튼 없음)
+            if (isActive) {
+              return (
+                <div key={m.id} className="mastery-item mastery-active">
+                  <div className="mastery-item-header">
+                    <div className="mastery-item-left">
+                      <span className="mastery-icon">☯</span>
+                      <span className="mastery-name mastery-name-active" style={{ color: 'var(--gold)' }}>
+                        {m.stage}초 — {m.name}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mastery-desc mastery-desc-active">{m.description}</div>
+                  {m.flavorText && (
+                    <div style={{ fontSize: 10, fontStyle: 'italic', color: 'var(--text-dim)', marginTop: 2, paddingLeft: 22 }}>
+                      "{m.flavorText}"
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            // 비급 보유 여부 확인
+            const bijupDef = getBijupDefByMastery(m.id);
+            const hasBijup = bijupDef ? (materials[bijupDef.materialId] ?? 0) > 0 : false;
+
+            // 비급 미보유 → 숨김
+            if (!hasBijup) return null;
+
+            // 비급 보유 → 사용 UI
+            const gradeMet = currentGrade >= m.requiredArtGrade!;
+            return (
+              <div key={m.id} className="mastery-item mastery-unlocked">
+                <div className="mastery-item-header">
+                  <div className="mastery-item-left">
+                    <span className="mastery-icon">📜</span>
+                    <span className="mastery-name">
+                      {m.stage}초 — {m.name}
+                    </span>
+                    <span className="mastery-cost" style={{ color: 'var(--gold)', fontSize: 10 }}>비급 보유</span>
+                  </div>
+                  <div className="mastery-item-right">
+                    <button
+                      className="btn btn-small btn-gold"
+                      onClick={(e) => { e.stopPropagation(); useBijup(bijupDef!.materialId); }}
+                      disabled={battling || !gradeMet || !isEquipped}
+                    >
+                      사용
+                    </button>
+                  </div>
+                </div>
+                <div className="mastery-desc">
+                  {!gradeMet && (
+                    <span className="mastery-lock-reason">{m.requiredArtGrade}등급 필요 (현재 {currentGrade}등급) | </span>
+                  )}
+                  {!isEquipped && gradeMet && (
+                    <span className="mastery-lock-reason">장착 필요 | </span>
+                  )}
+                  {m.description}
+                </div>
+                {m.flavorText && (
+                  <div style={{ fontSize: 10, fontStyle: 'italic', color: 'var(--text-dim)', marginTop: 2, paddingLeft: 22 }}>
+                    "{m.flavorText}"
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // ── 일반 타입 처리 ──
           const isDiscovered = !m.discovery || discoveredMasteries.includes(m.id);
           const availPts = getAvailablePoints();
 
@@ -484,7 +593,7 @@ function MasteryPanel({ artId, totalSimdeuk, tier, discoveredMasteries }: {
           const prevMastery = idx > 0 ? masteries[idx - 1] : null;
           const prevDiscovered = prevMastery
             ? (!prevMastery.discovery || discoveredMasteries.includes(prevMastery.id))
-            : true; // stage 1은 항상 표시 가능
+            : true;
 
           // 미발견: 이전 단계 미발견이면 숨김, 발견됐으면 ??? 표시
           if (!isDiscovered) {
@@ -527,7 +636,7 @@ function MasteryPanel({ artId, totalSimdeuk, tier, discoveredMasteries }: {
                   >
                     {m.stage}초 — {m.name}
                   </span>
-                  <span className="mastery-cost">({m.pointCost}pt)</span>
+                  {m.pointCost > 0 && <span className="mastery-cost">({m.pointCost}pt)</span>}
                 </div>
                 <div className="mastery-item-right">
                   {isActive && (

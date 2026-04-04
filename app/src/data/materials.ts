@@ -35,6 +35,22 @@ export const MATERIALS: MaterialDef[] = [
     name: '찢겨진 종이',
     description: '야산 어딘가에 흩어져 있던 낡은 무공서의 조각들. 더 모으면 무언가를 복원할 수 있을 것 같다.',
   },
+  // ── 비급 ──
+  {
+    id: 'bijup_samjae_sense',
+    name: '삼재검법 비급: 삼재의 감각',
+    description: '싸울수록 몸이 적의 움직임을 읽기 시작한다는 비전이 담긴 비급. 2등급 이상의 삼재검법 수련자만 소화할 수 있다.',
+  },
+  {
+    id: 'bijup_samjae_mastery',
+    name: '삼재검법 비급: 검의 숙련',
+    description: '반복된 수련 끝에 검 자체와 하나가 되는 경지를 기록한 비급. 3등급 이상이 되어야 그 진의를 이해할 수 있다.',
+  },
+  {
+    id: 'bijup_samjae_taesan',
+    name: '삼재검법 비급: 태산압정',
+    description: '삼재검법의 오의를 담은 극비 비급. 4등급에 이른 자만이 무게를 담은 일격을 구현할 수 있다.',
+  },
 ];
 
 export const RECIPES: RecipeDef[] = [
@@ -74,8 +90,46 @@ export interface ArtRecipeDef {
   materialCount: number;        // 필요 재료 수 (고정, 확률 없음)
   resultArtId?: string;         // ownedArts에 추가
   resultMasteryId?: string;     // discoveredMasteries에 추가
+  resultMaterialId?: string;    // materials 인벤토리에 추가 (비급 제작 등)
   requiresArtId?: string;       // 이 무공 보유 시에만 표시
   requiresMasteryId?: string;   // 이 초식이 발견된 시에만 표시
+}
+
+// ── 비급(秘笈) 정의 ──
+export interface BijupDef {
+  materialId: string;        // materials 인벤토리 키 (MaterialDef.id)
+  artId: string;             // 해당 무공 ID
+  masteryId: string;         // 해금되는 초식 ID
+  requiredArtGrade: number;  // 사용에 필요한 최소 무공 등급 (stageIndex + 1)
+}
+
+export const BIJUP_DEFS: BijupDef[] = [
+  {
+    materialId: 'bijup_samjae_sense',
+    artId: 'samjae_sword',
+    masteryId: 'samjae_sword_sense',
+    requiredArtGrade: 2,
+  },
+  {
+    materialId: 'bijup_samjae_mastery',
+    artId: 'samjae_sword',
+    masteryId: 'samjae_sword_mastery',
+    requiredArtGrade: 3,
+  },
+  {
+    materialId: 'bijup_samjae_taesan',
+    artId: 'samjae_sword',
+    masteryId: 'samjae_sword_taesan',
+    requiredArtGrade: 4,
+  },
+];
+
+export function getBijupDef(materialId: string): BijupDef | undefined {
+  return BIJUP_DEFS.find(b => b.materialId === materialId);
+}
+
+export function getBijupDefByMastery(masteryId: string): BijupDef | undefined {
+  return BIJUP_DEFS.find(b => b.masteryId === masteryId);
 }
 
 export const ART_RECIPES: ArtRecipeDef[] = [

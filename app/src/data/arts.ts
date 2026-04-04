@@ -9,7 +9,7 @@ export type ArtType = 'active' | 'passive' | 'simbeop';
 export type ProficiencyType = 'sword' | 'palm' | 'footwork' | 'mental';
 // ── 발견 조건 ──
 export interface MasteryDiscovery {
-  type: 'simdeuk' | 'boss' | 'event';
+  type: 'simdeuk' | 'boss' | 'event' | 'bijup';
   threshold?: number;     // simdeuk 타입일 때 발견 심득
   bossId?: string;        // boss 타입일 때 보스 ID
 }
@@ -48,6 +48,8 @@ export interface MasteryDef {
   requires?: string[];
   discovery?: MasteryDiscovery;
   effects?: MasteryEffects;
+  requiredArtGrade?: number;  // bijup 타입: 비급 사용에 필요한 최소 무공 등급
+  autoActivate?: boolean;     // true이면 무공 획득 즉시 자동 활성화 (포인트 불필요)
 }
 
 // ── 성장 커브 ──
@@ -75,6 +77,11 @@ export interface ArtDef {
   artType: ArtType;
   cost: number;
   baseGrade: number;
+
+  // 등급별 데미지 배율 (index = stageIndex, 없으면 배율 1.0 고정)
+  gradeDamageMultipliers?: number[];
+  // 특정 초식 활성화 시 추가 데미지 배율 보너스 { masteryId: bonus }
+  masteryGradeMultiplierBonus?: Record<string, number>;
 
   // 숙련도
   proficiencyType: ProficiencyType;
@@ -116,6 +123,12 @@ export const ARTS: ArtDef[] = [
     cost: 1,
     baseGrade: 1,
 
+    gradeDamageMultipliers: [0.7, 0.85, 1.0, 1.15],
+    masteryGradeMultiplierBonus: {
+      samjae_sword_mastery: 0.05,
+      samjae_sword_taesan: 0.05,
+    },
+
     proficiencyType: 'sword',
     proficiencyCoefficient: 1,  // 초식: baseDamage + floor(1 × getProfDamageValue(prof))
     baseDamage: 5,
@@ -140,10 +153,10 @@ export const ARTS: ArtDef[] = [
         name: '강한 내려치기',
         description: '절초 사용 가능. 내력이 충분하고 쿨타임이 돌아왔을 때 자동 발동.',
         flavorText: '내력을 실어 묵직하게 내려치는 기본 절초.',
-        requiredSimdeuk: 150,
+        requiredSimdeuk: 0,
         requiredTier: 0,
-        pointCost: 3,
-        discovery: { type: 'simdeuk', threshold: 80 },
+        pointCost: 0,
+        autoActivate: true,  // 삼재검법 획득 즉시 자동 활성화
         effects: { unlockUlt: true },
       },
       {
@@ -152,10 +165,11 @@ export const ARTS: ArtDef[] = [
         name: '삼재의 감각',
         description: '치명타 확률 +5%, 회피 +5%, 데미지 감소 +5%',
         flavorText: '싸울수록 몸이 적의 움직임에 익숙해진다.',
-        requiredSimdeuk: 400,
+        requiredSimdeuk: 0,
         requiredTier: 0,
-        pointCost: 1,
-        discovery: { type: 'simdeuk', threshold: 200 },
+        pointCost: 0,
+        requiredArtGrade: 2,
+        discovery: { type: 'bijup' },
         effects: {
           bonusCritRate: 0.05,
           bonusDodge: 5,
@@ -168,10 +182,12 @@ export const ARTS: ArtDef[] = [
         name: '검의 숙련',
         description: '초식 배율 상한 +0.5, 치명타 확률 +5%',
         flavorText: '반복된 수련으로 검을 다루는 솜씨가 한 단계 올랐다.',
-        requiredSimdeuk: 500,
-        requiredTier: 1,
-        pointCost: 2,
-        discovery: { type: 'simdeuk', threshold: 500 },
+        requiredSimdeuk: 0,
+        requiredTier: 0,
+        pointCost: 0,
+        requiredArtGrade: 3,
+        discovery: { type: 'bijup' },
+        requires: ['samjae_sword_ult'],
         effects: {
           normalMultiplierCapIncrease: 0.5,
           bonusCritRate: 0.05,
@@ -183,11 +199,12 @@ export const ARTS: ArtDef[] = [
         name: '비기: 태산압정',
         description: '절초가 태산압정으로 변화. 심(心)이 절초 위력에 기여. 초식 상한 +0.5.',
         flavorText: '무거운 일격으로 적을 짓누르는 삼재검법의 오의.',
-        requiredSimdeuk: 960,
-        requiredTier: 2,
-        pointCost: 3,
+        requiredSimdeuk: 0,
+        requiredTier: 0,
+        pointCost: 0,
+        requiredArtGrade: 4,
         requires: ['samjae_sword_ult'],
-        discovery: { type: 'simdeuk', threshold: 800 },
+        discovery: { type: 'bijup' },
         effects: {
           ultChange: {
             name: '태산압정',

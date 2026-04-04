@@ -13,7 +13,7 @@ import { FIELDS, getFieldDef, generateExploreOrder } from '../data/fields';
 import { ACHIEVEMENTS, type AchievementContext } from '../data/achievements';
 import { BALANCE_PARAMS } from '../data/balance';
 import { getEquipmentDef, type EquipSlot, type EquipStats, type EquipmentInstance } from '../data/equipment';
-import { MATERIALS, RECIPES, ART_RECIPES } from '../data/materials';
+import { MATERIALS, RECIPES, ART_RECIPES, BIJUP_DEFS, getBijupDef } from '../data/materials';
 
 // ============================================================
 // Constants (shorthand)
@@ -54,6 +54,7 @@ export interface GameState {
   ownedArts: { id: string; totalSimdeuk: number }[];
   equippedArts: string[];
   artPoints: number;
+  artGradeExp: Record<string, number>;  // 무공별 등급 경험치 { artId: cumExp }
 
   currentField: string | null;
   battleMode: 'none' | 'explore' | 'hunt';
@@ -211,6 +212,7 @@ export interface GameActions {
   craft: (recipeId: string, materialCount: number) => boolean;
   unlockRecipe: (recipeId: string) => void;
   craftArtRecipe: (recipeId: string) => boolean;
+  useBijup: (bijupMaterialId: string) => boolean;
 
   getQiPerSec: () => number;
   getAttackInterval: () => number;
@@ -247,6 +249,7 @@ export function createInitialState(): GameState {
     ownedArts: [],
     equippedArts: [],
     artPoints: 3,
+    artGradeExp: {},
     currentField: null,
     battleMode: 'none',
     huntTarget: null,
@@ -381,6 +384,63 @@ function buildProfTable(): ProfStarEntry[] {
 }
 
 export const PROF_TABLE = buildProfTable();
+
+// ── 무공 등급 시스템 (숙련도와 동일 공식, 필요 exp 1/3) ──
+const ART_GRADE_BALANCE = {
+  ...MA_BALANCE,
+  START_EXP: Math.round(5000 / 3), // ≈ 1667
+} as const;
+
+function buildArtGradeTable(): ProfStarEntry[] {
+  const table: ProfStarEntry[] = [];
+  let rawExp = ART_GRADE_BALANCE.START_EXP;
+  let eff = ART_GRADE_BALANCE.START_EFFICIENCY;
+  let dmg = ART_GRADE_BALANCE.BASE_DAMAGE;
+  let totalExp = 0;
+  for (let i = 1; i <= ART_GRADE_BALANCE.TOTAL_STARS; i++) {
+    if (i === 1) {
+      totalExp += rawExp;
+      table.push({ reqExp: rawExp, cumExp: totalExp, profDamage: 0 });
+    } else {
+      rawExp *= (i - 1) % ART_GRADE_BALANCE.STARS_PER_STAGE === 0
+        ? ART_GRADE_BALANCE.LEVEL_UP_MULTIPLIER
+        : ART_GRADE_BALANCE.STAR_MULTIPLIER;
+      eff *= ART_GRADE_BALANCE.EFFICIENCY_DECAY;
+      const disp = i <= ART_GRADE_BALANCE.STARS_PER_STAGE
+        ? Math.round(rawExp / 100) * 100
+        : Math.round(rawExp / 1000) * 1000;
+      dmg += disp * eff;
+      totalExp += disp;
+      table.push({ reqExp: disp, cumExp: totalExp, profDamage: Math.floor(dmg) - ART_GRADE_BALANCE.BASE_DAMAGE });
+    }
+  }
+  return table;
+}
+
+export const ART_GRADE_TABLE = buildArtGradeTable();
+
+export interface ArtGradeInfo {
+  stageIndex: number; // 0-4
+  star: number;       // 1-12
+  starIndex: number;  // 1-60
+  progress: number;   // 0-1
+}
+
+export function getArtGradeInfo(cumExp: number): ArtGradeInfo {
+  if (cumExp < ART_GRADE_TABLE[0].cumExp) {
+    return { stageIndex: 0, star: 1, starIndex: 1, progress: cumExp / ART_GRADE_TABLE[0].reqExp };
+  }
+  let si = 0;
+  for (let i = 0; i < ART_GRADE_TABLE.length; i++) {
+    if (cumExp >= ART_GRADE_TABLE[i].cumExp) si = i;
+    else break;
+  }
+  const stageIndex = Math.floor(si / ART_GRADE_BALANCE.STARS_PER_STAGE);
+  const star = (si % ART_GRADE_BALANCE.STARS_PER_STAGE) + 1;
+  const isMax = si >= ART_GRADE_TABLE.length - 1;
+  const progress = isMax ? 1 : (cumExp - ART_GRADE_TABLE[si].cumExp) / ART_GRADE_TABLE[si + 1].reqExp;
+  return { stageIndex, star, starIndex: si + 1, progress };
+}
 
 export interface ProfStarInfo {
   stageIndex: number; // 0-4
@@ -678,6 +738,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   let hiddenRevealedInField = { ...state.hiddenRevealedInField };
   let equipmentInventory = [...state.equipmentInventory];
   let materials = { ...state.materials };
+  let artGradeExp = { ...state.artGradeExp };
   let obtainedMaterials = [...state.obtainedMaterials];
   let knownEquipment = [...state.knownEquipment];
   let ultCooldowns = { ...state.ultCooldowns };
@@ -874,9 +935,14 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
         const ultProfType = chosenDef.proficiencyType;
         const ultProf = proficiency[ultProfType] ?? 0;
+        const ultGradeMult = getArtDamageMultiplier(
+          chosenDef,
+          artGradeExp[chosenId] ?? 0,
+          state.activeMasteries[chosenId] ?? [],
+        );
         damage = applyVariance(
-          (chosenDef.ultBaseDamage ?? 0) + Math.floor(chosenDef.ultMultiplier! * getProfDamageValue(ultProf))
-          + (equipStats.bonusAtk ?? 0)
+          ((chosenDef.ultBaseDamage ?? 0) + Math.floor(chosenDef.ultMultiplier! * getProfDamageValue(ultProf))
+          + (equipStats.bonusAtk ?? 0)) * ultGradeMult
         );
         stamina -= chosenDef.ultCost!;
         ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
@@ -892,9 +958,14 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
           const normalProfType = chosen.def.proficiencyType;
           const normalProf = proficiency[normalProfType] ?? 0;
+          const normalGradeMult = getArtDamageMultiplier(
+            chosen.def,
+            artGradeExp[chosen.id] ?? 0,
+            state.activeMasteries[chosen.id] ?? [],
+          );
           damage = applyVariance(
-            (chosen.def.baseDamage ?? 0) + Math.floor(chosen.def.proficiencyCoefficient * getProfDamageValue(normalProf))
-            + (equipStats.bonusAtk ?? 0)
+            ((chosen.def.baseDamage ?? 0) + Math.floor(chosen.def.proficiencyCoefficient * getProfDamageValue(normalProf))
+            + (equipStats.bonusAtk ?? 0)) * normalGradeMult
           );
 
           // 초식 메시지 랜덤 선택
@@ -987,7 +1058,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           simdeuk = getTrainingSimdeuk(state, monDef.id);
           if (killCounts[monDef.id] > 1) simdeuk = 0;
         } else if (monDef.grade > 0) {
-          const maxArtGrade = getMaxEquippedArtGrade(equippedArts, equippedSimbeop, state.activeMasteries);
+          const maxArtGrade = getMaxEquippedArtGrade(equippedArts, equippedSimbeop, artGradeExp);
           if (maxArtGrade > 0) {
             const diff = maxArtGrade - monDef.grade;
             if (diff >= 3) {
@@ -1019,6 +1090,14 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           for (const [pType, gain] of Object.entries(profGainMap) as [ProficiencyType, number][]) {
             proficiency[pType] = (proficiency[pType] ?? 0) + gain;
             profGainParts.push(`${PROF_LABEL[pType] ?? pType} +${gain.toFixed(1)}`);
+          }
+
+          // 무공 등급 경험치 획득 (장착 무공별, 숙련도와 동일 공식 / 1/3 테이블)
+          const allEquippedArts = [...new Set([...equippedArts, ...(equippedSimbeop ? [equippedSimbeop] : [])])];
+          for (const artId of allEquippedArts) {
+            const currentArtStar = getArtGradeInfo(artGradeExp[artId] ?? 0).starIndex;
+            const artGradeMultiplier = Math.pow(2.5, monsterGrade - currentArtStar);
+            artGradeExp[artId] = (artGradeExp[artId] ?? 0) + baseProfGain * artGradeMultiplier;
           }
         }
 
@@ -1097,6 +1176,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           if (!artDef || !artOwned) continue;
           for (const m of artDef.masteries) {
             if (!m.discovery) continue;
+            if (m.discovery.type === 'bijup') continue;  // 비급으로만 해금
             if (discoveredMasteries.includes(m.id)) continue;
             let discovered = false;
             if (m.discovery.type === 'simdeuk' && m.discovery.threshold != null) {
@@ -1542,7 +1622,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     stamina, ultCooldowns, currentBattleDuration, currentBattleDamageDealt,
     equipmentInventory, materials, obtainedMaterials, knownEquipment,
     bossPatternState, playerStunTimer, lastEnemyAttack,
-    proficiency, pendingHuntRetry, dodgeCounterActive,
+    proficiency, artGradeExp, pendingHuntRetry, dodgeCounterActive,
   };
 
   if (!isSimulating) {
@@ -1908,6 +1988,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const mDef = getMasteryDef(artId, masteryId);
     if (!mDef) return;
 
+    // bijup 타입은 useBijup으로만 활성화 가능
+    if (mDef.discovery?.type === 'bijup') return;
+
     const currentMasteries = state.activeMasteries[artId] ?? [];
     if (currentMasteries.includes(masteryId)) return;
 
@@ -1980,10 +2063,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get();
     const item = state.inventory.find(i => i.id === itemId);
     if (!item || item.itemType !== 'art_scroll' || !item.artId) return;
-    if (state.ownedArts.some(a => a.id === item.artId)) return;
+    const artId = item.artId!;
+    if (state.ownedArts.some(a => a.id === artId)) return;
+    const artDef = getArtDef(artId);
+    // autoActivate 초식 자동 활성화
+    const autoIds = artDef?.masteries.filter(m => m.autoActivate).map(m => m.id) ?? [];
+    const newActiveMasteries = autoIds.length > 0
+      ? { ...state.activeMasteries, [artId]: [...(state.activeMasteries[artId] ?? []), ...autoIds] }
+      : state.activeMasteries;
     set({
-      ownedArts: [...state.ownedArts, { id: item.artId!, totalSimdeuk: 0 }],
+      ownedArts: [...state.ownedArts, { id: artId, totalSimdeuk: 0 }],
+      artGradeExp: { ...state.artGradeExp, [artId]: state.artGradeExp[artId] ?? 0 },
       inventory: state.inventory.filter(i => i.id !== itemId),
+      activeMasteries: newActiveMasteries,
     });
   },
   discardItem: (itemId: string) => {
@@ -2122,7 +2214,51 @@ export const useGameStore = create<GameStore>((set, get) => ({
             [recipe.requiresArtId]: [...(state.activeMasteries[recipe.requiresArtId] ?? []), recipe.resultMasteryId],
           }
         : state.activeMasteries;
-    set({ materials: newMaterials, ownedArts: newOwnedArts, discoveredMasteries: newDiscoveredMasteries, activeMasteries: newActiveMasteries });
+    // resultMaterialId: 재료 인벤토리에 비급 등 아이템 추가
+    const newMaterials2 = recipe.resultMaterialId
+      ? { ...newMaterials, [recipe.resultMaterialId]: (newMaterials[recipe.resultMaterialId] ?? 0) + 1 }
+      : newMaterials;
+    // resultArtId 에서 autoActivate 초식 처리
+    let newActiveMasteries2 = newActiveMasteries;
+    let newArtGradeExp = state.artGradeExp;
+    if (recipe.resultArtId) {
+      const newArtDef = getArtDef(recipe.resultArtId);
+      const autoIds = newArtDef?.masteries.filter(m => m.autoActivate).map(m => m.id) ?? [];
+      if (autoIds.length > 0) {
+        newActiveMasteries2 = {
+          ...newActiveMasteries,
+          [recipe.resultArtId]: [...(newActiveMasteries[recipe.resultArtId] ?? []), ...autoIds],
+        };
+      }
+      newArtGradeExp = { ...state.artGradeExp, [recipe.resultArtId]: state.artGradeExp[recipe.resultArtId] ?? 0 };
+    }
+    set({ materials: newMaterials2, ownedArts: newOwnedArts, discoveredMasteries: newDiscoveredMasteries, activeMasteries: newActiveMasteries2, artGradeExp: newArtGradeExp });
+    return true;
+  },
+
+  useBijup: (bijupMaterialId: string) => {
+    const state = get();
+    const bijupDef = getBijupDef(bijupMaterialId);
+    if (!bijupDef) return false;
+    if ((state.materials[bijupMaterialId] ?? 0) < 1) return false;
+    // 해당 무공 장착 여부 확인
+    const { artId, masteryId, requiredArtGrade } = bijupDef;
+    if (!state.equippedArts.includes(artId) && state.equippedSimbeop !== artId) return false;
+    // 등급 확인
+    const currentGrade = getArtGradeInfo(state.artGradeExp[artId] ?? 0).stageIndex + 1;
+    if (currentGrade < requiredArtGrade) return false;
+    // 이미 활성 여부 확인
+    if ((state.activeMasteries[artId] ?? []).includes(masteryId)) return false;
+    // 비급 소모 + 초식 활성화
+    const newMaterials = { ...state.materials, [bijupMaterialId]: (state.materials[bijupMaterialId] ?? 0) - 1 };
+    const newDiscoveredMasteries = state.discoveredMasteries.includes(masteryId)
+      ? state.discoveredMasteries
+      : [...state.discoveredMasteries, masteryId];
+    const newActiveMasteries = {
+      ...state.activeMasteries,
+      [artId]: [...(state.activeMasteries[artId] ?? []), masteryId],
+    };
+    set({ materials: newMaterials, discoveredMasteries: newDiscoveredMasteries, activeMasteries: newActiveMasteries });
     return true;
   },
 
@@ -2145,6 +2281,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ownedArts: state.ownedArts,
       equippedArts: state.equippedArts,
       artPoints: state.artPoints,
+      artGradeExp: state.artGradeExp,
       achievements: state.achievements,
       achievementCount: state.achievementCount,
       killCounts: state.killCounts,
@@ -2224,6 +2361,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ownedArts: data.ownedArts ?? [],
         equippedArts: data.equippedArts ?? [],
         artPoints: data.artPoints ?? 3,
+        artGradeExp: data.artGradeExp ?? {},
         achievements: data.achievements ?? [],
         achievementCount: data.achievementCount ?? 0,
         killCounts: data.killCounts ?? {},
@@ -2471,25 +2609,43 @@ function pickGrowthMsg(stat: keyof typeof GROWTH_MESSAGES): string {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-/** 무공의 현재 등급 = baseGrade + 활성화된 mastery 수 */
+/** 무공의 현재 등급 = artGradeExp 기반 stageIndex + 1 (1-5) */
 export function getArtCurrentGrade(
   artId: string,
-  activeMasteries: Record<string, string[]>,
+  artGradeExp: Record<string, number>,
 ): number {
-  const artDef = getArtDef(artId);
-  if (!artDef) return 0;
-  return artDef.baseGrade + (activeMasteries[artId] ?? []).length;
+  return getArtGradeInfo(artGradeExp[artId] ?? 0).stageIndex + 1;
+}
+
+/** 무공의 등급·초식 배율 계산
+ *  gradeDamageMultipliers가 없으면 1.0 반환
+ *  stageIndex 초과 시 마지막 값으로 클램프
+ */
+export function getArtDamageMultiplier(
+  artDef: { gradeDamageMultipliers?: number[]; masteryGradeMultiplierBonus?: Record<string, number> },
+  cumExp: number,
+  activeIds: string[],
+): number {
+  const mults = artDef.gradeDamageMultipliers;
+  if (!mults || mults.length === 0) return 1.0;
+  const stageIndex = getArtGradeInfo(cumExp).stageIndex;
+  let base = mults[Math.min(stageIndex, mults.length - 1)];
+  const bonus = artDef.masteryGradeMultiplierBonus ?? {};
+  for (const id of activeIds) {
+    if (bonus[id] != null) base += bonus[id];
+  }
+  return base;
 }
 
 /** 장착된 모든 무공(보법/심법 포함) 중 최대 등급 반환 */
 export function getMaxEquippedArtGrade(
   equippedArts: string[],
   equippedSimbeop: string | null,
-  activeMasteries: Record<string, string[]>,
+  artGradeExp: Record<string, number>,
 ): number {
   const allArts = equippedSimbeop ? [...equippedArts, equippedSimbeop] : [...equippedArts];
   if (allArts.length === 0) return 0;
-  return Math.max(...allArts.map(id => getArtCurrentGrade(id, activeMasteries)));
+  return Math.max(...allArts.map(id => getArtCurrentGrade(id, artGradeExp)));
 }
 
 function applySimdeuk(
