@@ -112,6 +112,7 @@ export interface ProfStarInfo {
   star: number;       // 1-12
   starIndex: number;  // 1-60
   progress: number;   // 0-1 (다음 성 향한 진행도)
+  isFinal?: boolean;  // true이면 終 상태 (더 이상 증가 없음)
 }
 
 export function getProfStarInfo(cumExp: number): ProfStarInfo {
@@ -123,11 +124,15 @@ export function getProfStarInfo(cumExp: number): ProfStarInfo {
     if (cumExp >= PROF_TABLE[i].cumExp) si = i;
     else break;
   }
-  const stageIndex = Math.floor(si / MA_BALANCE.STARS_PER_STAGE);
-  const star = (si % MA_BALANCE.STARS_PER_STAGE) + 1;
-  const isMax = si >= PROF_TABLE.length - 1;
-  const progress = isMax ? 1 : (cumExp - PROF_TABLE[si].cumExp) / PROF_TABLE[si + 1].reqExp;
-  return { stageIndex, star, starIndex: si + 1, progress };
+  if (si >= PROF_TABLE.length - 1) {
+    return { stageIndex: 4, star: 12, starIndex: 60, progress: 1, isFinal: true };
+  }
+  // si+1 오프셋: si=0 → 입문 2성, ..., si=58 → 무극 12성 (입문 1성은 early exit이 담당)
+  const shiftedSi = si + 1;
+  const stageIndex = Math.floor(shiftedSi / MA_BALANCE.STARS_PER_STAGE);
+  const star = (shiftedSi % MA_BALANCE.STARS_PER_STAGE) + 1;
+  const progress = (cumExp - PROF_TABLE[si].cumExp) / PROF_TABLE[si + 1].reqExp;
+  return { stageIndex, star, starIndex: shiftedSi, progress };
 }
 
 export function getProfDamageValue(cumExp: number): number {

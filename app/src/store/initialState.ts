@@ -57,6 +57,7 @@ export function createInitialState(): GameState {
       yasanUnlocked: false,
       killedWood: false,
       killedIron: false,
+      firstBreakthroughNotified: false,
     },
     lastTickTime: Date.now(),
     battleResult: null,

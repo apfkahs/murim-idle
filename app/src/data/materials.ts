@@ -55,6 +55,15 @@ export const MATERIALS: MaterialDef[] = [
 
 export const RECIPES: RecipeDef[] = [
   {
+    id: 'recipe_crude_wooden_sword',
+    name: '조잡한 목검',
+    description: '나무를 대충 깎아 만든 목검. 균형은 엉망이지만 없는 것보다는 낫다.',
+    materialId: 'wood_fragment',
+    probabilityPerUnit: 1.0,
+    maxUnits: 1,
+    resultEquipId: 'crude_wooden_sword',
+  },
+  {
     id: 'recipe_sturdy_wooden_sword',
     name: '튼튼한 목검',
     description: '반듯하게 다듬어진 목검. 무게 중심이 잘 잡혀 실전에도 무리가 없다.',

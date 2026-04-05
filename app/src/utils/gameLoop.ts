@@ -12,7 +12,7 @@ import { getEquipmentDef, type EquipmentInstance } from '../data/equipment';
 import { getMaxSimdeuk } from '../data/tiers';
 import {
   getArtDamageMultiplier, getMaxEquippedArtGrade,
-  getArtGradeInfo, getProfStarInfo, getProfDamageValue,
+  getArtGradeInfo, getProfStarInfo, getProfDamageValue, PROF_TABLE,
 } from './artUtils';
 import {
   calcCritDmg, calcCritRate, calcDodge, calcDmgReduction, calcTierMultiplier,
@@ -492,7 +492,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
             profGainMap[pType] = baseProfGain * multiplier;
           }
           for (const [pType, gain] of Object.entries(profGainMap) as [ProficiencyType, number][]) {
-            proficiency[pType] = (proficiency[pType] ?? 0) + gain;
+            proficiency[pType] = Math.min((proficiency[pType] ?? 0) + gain, PROF_TABLE[PROF_TABLE.length - 1].cumExp);
             profGainParts.push(`${PROF_LABEL[pType] ?? pType} +${gain.toFixed(1)}`);
           }
 
@@ -936,7 +936,8 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   const tutorialFlags = { ...state.tutorialFlags };
   if (killCounts['training_wood'] > 0) tutorialFlags.killedWood = true;
   if (killCounts['training_iron'] > 0) tutorialFlags.killedIron = true;
-  if (tutorialFlags.equippedSword && tutorialFlags.equippedSimbeop) {
+  const totalStatSum = state.stats.gi + state.stats.sim + state.stats.che;
+  if (tutorialFlags.equippedSword && tutorialFlags.equippedSimbeop && totalStatSum >= 10) {
     tutorialFlags.yasanUnlocked = true;
     fieldUnlocks.yasan = true;
   }

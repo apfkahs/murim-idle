@@ -3,7 +3,7 @@ import type { GameStore } from '../gameStore';
 import type { OfflineResult, SaveMeta, GameState } from '../types';
 import { getTierDef } from '../../data/tiers';
 import { getArtDef } from '../../data/arts';
-import { calcMaxHp, calcTierMultiplier } from '../../utils/combatCalc';
+import { calcMaxHp, calcTierMultiplier, calcStamina } from '../../utils/combatCalc';
 import { simulateTick } from '../../utils/gameLoop';
 import { createInitialState } from '../initialState';
 
@@ -19,6 +19,8 @@ export type SaveSlice = {
   resetGame: (slot?: number) => void;
   deleteSlot: (slot: number) => void;
   getSaveSlots: () => (SaveMeta | null)[];
+  exportSave: (slot: number) => void;
+  importSave: (slot: number, jsonString: string) => boolean;
   processOfflineProgress: (elapsedSeconds: number) => OfflineResult;
 };
 
@@ -111,6 +113,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
       const tier = data.tier ?? 0;
       const tierMult = calcTierMultiplier(tier);
       const maxHp = calcMaxHp(data.stats?.che ?? 0, 0, tierMult);
+      const maxStamina = calcStamina(data.stats?.sim ?? 0, tierMult);
       set({
         qi: data.qi ?? 0,
         totalSimdeuk: data.totalSimdeuk ?? 0,
@@ -135,7 +138,10 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         bossPatternState: data.bossPatternState ?? null,
         playerStunTimer: data.playerStunTimer ?? 0,
         lastEnemyAttack: data.lastEnemyAttack ?? null,
-        tutorialFlags: data.tutorialFlags ?? createInitialState().tutorialFlags,
+        tutorialFlags: {
+          ...(data.tutorialFlags ?? createInitialState().tutorialFlags),
+          firstBreakthroughNotified: data.tutorialFlags?.firstBreakthroughNotified ?? false,
+        },
         lastTickTime: Date.now(),
         battleMode: data.battleMode ?? 'none',
         huntTarget: data.huntTarget ?? null,
@@ -156,7 +162,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         inventory: data.inventory ?? [],
         discoveredMasteries: data.discoveredMasteries ?? [],
         pendingEnlightenments: data.pendingEnlightenments ?? [],
-        stamina: data.stamina ?? 0,
+        stamina: Math.min(data.stamina ?? 0, maxStamina),
         ultCooldowns: data.ultCooldowns ?? {},
         currentBattleDuration: data.currentBattleDuration ?? 0,
         currentBattleDamageDealt: data.currentBattleDamageDealt ?? 0,
@@ -195,6 +201,32 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
   deleteSlot: (slot) => {
     if (typeof window !== 'undefined' && window.localStorage) {
       localStorage.removeItem(`murim_save_slot_${slot}`);
+    }
+  },
+
+  exportSave: (slot) => {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    const raw = localStorage.getItem(`murim_save_slot_${slot}`);
+    if (!raw) return;
+    const blob = new Blob([raw], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `murim_slot${slot + 1}_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  importSave: (slot, jsonString) => {
+    try {
+      const data = JSON.parse(jsonString);
+      if (!data.version?.startsWith('4')) return false;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(`murim_save_slot_${slot}`, jsonString);
+      }
+      return true;
+    } catch {
+      return false;
     }
   },
 

@@ -126,6 +126,7 @@ export interface GameState {
     yasanUnlocked: boolean;
     killedWood: boolean;
     killedIron: boolean;
+    firstBreakthroughNotified: boolean;
   };
 
   lastTickTime: number;

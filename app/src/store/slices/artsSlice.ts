@@ -100,7 +100,8 @@ export const createArtsSlice: StateCreator<GameStore, [], [], ArtsSlice> = (set,
     if (artId === 'samjae_simbeop') flags.equippedSimbeop = true;
 
     const fieldUnlocksUpdate: Record<string, boolean> = { ...state.fieldUnlocks };
-    if (flags.equippedSword && flags.equippedSimbeop) {
+    const totalStats = state.stats.gi + state.stats.sim + state.stats.che;
+    if (flags.equippedSword && flags.equippedSimbeop && totalStats >= 10) {
       flags.yasanUnlocked = true;
       fieldUnlocksUpdate.yasan = true;
     }

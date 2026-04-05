@@ -36,6 +36,8 @@ function FieldListScreen({
 }) {
   const fieldUnlocks = useGameStore(s => s.fieldUnlocks);
   const killCounts = useGameStore(s => s.killCounts);
+  const tutorialFlags = useGameStore(s => s.tutorialFlags);
+  const stats = useGameStore(s => s.stats);
 
   return (
     <div>
@@ -72,7 +74,10 @@ function FieldListScreen({
         <div className="card field-card locked">
           <span style={{ fontWeight: 500, fontSize: 13 }}>🔒 야산</span>
           <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
-            삼재검법과 삼재심법을 장착해야 해금됩니다
+            {tutorialFlags.equippedSword && tutorialFlags.equippedSimbeop
+              && (stats.gi + stats.sim + stats.che) < 10
+              ? '스탯이 부족합니다. 기운(氣) 탭에서 내공을 키우십시오.'
+              : '삼재검법과 삼재심법을 장착해야 해금됩니다'}
           </div>
         </div>
       )}

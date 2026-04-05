@@ -1159,6 +1159,23 @@ body {
   gap: 6px;
 }
 
+.save-slot-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.save-slot-row .save-slot-item {
+  flex: 1;
+}
+
+.save-slot-io-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+}
+
 /* ────────────────────────────────
    v2.0 오프라인 결과 모달
    ──────────────────────────────── */

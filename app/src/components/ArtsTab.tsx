@@ -3,7 +3,7 @@
  * 삼재검법 + 삼재심법. 초식/절초/초(招) 패널.
  */
 import { useState } from 'react';
-import { useGameStore, calcQiPerSec, calcCombatQiRatio, calcEffectiveRegen, calcStaminaRegen, gatherMasteryEffects, getArtCurrentGrade, getProfStarInfo, getProfDamageValue, getArtGradeInfo } from '../store/gameStore';
+import { useGameStore, calcQiPerSec, calcCombatQiRatio, calcEffectiveRegen, calcStaminaRegen, gatherMasteryEffects, getArtCurrentGrade, getProfStarInfo, getProfDamageValue, getArtGradeInfo, getArtDamageMultiplier } from '../store/gameStore';
 import { getArtDef, getMasteryDefsForArt, getMasteryDef, type ArtDef, type MasteryDef, type ProficiencyType } from '../data/arts';
 import { getTierDef, getMaxSimdeuk } from '../data/tiers';
 import { BALANCE_PARAMS } from '../data/balance';
@@ -80,8 +80,8 @@ export default function ArtsTab() {
         )}
         {equippedProfTypes.map(pType => {
           const cumExp = proficiency?.[pType] ?? 0;
-          const { stageIndex, star, starIndex, progress } = getProfStarInfo(cumExp);
-          const isMax = starIndex >= 60;
+          const { stageIndex, star, starIndex, progress, isFinal } = getProfStarInfo(cumExp);
+          const isMax = isFinal === true;
           const stageLabel = PROF_STAGE_LABELS[stageIndex];
           const starLabel = STAR_HANJA[star - 1];
 
@@ -91,18 +91,18 @@ export default function ArtsTab() {
                 <span style={{ fontSize: 13 }}>
                   {PROF_TYPE_LABEL[pType]}
                   <span style={{ color: 'var(--gold)', marginLeft: 4, fontSize: 11 }}>
-                    {stageLabel}
+                    {isFinal ? '終' : stageLabel}
                   </span>
                 </span>
                 <span style={{ fontSize: 16, color: 'var(--gold)', fontFamily: "'Ma Shan Zheng', serif" }}>
-                  {starLabel}星
+                  {isFinal ? '終' : `${starLabel}星`}
                 </span>
               </div>
               <div className="hp-bar-container">
                 <div className="hp-bar-fill" style={{ width: `${progress * 100}%`, background: 'var(--gold)', opacity: 0.85 }} />
               </div>
               <div style={{ textAlign: 'right', fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
-                {isMax ? '無極之境' : `${(progress * 100).toFixed(1)}%`}
+                {isMax ? '終' : `${(progress * 100).toFixed(1)}%`}
               </div>
             </div>
           );
@@ -131,11 +131,12 @@ export default function ArtsTab() {
       {/* 삼재검법 카드 */}
       {swordDef && swordOwned && (() => {
         const prof = proficiency?.sword ?? 0;
-        const normalDmg = (swordDef.baseDamage ?? 0) + Math.floor(swordDef.proficiencyCoefficient * getProfDamageValue(prof));
+        const swordGradeMult = getArtDamageMultiplier(swordDef, artGradeExp['samjae_sword'] ?? 0, activeMasteries['samjae_sword'] ?? []);
+        const normalDmg = Math.floor(((swordDef.baseDamage ?? 0) + Math.floor(swordDef.proficiencyCoefficient * getProfDamageValue(prof))) * swordGradeMult);
         const normalCrit = Math.floor(normalDmg * 1.5);
         const showUlt = effects.unlockUlt && !!swordDef.ultMultiplier;
         const ultName = effects.ultChange?.name ?? '강한 내려치기';
-        const ultDmg = (swordDef.ultBaseDamage ?? 0) + Math.floor((swordDef.ultMultiplier ?? 0) * getProfDamageValue(prof));
+        const ultDmg = Math.floor(((swordDef.ultBaseDamage ?? 0) + Math.floor((swordDef.ultMultiplier ?? 0) * getProfDamageValue(prof))) * swordGradeMult);
         const ultCrit = Math.floor(ultDmg * 1.5);
         return (
           <div className="card" style={{ marginBottom: 12, padding: 12 }}>
@@ -313,7 +314,8 @@ export default function ArtsTab() {
 
           // active 무공 데미지
           const prof = proficiency?.[def.proficiencyType] ?? 0;
-          const normalDmg = (def.baseDamage ?? 0) + Math.floor(def.proficiencyCoefficient * getProfDamageValue(prof));
+          const artGradeMult = getArtDamageMultiplier(def, artGradeExp[owned.id] ?? 0, activeMasteries[owned.id] ?? []);
+          const normalDmg = Math.floor(((def.baseDamage ?? 0) + Math.floor(def.proficiencyCoefficient * getProfDamageValue(prof))) * artGradeMult);
           const normalCrit = Math.floor(normalDmg * 1.5);
 
           // 접힌 요약

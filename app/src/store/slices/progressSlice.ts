@@ -88,6 +88,7 @@ export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice>
     yasanUnlocked: false,
     killedWood: false,
     killedIron: false,
+    firstBreakthroughNotified: false,
   },
   fieldUnlocks: {
     training: true,
@@ -180,10 +181,19 @@ export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice>
       }
     }
 
+    const tutorialFlags = { ...state.tutorialFlags };
+    const battleLog = [...state.battleLog];
+    if (!tutorialFlags.firstBreakthroughNotified && tierDef.rewards?.artPoints) {
+      battleLog.push(`경지 돌파! 무공포인트 +${tierDef.rewards.artPoints} 획득. 무공(武功) 탭에서 새 무공을 익힐 수 있습니다.`);
+      tutorialFlags.firstBreakthroughNotified = true;
+    }
+
     set({
       tier: nextTier,
       artPoints: newPoints,
       fieldUnlocks,
+      tutorialFlags,
+      battleLog,
       playerAnim: 'breakthrough',
     });
   },

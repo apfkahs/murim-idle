@@ -114,6 +114,8 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
     const state = get() as GameStore;
     const have = state.materials[recipe.materialId] ?? 0;
     if (have < recipe.materialCount) return false;
+    if (recipe.requiresArtId && !state.ownedArts.some(a => a.id === recipe.requiresArtId)) return false;
+    if (recipe.requiresMasteryId && !state.discoveredMasteries.includes(recipe.requiresMasteryId)) return false;
     if (recipe.resultArtId && state.ownedArts.some(a => a.id === recipe.resultArtId)) return false;
     if (recipe.resultMasteryId && state.discoveredMasteries.includes(recipe.resultMasteryId)) return false;
     const newMaterials = { ...state.materials, [recipe.materialId]: have - recipe.materialCount };

@@ -150,7 +150,7 @@ export const TRAINING_MONSTERS: MonsterDef[] = [
   {
     id: 'training_iron',
     name: '철인형',
-    hp: 30, attackPower: 0, attackInterval: 0, regen: 2, simdeuk: 3, baseProficiency: 100,
+    hp: 30, attackPower: 0, attackInterval: 0, regen: 1.5, simdeuk: 3, baseProficiency: 100,
     drops: [{ artId: 'samjae_simbeop', chance: 1.0 }],
     materialDrops: [{ materialId: 'iron_fragment', chance: 0.4 }],
     isTraining: true, grade: 0,
