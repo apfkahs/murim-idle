@@ -1,0 +1,295 @@
+import { useEffect, useRef } from 'react';
+import { useGameStore, getMonsterRevealLevel, calcStamina } from '../../store/gameStore';
+import { getMonsterDef, BOSS_PATTERNS } from '../../data/monsters';
+import { getArtDef } from '../../data/arts';
+import { formatNumber } from '../../utils/format';
+import { getEnemyImage, getEnemyEmoji, getPlayerByTier, getFieldBackground } from '../../assets';
+
+// ─────────────────────────────────────────────
+// 전투 화면 (v1.1: DPS 제거, 공격 간격 표시)
+// ─────────────────────────────────────────────
+export default function BattleScreen() {
+  const battleMode = useGameStore(s => s.battleMode);
+  const currentEnemy = useGameStore(s => s.currentEnemy);
+  const currentField = useGameStore(s => s.currentField);
+  const exploreStep = useGameStore(s => s.exploreStep);
+  const exploreOrder = useGameStore(s => s.exploreOrder);
+  const isBossPhase = useGameStore(s => s.isBossPhase);
+  const bossTimer = useGameStore(s => s.bossTimer);
+  const hp = useGameStore(s => s.hp);
+  const maxHp = useGameStore(s => s.maxHp);
+  const stamina = useGameStore(s => s.stamina);
+  const stats = useGameStore(s => s.stats);
+  const equippedArts = useGameStore(s => s.equippedArts);
+  const equippedSimbeop = useGameStore(s => s.equippedSimbeop);
+  const ownedArts = useGameStore(s => s.ownedArts);
+  const battleLog = useGameStore(s => s.battleLog);
+  const abandonBattle = useGameStore(s => s.abandonBattle);
+  const getAttackInterval = useGameStore(s => s.getAttackInterval);
+  const killCounts = useGameStore(s => s.killCounts);
+  const tier = useGameStore(s => s.tier);
+  const bossPatternState = useGameStore(s => s.bossPatternState);
+  const playerStunTimer = useGameStore(s => s.playerStunTimer);
+  const currentBattleDuration = useGameStore(s => s.currentBattleDuration);
+  const currentBattleDamageDealt = useGameStore(s => s.currentBattleDamageDealt);
+
+  const logRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [battleLog.length]);
+
+  if (!currentEnemy) return null;
+
+  const monDef = getMonsterDef(currentEnemy.id);
+  const kills = killCounts[currentEnemy.id] ?? 0;
+  const reveal = getMonsterRevealLevel(kills);
+  // 전투 중 이름: 1회 이상 처치했으면 이름, 아니면 ???
+  const enemyName = reveal >= 1 ? (monDef?.name ?? currentEnemy.id) : '???';
+  const atkInterval = getAttackInterval();
+  const playerDps = currentBattleDuration >= 1
+    ? Math.floor(currentBattleDamageDealt / currentBattleDuration)
+    : 0;
+  const maxStamina = calcStamina(stats.sim);
+  const enemyImg = getEnemyImage(currentEnemy.id);
+  const player = getPlayerByTier(tier);
+  const bgUrl = currentField ? getFieldBackground(currentField) : null;
+
+  const isExplore = battleMode === 'explore';
+
+  return (
+    <div className="battle-layout">
+      {/* 상단 바 */}
+      <div className="battle-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 500 }}>
+            {currentField === 'training' ? '수련장' : currentField === 'inn' ? '허름한 객잔' : '야산'}
+          </span>
+          {isExplore && (
+            <span className="badge badge-gold" style={{ fontSize: 11, padding: '2px 8px' }}>
+              {isBossPhase ? '보스전' : `답파 ${exploreStep + 1}/${exploreOrder.length}`}
+            </span>
+          )}
+          {!isExplore && (
+            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>지정 사냥</span>
+          )}
+        </div>
+        <button className="btn btn-small btn-danger" onClick={abandonBattle}>포기</button>
+      </div>
+
+      {/* 전투 장면 */}
+      <div className={`battle-scene ${isBossPhase ? 'boss-darken' : ''}`}>
+        <div
+          className="battle-scene-bg"
+          style={bgUrl ? { backgroundImage: `url(${bgUrl})` } : {
+            background: 'linear-gradient(135deg, rgba(20,20,40,0.8), rgba(12,12,20,0.95))',
+          }}
+        />
+
+        <div className="battle-scene-content">
+          {isBossPhase && bossTimer > 0 && (
+            <div className="boss-timer-bar" style={{ marginBottom: 12 }}>
+              <div className="boss-timer-fill" style={{ width: `${(bossTimer / 60) * 100}%` }} />
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', minHeight: 120 }}>
+            <div className="anim-attack" style={{ textAlign: 'center' }}>
+              {player.url ? (
+                <img src={player.url} alt="캐릭터" className="battle-char" />
+              ) : (
+                <span className="battle-char-emoji">{player.emoji}</span>
+              )}
+            </div>
+
+            <div style={{ fontSize: 16, opacity: 0.3, color: 'var(--text-dim)' }}>⚔</div>
+
+            <div className={isBossPhase ? 'anim-boss' : ''} style={{ textAlign: 'center' }}>
+              {enemyImg ? (
+                <img src={enemyImg} alt={enemyName} className="battle-char" />
+              ) : (
+                <span className="battle-char-emoji">{getEnemyEmoji(currentEnemy.id)}</span>
+              )}
+            </div>
+          </div>
+
+          {/* HP 바 오버레이 */}
+          <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2 }}>HP {Math.floor(hp)}/{maxHp}</div>
+              <div className="hp-bar-container">
+                <div className="hp-bar-fill" style={{ width: `${(hp / maxHp) * 100}%` }} />
+              </div>
+              {/* 스턴 표시 */}
+              {playerStunTimer > 0 && (
+                <div style={{ fontSize: 11, color: '#ff4444', fontWeight: 600, marginTop: 4 }}>
+                  경직! ({playerStunTimer.toFixed(1)}초)
+                </div>
+              )}
+              {/* 빙결 표시 */}
+              {(bossPatternState?.playerFreezeLeft ?? 0) > 0 && (
+                <div style={{ fontSize: 11, color: '#88ccff', fontWeight: 600, marginTop: 4 }}>
+                  빙결! (공격 {bossPatternState!.playerFreezeLeft}회 남음)
+                </div>
+              )}
+              {/* 내력 게이지 */}
+              {maxStamina > 0 && (
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2 }}>내력 {Math.floor(stamina)}/{maxStamina}</div>
+                  <div className="hp-bar-container">
+                    <div className="hp-bar-fill" style={{
+                      width: `${(stamina / maxStamina) * 100}%`,
+                      background: 'var(--blue, #4a9eff)',
+                    }} />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2, textAlign: 'right' }}>{enemyName}</div>
+              <div className="hp-bar-container">
+                <div className="hp-bar-fill enemy-hp-fill" style={{
+                  width: `${Math.max(0, (currentEnemy.hp / currentEnemy.maxHp) * 100)}%`
+                }} />
+              </div>
+              {/* 적 HP 수치: reveal < 2이면 ???/??? */}
+              <div style={{ fontSize: 9, color: 'var(--text-dim)', textAlign: 'right', marginTop: 1 }}>
+                {reveal >= 2
+                  ? `${Math.max(0, Math.floor(currentEnemy.hp))}/${currentEnemy.maxHp}`
+                  : '???/???'
+                }
+              </div>
+              {/* 보스 내력 바 */}
+              {bossPatternState != null && BOSS_PATTERNS[currentEnemy.id] && (
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2, textAlign: 'right' }}>
+                    {BOSS_PATTERNS[currentEnemy.id].staminaLabel ?? '내력'}{' '}
+                    {Math.floor(bossPatternState.bossStamina)}/{BOSS_PATTERNS[currentEnemy.id].stamina.max}
+                  </div>
+                  <div className="hp-bar-container">
+                    <div className="hp-bar-fill" style={{
+                      width: `${(bossPatternState.bossStamina / BOSS_PATTERNS[currentEnemy.id].stamina.max) * 100}%`,
+                      background: 'var(--gold, #d4a853)',
+                    }} />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 내 스탯 바 */}
+      <div className="info-bar">
+        <div className="info-bar-item">
+          <div className="info-bar-value">{formatNumber(maxHp)}</div>
+          <div className="info-bar-label">최대HP</div>
+        </div>
+        <div className="info-bar-item">
+          <div className="info-bar-value">{formatNumber(playerDps)}</div>
+          <div className="info-bar-label">DPS</div>
+        </div>
+        <div className="info-bar-item">
+          <div className="info-bar-value">{maxStamina > 0 ? formatNumber(maxStamina) : '-'}</div>
+          <div className="info-bar-label">최대내력</div>
+        </div>
+        <div className="info-bar-item">
+          <div className="info-bar-value">{atkInterval.toFixed(1)}초</div>
+          <div className="info-bar-label">공격속도</div>
+        </div>
+      </div>
+
+      {/* 적 스탯 바 */}
+      <div className="info-bar" style={{ borderTop: '1px solid var(--border)', opacity: 0.85 }}>
+        <div className="info-bar-item">
+          <div className="info-bar-value">
+            {reveal >= 2 ? formatNumber(currentEnemy.maxHp) : '???'}
+          </div>
+          <div className="info-bar-label">적 최대HP</div>
+        </div>
+        <div className="info-bar-item">
+          <div className="info-bar-value">
+            {reveal >= 4
+              ? (currentEnemy.attackInterval > 0
+                  ? formatNumber(Math.floor(currentEnemy.attackPower / currentEnemy.attackInterval))
+                  : '-')
+              : '???'}
+          </div>
+          <div className="info-bar-label">적 DPS</div>
+        </div>
+        <div className="info-bar-item">
+          <div className="info-bar-value">
+            {reveal >= 4
+              ? (BOSS_PATTERNS[currentEnemy.id]
+                  ? formatNumber(BOSS_PATTERNS[currentEnemy.id].stamina.max)
+                  : '-')
+              : '???'}
+          </div>
+          <div className="info-bar-label">적 최대내력</div>
+        </div>
+        <div className="info-bar-item">
+          <div className="info-bar-value">
+            {reveal >= 4
+              ? (currentEnemy.attackInterval > 0
+                  ? currentEnemy.attackInterval.toFixed(1) + '초'
+                  : '-')
+              : '???'}
+          </div>
+          <div className="info-bar-label">적 공격속도</div>
+        </div>
+      </div>
+
+      {/* 답파 진행 바 */}
+      {isExplore && !isBossPhase && (
+        <div style={{ padding: '4px 0' }}>
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `${((exploreStep + 1) / (exploreOrder.length + 1)) * 100}%` }} />
+          </div>
+        </div>
+      )}
+
+      {/* 전투 로그 */}
+      <div className="battle-log" ref={logRef} style={{ flex: 1, minHeight: 0 }}>
+        {battleLog.map((log, i) => {
+          let cls = 'battle-log-line';
+          if (log.startsWith('비기 — 태산압정')) {
+            cls += ' log-ult-taesan';
+          } else if (log.startsWith('절초 —')) {
+            cls += ' log-ult';
+          } else if (log.startsWith('—') || log.includes('등장') || log.includes('처치') || log.includes('사냥 시작')) {
+            cls += ' log-system';
+          } else if (log.includes('치명타') || log.includes('연속') || log.includes('피했다') || log.includes('📜') || log.includes('보스') || log.includes('승리') || log.includes('업적') || log.endsWith('..')) {
+            cls += ' log-gold';
+          }
+          return <div key={i} className={cls}>{log}</div>;
+        })}
+      </div>
+
+      {/* 무공 칩 바 */}
+      <div className="chip-bar">
+        {equippedArts.map(artId => {
+          const def = getArtDef(artId);
+          const owned = ownedArts.find(a => a.id === artId);
+          if (!def || !owned) return null;
+          return (
+            <span key={artId} className="chip">
+              {def.name}
+            </span>
+          );
+        })}
+        {equippedSimbeop && (() => {
+          const def = getArtDef(equippedSimbeop);
+          const owned = ownedArts.find(a => a.id === equippedSimbeop);
+          if (!def || !owned) return null;
+          return (
+            <span className="chip chip-simbeop">
+              {def.name}
+            </span>
+          );
+        })()}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,90 @@
+/**
+ * 초기 게임 상태 팩토리
+ * gameStore.ts와 saveSlice.ts 양쪽에서 import — 순환 의존성 없음
+ */
+import { BALANCE_PARAMS } from '../data/balance';
+import type { GameState } from './types';
+
+const B = BALANCE_PARAMS;
+
+export function createInitialState(): GameState {
+  return {
+    qi: 0,
+    totalSimdeuk: 0,
+    totalSpentQi: 0,
+    stats: { gi: 0, sim: 0, che: 0 },
+    proficiency: { sword: 1, palm: 1, footwork: 1, mental: 1 },
+    hp: B.HP_BASE,
+    maxHp: B.HP_BASE,
+    tier: 0,
+
+    stamina: 0,
+    ultCooldowns: {},
+    currentBattleDuration: 0,
+    currentBattleDamageDealt: 0,
+
+    equippedSimbeop: null,
+    ownedArts: [],
+    equippedArts: [],
+    artPoints: 3,
+    artGradeExp: {},
+    currentField: null,
+    battleMode: 'none',
+    huntTarget: null,
+    pendingHuntRetry: false,
+    currentEnemy: null,
+    exploreStep: 0,
+    exploreOrder: [],
+    isBossPhase: false,
+    bossTimer: 0,
+    explorePendingRewards: { simdeuk: 0, drops: [] },
+    battleLog: [],
+    playerAttackTimer: 0,
+    enemyAttackTimer: 0,
+    achievements: [],
+    achievementCount: 0,
+    killCounts: {},
+    bossKillCounts: {},
+    totalYasanKills: 0,
+    totalKills: 0,
+    hiddenRevealedInField: {},
+    bossPatternState: null,
+    playerStunTimer: 0,
+    lastEnemyAttack: null,
+    tutorialFlags: {
+      equippedSword: false,
+      equippedSimbeop: false,
+      yasanUnlocked: false,
+      killedWood: false,
+      killedIron: false,
+    },
+    lastTickTime: Date.now(),
+    battleResult: null,
+    floatingTexts: [],
+    nextFloatingId: 0,
+    playerAnim: '',
+    enemyAnim: '',
+    activeMasteries: {},
+    gameSpeed: 1,
+    currentSaveSlot: 0,
+    fieldUnlocks: {
+      training: true,
+      yasan: false,
+      inn: false,
+      cheonsan_jangmak: false,
+      cheonsan_godo: false,
+      cheonsan_simjang: false,
+    },
+    inventory: [],
+    discoveredMasteries: [],
+    pendingEnlightenments: [],
+    equipment: { weapon: null, armor: null, gloves: null, boots: null },
+    equipmentInventory: [],
+    materials: {},
+    craftedRecipes: [],
+    unlockedRecipes: [],
+    obtainedMaterials: [],
+    knownEquipment: [],
+    dodgeCounterActive: false,
+  };
+}
