@@ -790,6 +790,11 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
             applyBattleReset();
             battleLog.push('괴이한 존재를 물리치고 답파에 성공했다!');
           } else {
+            // 일반 처치 후 HP 30% 회복
+            const exploreHeal = Math.floor(maxHp * 0.3);
+            hp = Math.min(hp + exploreHeal, maxHp);
+            battleLog.push(`적을 격파한 후 휴식을 취해 일부 체력을 회복했다! (+${exploreHeal})`);
+
             const nextStep = exploreStep + 1;
             if (nextStep < exploreOrder.length) {
               const nextMon = getMonsterDef(exploreOrder[nextStep]);
@@ -994,7 +999,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                   if (skill.staminaCost) bossPatternState.bossStamina -= skill.staminaCost;
                   if (skill.oneTime) bossPatternState.usedOneTimeSkills = [...(bossPatternState.usedOneTimeSkills ?? []), skill.id];
                   const chargeStartMsg = skill.logMessages[0] ?? '기를 응집하기 시작했다!';
-                  battleLog.push(chargeStartMsg);
+                  battleLog.push(`${eName}: ${chargeStartMsg}`);
                 }
                 skillUsed = true;
                 break;
@@ -1012,7 +1017,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                   handleDodge(eName, `${eName}의 포효를 흘려냈다!`);
                 } else {
                   playerStunTimer = skill.stunDuration ?? 4;
-                  battleLog.push(logMsg);
+                  battleLog.push(`${eName}: ${logMsg}`);
                   lastEnemyAttack = { enemyName: eName, attackMessage: logMsg };
                 }
               } else if (skill.type === 'replace_normal' && !skill.useNormalDamage && !skill.damageMultiplier) {
@@ -1026,7 +1031,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                   const healAmt = currentEnemy.maxHp * (skill.selfHealPercent / 100);
                   currentEnemy = { ...currentEnemy, hp: Math.min(currentEnemy.hp + healAmt, currentEnemy.maxHp) };
                 }
-                battleLog.push(logMsg);
+                battleLog.push(`${eName}: ${logMsg}`);
                 if (skill.debuffAtkPercent != null) {
                   const usedAlready = bossPatternState.usedOneTimeSkills?.includes(skill.id);
                   if (!(skill.oneTime && usedAlready)) {
@@ -1037,7 +1042,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                       bossPatternState.playerAtkDebuffMult = 1 - (skill.debuffAtkPercent ?? 0);
                       bossPatternState.playerAtkSpeedDebuffMult = 1 + (skill.debuffAtkSpeedPercent ?? 0);
                       const killMsg = skill.logMessages[1] ?? skill.logMessages[0];
-                      battleLog.push(killMsg);
+                      battleLog.push(`${eName}: ${killMsg}`);
                     }
                     if (skill.oneTime) {
                       bossPatternState.usedOneTimeSkills = [...(bossPatternState.usedOneTimeSkills ?? []), skill.id];
@@ -1052,7 +1057,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                     bossPatternState.playerFreezeLeft = skill.freezeAttacks;
                   }
                   const freezeSuffix = skill.freezeAttacks ? ' 빙결!' : '';
-                  const attackMsg = `${logMsg} ${dmg} 피해!${freezeSuffix}`;
+                  const attackMsg = `${eName}: ${logMsg} ${dmg} 피해!${freezeSuffix}`;
                   battleLog.push(attackMsg);
                   lastEnemyAttack = { enemyName: eName, attackMessage: attackMsg };
                   if (!isSimulating) enemyAnim = 'attack';
@@ -1065,7 +1070,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                   attackPower: Math.floor(currentEnemy.attackPower * (1 + (skill.atkBuffPercent ?? 0))),
                   bypassExternalGradeActive: true,
                 };
-                battleLog.push(skill.logMessages[0]);
+                battleLog.push(`${eName}: ${skill.logMessages[0]}`);
                 if (skill.oneTime) {
                   bossPatternState.usedOneTimeSkills = [...(bossPatternState.usedOneTimeSkills ?? []), skill.id];
                 }
@@ -1087,13 +1092,13 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                     potionConsumedRage: true,
                   };
                   enemyAttackTimer = currentEnemy.attackInterval;
-                  battleLog.push(skill.logMessages[1] ?? skill.logMessages[0]);
+                  battleLog.push(`${eName}: ${skill.logMessages[1] ?? skill.logMessages[0]}`);
                 } else {
                   currentEnemy = {
                     ...currentEnemy,
                     hp: Math.min(currentEnemy.hp + currentEnemy.maxHp * chosenOpt.healPercent, currentEnemy.maxHp),
                   };
-                  battleLog.push(skill.logMessages[0]);
+                  battleLog.push(`${eName}: ${skill.logMessages[0]}`);
                 }
                 if (skill.oneTime) {
                   bossPatternState.usedOneTimeSkills = [...(bossPatternState.usedOneTimeSkills ?? []), skill.id];
@@ -1106,8 +1111,8 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
                 if (skill.undodgeable || Math.random() >= dodgeRate) {
                   hp -= skillDmg;
-                  battleLog.push(`${logMsg} ${skillDmg} 피해!`);
-                  lastEnemyAttack = { enemyName: eName, attackMessage: `${logMsg} ${skillDmg} 피해!` };
+                  battleLog.push(`${eName}: ${logMsg} ${skillDmg} 피해!`);
+                  lastEnemyAttack = { enemyName: eName, attackMessage: `${eName}: ${logMsg} ${skillDmg} 피해!` };
                   if (!isSimulating) {
                     enemyAnim = 'attack';
                   }
@@ -1146,7 +1151,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
               incomingDmg = Math.floor(incomingDmg * (1 + (equipStats.bonusDmgTakenPercent ?? 0)));
               hp -= incomingDmg;
               if (incomingDmg > 0 && monDef) {
-                if (monCritLog) battleLog.push(monCritLog);
+                if (monCritLog) battleLog.push(`${eName}: ${monCritLog}`);
                 const attackMsg = getMonsterAttackMsg(monDef, incomingDmg);
                 battleLog.push(attackMsg);
                 lastEnemyAttack = { enemyName: eName, attackMessage: attackMsg };
@@ -1163,7 +1168,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                     dotPattern2.stamina.max,
                   );
                   const dmsg = dotSkill.logMessages[Math.floor(Math.random() * dotSkill.logMessages.length)];
-                  battleLog.push(dmsg);
+                  battleLog.push(`${eName}: ${dmsg}`);
                 }
                 const dblSkill = dotPattern2.skills.find(s => s.type === 'double_hit');
                 if (dblSkill && Math.random() < (dblSkill.chance ?? 0)) {
@@ -1171,9 +1176,9 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                   if (Math.random() >= dodgeRate) {
                     const dmg2 = calcEnemyDamage(currentEnemy.attackPower, dblSkill.hitMultiplier ?? 1, dmgReduction, undefined, equipStats.bonusFixedDmgReduction ?? 0);
                     hp -= dmg2;
-                    battleLog.push(`${dmsg} ${dmg2} 피해!`);
+                    battleLog.push(`${eName}: ${dmsg} ${dmg2} 피해!`);
                   } else {
-                    battleLog.push(`${dmsg} — 회피!`);
+                    battleLog.push(`${eName}: ${dmsg} — 회피!`);
                     if (masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) {
                       dodgeCounterActive = true;
                     }
@@ -1188,7 +1193,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                 const tripleSkill = dotPattern2.skills.find(s => s.type === 'multi_hit');
                 if (tripleSkill && Math.random() < (tripleSkill.chance ?? 0)) {
                   const tripleMsg = tripleSkill.logMessages[Math.floor(Math.random() * tripleSkill.logMessages.length)];
-                  battleLog.push(tripleMsg);
+                  battleLog.push(`${eName}: ${tripleMsg}`);
                   const hitCount = tripleSkill.hitCount ?? 3;
                   for (let i = 0; i < hitCount; i++) {
                     if (Math.random() >= dodgeRate) {
@@ -1250,21 +1255,6 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       applyBattleReset();
     }
 
-    // 보스 타이머
-    if (isBossPhase && bossTimer > 0) {
-      bossTimer -= dt;
-      if (bossTimer <= 0) {
-        battleResult = {
-          type: 'explore_fail',
-          simdeuk: 0,
-          drops: [],
-          message: '시간 초과! 보상이 없습니다.',
-        };
-        battleMode = 'none';
-        currentEnemy = null;
-        applyBattleReset();
-      }
-    }
   }
 
   // 4) 업적 체크

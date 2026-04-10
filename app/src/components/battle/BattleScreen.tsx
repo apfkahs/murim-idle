@@ -89,12 +89,6 @@ export default function BattleScreen() {
         />
 
         <div className="battle-scene-content">
-          {isBossPhase && bossTimer > 0 && (
-            <div className="boss-timer-bar" style={{ marginBottom: 12 }}>
-              <div className="boss-timer-fill" style={{ width: `${(bossTimer / 60) * 100}%` }} />
-            </div>
-          )}
-
           <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', minHeight: 120 }}>
             <div className="anim-attack" style={{ textAlign: 'center' }}>
               {player.url ? (
@@ -162,7 +156,7 @@ export default function BattleScreen() {
                 }
               </div>
               {/* 보스 내력 바 */}
-              {bossPatternState != null && BOSS_PATTERNS[currentEnemy.id] && (
+              {bossPatternState != null && BOSS_PATTERNS[currentEnemy.id] && BOSS_PATTERNS[currentEnemy.id].stamina.max > 0 && (
                 <div style={{ marginTop: 4 }}>
                   <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2, textAlign: 'right' }}>
                     {BOSS_PATTERNS[currentEnemy.id].staminaLabel ?? '내력'}{' '}
@@ -222,7 +216,7 @@ export default function BattleScreen() {
         <div className="info-bar-item">
           <div className="info-bar-value">
             {reveal >= 4
-              ? (BOSS_PATTERNS[currentEnemy.id]
+              ? (BOSS_PATTERNS[currentEnemy.id] && BOSS_PATTERNS[currentEnemy.id].stamina.max > 0
                   ? formatNumber(BOSS_PATTERNS[currentEnemy.id].stamina.max)
                   : '-')
               : '???'}
@@ -253,11 +247,15 @@ export default function BattleScreen() {
       {/* 전투 로그 */}
       <div className="battle-log" ref={logRef} style={{ flex: 1, minHeight: 0 }}>
         {battleLog.map((log, i) => {
+          const actualEnemyName = monDef?.name ?? currentEnemy.id;
           let cls = 'battle-log-line';
           if (log.startsWith('비기 — 태산압정')) {
             cls += ' log-ult-taesan';
           } else if (log.startsWith('절초 —')) {
             cls += ' log-ult';
+          } else if (log.startsWith(actualEnemyName + ':')) {
+            const isStrong = log.includes(' 피해!') || log.includes('빙결') || log.includes('경직');
+            cls += isStrong ? ' log-enemy-strong' : ' log-enemy';
           } else if (log.startsWith('—') || log.includes('등장') || log.includes('처치') || log.includes('사냥 시작')) {
             cls += ' log-system';
           } else if (log.includes('치명타') || log.includes('연속') || log.includes('피했다') || log.includes('📜') || log.includes('보스') || log.includes('승리') || log.includes('업적') || log.endsWith('..')) {
