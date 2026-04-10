@@ -51,6 +51,67 @@ export const MATERIALS: MaterialDef[] = [
     name: '삼재검법 비급: 태산압정',
     description: '삼재검법의 오의를 담은 극비 비급. 4등급에 이른 자만이 무게를 담은 일격을 구현할 수 있다.',
   },
+  {
+    id: 'stinky_leather',
+    name: '냄새나는 가죽 조각',
+    description: '야산의 곰에게서 벗겨낸 두꺼운 가죽. 냄새가 고약하지만 가공하면 쓸 만한 방구를 만들 수 있다.',
+  },
+  {
+    id: 'map_fragment',
+    name: '지도 조각',
+    description: '누군가 찢어놓은 지도의 일부. 뭔가를 가리키는 것 같다.',
+  },
+  {
+    id: 'demonic_note',
+    name: '마기에 물든 쪽지',
+    description: '마기가 짙게 서려있는 쪽지. 내용을 해독하기 어렵다.',
+  },
+  {
+    id: 'bijup_nokrim_geoksan',
+    name: '격산타우(隔山打牛) 비급서',
+    description: '녹림의 절기. 강렬한 일권을 격산타우로 승화시키는 비결이 담겨 있다.',
+  },
+  // ── 객잔 개편 신규 재료 ──
+  {
+    id: 'jeoposaem_scroll',
+    name: '철포삼 수련법 책자',
+    description: '철포삼의 기초 단련법이 기록된 낡은 책자. 몸을 강철처럼 만드는 외공의 첫걸음이 담겨 있다.',
+  },
+  {
+    id: 'bijup_jeoposaem',
+    name: '철포삼 비전서',
+    description: '철포삼의 오의(奧義)가 담긴 비전서. 완전한 외공의 경지에 이른 자만이 그 진의를 이해할 수 있다.',
+  },
+  {
+    id: 'hwan_do_fragment',
+    name: '환도 파편',
+    description: '삼류 도적 두목이 휘두르던 쌍도(雙刀)에서 떨어진 파편. 날이 무뎌졌지만 녹여 재단하면 쓸 만한 무기를 만들 수 있다.',
+  },
+  {
+    id: 'samjae_simbeop_upper',
+    name: '삼재심법 비급서 상편',
+    description: '삼재심법의 상위 수련법이 담긴 비급서의 상편. 하편과 합쳐야 진의를 깨달을 수 있다.',
+  },
+  {
+    id: 'samjae_simbeop_lower',
+    name: '삼재심법 비급서 하편',
+    description: '삼재심법의 오의가 담긴 비급서의 하편. 상편과 합쳐야 심법의 진수를 완성할 수 있다.',
+  },
+  {
+    id: 'heugpungchae_map',
+    name: '흑풍채 지도',
+    description: '흑풍채로 가는 길이 표시된 지도. 지도 조각들을 이어붙여 만든 것이다.',
+  },
+  {
+    id: 'gongdong_map',
+    name: '공동파 지도',
+    description: '공동파의 위치가 기록된 지도. 지도 조각들을 이어붙여 완성했다.',
+  },
+  {
+    id: 'secret_order',
+    name: '비밀 지령서',
+    description: '마기에 물든 쪽지들을 해독하여 완성한 비밀 지령서. 어딘가 음험한 조직의 냄새가 난다.',
+  },
 ];
 
 export const RECIPES: RecipeDef[] = [
@@ -80,6 +141,33 @@ export const RECIPES: RecipeDef[] = [
     probabilityPerUnit: 0.01,
     maxUnits: 100,
     resultEquipId: 'sturdy_iron_sword',
+  },
+  {
+    id: 'recipe_crude_leather_armor',
+    name: '조잡한 가죽 갑옷',
+    description: '냄새나는 가죽 조각으로 엮어 만든 방어구. 조잡하지만 없는 것보다는 낫다.',
+    materialId: 'stinky_leather',
+    probabilityPerUnit: 0.10,
+    maxUnits: 10,
+    resultEquipId: 'crude_leather_armor',
+  },
+  {
+    id: 'recipe_sturdy_leather_armor',
+    name: '튼튼한 가죽 갑옷',
+    description: '가죽 조각을 꼼꼼히 겹쳐 만든 방어구. 몸을 든든하게 지켜준다.',
+    materialId: 'stinky_leather',
+    probabilityPerUnit: 0.01,
+    maxUnits: 100,
+    resultEquipId: 'sturdy_leather_armor',
+  },
+  {
+    id: 'recipe_steel_hwando',
+    name: '강철 환도',
+    description: '환도 파편을 모아 강철로 벼려낸 묵직한 환도. 공격력과 치명타 확률이 오른다.',
+    materialId: 'hwan_do_fragment',
+    probabilityPerUnit: 0.01,
+    maxUnits: 100,
+    resultEquipId: 'steel_hwando',
   },
 ];
 
@@ -131,6 +219,18 @@ export const BIJUP_DEFS: BijupDef[] = [
     masteryId: 'samjae_sword_taesan',
     requiredArtGrade: 4,
   },
+  {
+    materialId: 'bijup_nokrim_geoksan',
+    artId: 'nokrim_fist',
+    masteryId: 'nokrim_fist_geoksan',
+    requiredArtGrade: 4,
+  },
+  {
+    materialId: 'bijup_jeoposaem',
+    artId: 'jeoposaem',
+    masteryId: 'jeoposaem_secret',
+    requiredArtGrade: 1,
+  },
 ];
 
 export function getBijupDef(materialId: string): BijupDef | undefined {
@@ -142,6 +242,39 @@ export function getBijupDefByMastery(masteryId: string): BijupDef | undefined {
 }
 
 export const ART_RECIPES: ArtRecipeDef[] = [
+  // ── 객잔 개편 신규 레시피 ──
+  {
+    id: 'art_recipe_jeoposaem',
+    name: '철포삼 해금',
+    description: '철포삼 수련법 책자를 통해 외공의 기초를 익힌다.',
+    materialId: 'jeoposaem_scroll',
+    materialCount: 1,
+    resultArtId: 'jeoposaem',
+  },
+  {
+    id: 'art_recipe_heugpungchae_map',
+    name: '흑풍채 지도 제작',
+    description: '지도 조각 20장을 이어붙여 흑풍채로 가는 길을 완성한다.',
+    materialId: 'map_fragment',
+    materialCount: 20,
+    resultMaterialId: 'heugpungchae_map',
+  },
+  {
+    id: 'art_recipe_gongdong_map',
+    name: '공동파 지도 제작',
+    description: '지도 조각 30장을 이어붙여 공동파의 위치를 특정한다.',
+    materialId: 'map_fragment',
+    materialCount: 30,
+    resultMaterialId: 'gongdong_map',
+  },
+  {
+    id: 'art_recipe_secret_order',
+    name: '비밀 지령서 해독',
+    description: '마기에 물든 쪽지 50장을 해독하여 비밀 지령서를 완성한다.',
+    materialId: 'demonic_note',
+    materialCount: 50,
+    resultMaterialId: 'secret_order',
+  },
   {
     id: 'art_recipe_crude_bobeop',
     name: '조악한 무명보법 복원',
@@ -179,4 +312,33 @@ export const ART_RECIPES: ArtRecipeDef[] = [
 
 export function getArtRecipeDef(id: string): ArtRecipeDef | undefined {
   return ART_RECIPES.find(r => r.id === id);
+}
+
+// ── 복합 재료 제작 레시피 (복수 재료 소모, 심득/무공 해금) ──
+export interface CompoundArtRecipeDef {
+  id: string;
+  name: string;
+  description: string;
+  materials: { materialId: string; materialCount: number }[];
+  requiresArtId?: string;     // 이 무공 보유 시에만 표시
+  resultMasteryId?: string;   // discoveredMasteries에 추가
+  resultArtId?: string;       // ownedArts에 추가
+}
+
+export const COMPOUND_ART_RECIPES: CompoundArtRecipeDef[] = [
+  {
+    id: 'compound_samjae_simbeop_oui',
+    name: '삼재심법 오의 해금',
+    description: '삼재심법 비급서 상·하편을 합쳐 심법의 진수를 깨닫는다.',
+    materials: [
+      { materialId: 'samjae_simbeop_upper', materialCount: 1 },
+      { materialId: 'samjae_simbeop_lower', materialCount: 1 },
+    ],
+    requiresArtId: 'samjae_simbeop',
+    resultMasteryId: 'samjae_simbeop_oui',
+  },
+];
+
+export function getCompoundArtRecipeDef(id: string): CompoundArtRecipeDef | undefined {
+  return COMPOUND_ART_RECIPES.find(r => r.id === id);
 }

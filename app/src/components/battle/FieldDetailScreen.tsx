@@ -13,6 +13,8 @@ export default function FieldDetailScreen({ fieldId, onBack }: { fieldId: string
   const killCounts = useGameStore(s => s.killCounts);
   const bossKillCounts = useGameStore(s => s.bossKillCounts);
   const hiddenRevealedInField = useGameStore(s => s.hiddenRevealedInField);
+  const autoExploreFields = useGameStore(s => s.autoExploreFields);
+  const toggleAutoExplore = useGameStore(s => s.toggleAutoExplore);
 
   const field = getFieldDef(fieldId);
   if (!field) return null;
@@ -21,6 +23,12 @@ export default function FieldDetailScreen({ fieldId, onBack }: { fieldId: string
   const fieldName = field.name;
   const fieldDesc = FIELD_DESCRIPTIONS[fieldId] ?? '';
   const bgUrl = getFieldBackground(fieldId);
+
+  // 답파 완료 여부
+  const cleared = field.boss
+    ? (bossKillCounts[field.boss] ?? 0) > 0
+    : field.monsters.length > 0 && (killCounts[field.monsters[field.monsters.length - 1]] ?? 0) > 0;
+  const autoOn = autoExploreFields[fieldId] ?? false;
 
   // 전장의 몬스터 목록
   const monsters = field.monsters.map(id => getMonsterDef(id)).filter(Boolean) as MonsterDef[];
@@ -41,7 +49,18 @@ export default function FieldDetailScreen({ fieldId, onBack }: { fieldId: string
             </div>
           </div>
           {field.canExplore && (
-            <button className="btn btn-small btn-gold" onClick={() => startExplore(fieldId)}>답파</button>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <button className="btn btn-small btn-gold" onClick={() => startExplore(fieldId)}>답파</button>
+              {cleared && (
+                <button
+                  className={`btn btn-small ${autoOn ? 'btn-gold' : ''}`}
+                  style={{ opacity: autoOn ? 1 : 0.5 }}
+                  onClick={() => toggleAutoExplore(fieldId)}
+                >
+                  자동{autoOn ? ' ON' : ' OFF'}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

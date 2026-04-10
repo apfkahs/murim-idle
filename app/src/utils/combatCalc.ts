@@ -9,6 +9,7 @@ import { type MonsterDef } from '../data/monsters';
 import { getProfDamageValue } from './artUtils';
 import type { GameState } from '../store/types';
 
+
 const B = BALANCE_PARAMS;
 
 // ============================================================
@@ -25,15 +26,17 @@ export const CLEAR_BATTLE_STATE = {
   playerStunTimer: 0,
   lastEnemyAttack: null,
   dodgeCounterActive: false,
+  playerFinisherCharge: null,
 };
 
 // ============================================================
 // 기본 수치 계산
 // ============================================================
 
-/** CRIT_DMG = CRITD_BASE (고정값, 스탯 무관) */
-export function calcCritDmg(): number {
-  return B.CRITD_BASE;
+/** CRIT_DMG = CRITD_BASE + bonusCritDmg (심득 보너스 포함) */
+export function calcCritDmg(state: GameState): number {
+  const eff = gatherMasteryEffects(state);
+  return B.CRITD_BASE + (eff.bonusCritDmg ?? 0);
 }
 
 /** 경지 돌파 누적 배율: 1.1^tier */
@@ -92,6 +95,7 @@ export function gatherMasteryEffects(state: GameState): MasteryEffects {
       : 0;
     if (eff.bonusAtkSpeed) result.bonusAtkSpeed = (result.bonusAtkSpeed ?? 0) + eff.bonusAtkSpeed + profBonus;
     if (eff.bonusDodge) result.bonusDodge = (result.bonusDodge ?? 0) + eff.bonusDodge + profBonus;
+    if (eff.bonusHpPercent) result.bonusHpPercent = (result.bonusHpPercent ?? 0) + eff.bonusHpPercent;
   }
 
   for (const [artId, masteryIds] of Object.entries(activeMasteries)) {
@@ -120,8 +124,12 @@ export function gatherMasteryEffects(state: GameState): MasteryEffects {
       if (eff.bonusCombatQiRatio) result.bonusCombatQiRatio = (result.bonusCombatQiRatio ?? 0) + eff.bonusCombatQiRatio;
       if (eff.normalMultiplierCapIncrease) result.normalMultiplierCapIncrease = (result.normalMultiplierCapIncrease ?? 0) + eff.normalMultiplierCapIncrease;
       if (eff.ultChange) result.ultChange = eff.ultChange;
+      if (eff.bonusCritDmg) result.bonusCritDmg = (result.bonusCritDmg ?? 0) + eff.bonusCritDmg;
       if (eff.killBonusEnabled) result.killBonusEnabled = true;
       if (eff.dodgeCounterEnabled) result.dodgeCounterEnabled = true;
+      if (eff.bonusHpPercent) result.bonusHpPercent = (result.bonusHpPercent ?? 0) + eff.bonusHpPercent;
+      if (eff.bonusCombatQiRatioFlat) result.bonusCombatQiRatioFlat = (result.bonusCombatQiRatioFlat ?? 0) + eff.bonusCombatQiRatioFlat;
+      if (eff.bonusQiMultiplier) result.bonusQiMultiplier = (result.bonusQiMultiplier ?? 0) + eff.bonusQiMultiplier;
     }
   }
   return result;
@@ -167,47 +175,37 @@ export function calcDodge(state: GameState): number {
   return Math.min((effects.bonusDodge ?? 0) / 100, B.DODGE_CAP);
 }
 
-/** 기운 생산 속도 (심법 심득 성장분 + bonusQiPerSec + 경지 배율) */
+/** 기운 생산 속도 (심법 숙련도 기반, 검법 공식의 1/15 구조) */
 export function calcQiPerSec(state: GameState): number {
   let total = B.BASE_QI_PER_SEC;
 
   if (state.equippedSimbeop) {
     const artDef = getArtDef(state.equippedSimbeop);
-    const owned = state.ownedArts.find(a => a.id === state.equippedSimbeop);
-    if (artDef && owned && artDef.growth.baseQiPerSec != null) {
-      const rate = artDef.growth.qiGrowthRate ?? B.QI_GROWTH_RATE;
-      const grown = artDef.growth.baseQiPerSec + rate * Math.sqrt(owned.totalSimdeuk);
-      const capped = Math.min(grown, artDef.growth.maxQiPerSec ?? Infinity);
+    if (artDef && artDef.growth.baseQiPerSec != null) {
       const mentalProf = state.proficiency?.mental ?? 1;
-      const profMult = 1 + getProfDamageValue(mentalProf) * B.PROF_QI_SCALE;
-      total += capped * profMult;
+      const mentalProfDamage = getProfDamageValue(mentalProf);
+      const grown = artDef.growth.baseQiPerSec + Math.floor(artDef.proficiencyCoefficient * mentalProfDamage);
+      const capped = Math.min(grown, artDef.growth.maxQiPerSec ?? Infinity);
+      total += capped;
     }
   }
 
-  const effects = gatherMasteryEffects(state);
-  total += effects.bonusQiPerSec ?? 0;
   total *= calcTierMultiplier(state.tier);
 
   return total;
 }
 
-/** 전투 중 기운 생산 비율 (2초 해금 후만 활성) */
+/** 전투 중 기운 생산 비율 (2초 해금 후만 활성, bonusCombatQiRatioFlat 적용) */
 export function calcCombatQiRatio(state: GameState): number {
   if (!isCombatQiUnlocked(state)) return 0;
 
   const artDef = state.equippedSimbeop ? getArtDef(state.equippedSimbeop) : null;
-  const owned = state.equippedSimbeop ? state.ownedArts.find(a => a.id === state.equippedSimbeop) : null;
+  const eff = gatherMasteryEffects(state);
 
-  let ratio = B.COMBAT_QI_BASE;
-  if (artDef && owned) {
-    const rate = artDef.growth.combatQiGrowthRate ?? B.COMBAT_QI_GROWTH_RATE;
-    ratio = (artDef.growth.baseCombatQiRatio ?? B.COMBAT_QI_BASE) + rate * Math.sqrt(owned.totalSimdeuk);
-  }
-  const cap = artDef?.growth.maxCombatQiRatio ?? B.COMBAT_QI_CAP;
-  ratio = Math.min(ratio, cap);
-
-  const effects = gatherMasteryEffects(state);
-  ratio += effects.bonusCombatQiRatio ?? 0;
+  const ratio = Math.min(
+    (artDef?.growth.baseCombatQiRatio ?? B.COMBAT_QI_BASE) + (eff.bonusCombatQiRatioFlat ?? 0),
+    artDef?.growth.maxCombatQiRatio ?? B.COMBAT_QI_CAP,
+  );
 
   return ratio;
 }
@@ -230,6 +228,35 @@ export function getActiveUltName(state: GameState): string {
     if (artDef.ultMessages?.[0]) return artDef.ultMessages[0];
   }
   return '절초';
+}
+
+/** 장착된 외공(externalDefenseGrade 보유) 무공의 피해 감소율 합산 (0~1) */
+export function calcExternalDmgReduction(state: GameState): number {
+  let totalPercent = 0;
+  const { equippedArts, equippedSimbeop, activeMasteries } = state;
+  const allArts = [...equippedArts, ...(equippedSimbeop ? [equippedSimbeop] : [])];
+  for (const artId of allArts) {
+    const artDef = getArtDef(artId);
+    if (!artDef?.externalDefenseGrade) continue;
+    if (artDef.baseEffects?.bonusDmgReductionPercent) {
+      totalPercent += artDef.baseEffects.bonusDmgReductionPercent;
+    }
+    const masteryIds = activeMasteries[artId] ?? [];
+    for (const mId of masteryIds) {
+      const mDef = artDef.masteries.find(m => m.id === mId);
+      if (mDef?.effects?.bonusDmgReductionPercent) {
+        totalPercent += mDef.effects.bonusDmgReductionPercent;
+      }
+    }
+  }
+  return Math.min(totalPercent / 100, 0.99);
+}
+
+/** CRITD_BASE + 심득 bonusCritDmg + 장비 bonusCritDmgPercent 합산 */
+export function calcCritDamageMultiplier(state: GameState): number {
+  const eff = gatherMasteryEffects(state);
+  const equipStats = gatherEquipmentStats(state);
+  return B.CRITD_BASE + (eff.bonusCritDmg ?? 0) + (equipStats.bonusCritDmgPercent ?? 0) * 100;
 }
 
 /** 적 스폰 */

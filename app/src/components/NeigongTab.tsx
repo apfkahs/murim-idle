@@ -77,6 +77,10 @@ export default function NeigongTab() {
       const bk = useGameStore.getState().bossKillCounts['tiger_boss'] ?? 0;
       if (bk < reqs.bossKills) return false;
     }
+    if (reqs.achievementCount) {
+      const ac = useGameStore.getState().achievementCount ?? 0;
+      if (ac < reqs.achievementCount) return false;
+    }
     return true;
   })() : false;
 
@@ -166,6 +170,11 @@ export default function NeigongTab() {
             {nextTier.requirements.bossKills && (
               <span style={{ marginLeft: 12 }}>
                 보스 {useGameStore.getState().bossKillCounts['tiger_boss'] ?? 0}/{nextTier.requirements.bossKills}회
+              </span>
+            )}
+            {nextTier.requirements.achievementCount && (
+              <span style={{ marginLeft: 12 }}>
+                업적 {useGameStore.getState().achievementCount ?? 0}/{nextTier.requirements.achievementCount}개
               </span>
             )}
           </div>

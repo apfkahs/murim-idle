@@ -6,6 +6,8 @@ export function formatPassiveEffectSummary(def: ArtDef, activeMasteryIds: string
   let critRate = 0;
   let regenPerSec = 0;
   let dodgeCounter = false;
+  let dmgReductionPercent = 0;
+  let hpPercent = 0;
 
   const collect = (eff: ArtDef['baseEffects']) => {
     if (!eff) return;
@@ -14,6 +16,8 @@ export function formatPassiveEffectSummary(def: ArtDef, activeMasteryIds: string
     if (eff.bonusCritRate) critRate += eff.bonusCritRate;
     if (eff.bonusRegenPerSec) regenPerSec += eff.bonusRegenPerSec;
     if (eff.dodgeCounterEnabled) dodgeCounter = true;
+    if (eff.bonusDmgReductionPercent) dmgReductionPercent += eff.bonusDmgReductionPercent;
+    if (eff.bonusHpPercent) hpPercent += eff.bonusHpPercent;
   };
 
   collect(def.baseEffects);
@@ -33,6 +37,8 @@ export function formatPassiveEffectSummary(def: ArtDef, activeMasteryIds: string
   if (critRate > 0) parts.push(`치명 +${critRate}%`);
   if (regenPerSec > 0) parts.push(`회복 +${fmt(regenPerSec)}/초`);
   if (dodgeCounter) parts.push('회피반격');
+  if (dmgReductionPercent > 0) parts.push(`피감 -${dmgReductionPercent}%`);
+  if (hpPercent > 0) parts.push(`HP +${(hpPercent * 100).toFixed(0)}%`);
   return parts.join(' · ');
 }
 

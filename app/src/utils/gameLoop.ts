@@ -11,12 +11,13 @@ import { MATERIALS } from '../data/materials';
 import { getEquipmentDef, type EquipmentInstance } from '../data/equipment';
 import { getMaxSimdeuk } from '../data/tiers';
 import {
-  getArtDamageMultiplier, getMaxEquippedArtGrade,
+  getArtDamageMultiplier, getEffectiveUltMultiplier, getMaxEquippedArtGrade,
   getArtGradeInfo, getProfStarInfo, getProfDamageValue, PROF_TABLE,
 } from './artUtils';
 import {
-  calcCritDmg, calcCritRate, calcDodge, calcDmgReduction, calcTierMultiplier,
+  calcCritDamageMultiplier, calcCritRate, calcDodge, calcDmgReduction, calcTierMultiplier,
   calcStamina, calcEffectiveRegen, calcMaxHp, calcQiPerSec, calcCombatQiRatio,
+  calcExternalDmgReduction,
   gatherEquipmentStats, gatherMasteryEffects, spawnEnemy,
 } from './combatCalc';
 import type { GameState } from '../store/types';
@@ -25,7 +26,7 @@ const B = BALANCE_PARAMS;
 
 // ── simulateTick 전용 상수 ──
 const PROF_LABEL: Record<string, string> = {
-  sword: '검법', palm: '장법', footwork: '보법', mental: '심법',
+  sword: '검법', palm: '장법', footwork: '보법', mental: '심법', fist: '권법',
 };
 
 // ── 심득 성장 메시지 ──
@@ -63,9 +64,12 @@ function calcAttackDamage(
 function calcEnemyDamage(
   atkPower: number, mult: number, dmgReduction: number,
   fixedDmg?: number,
+  fixedDmgReduction?: number,
+  externalDmgReduction?: number,  // 외공 피해 감소 비율 (0~1), bypass 시 0
 ): number {
-  if (fixedDmg != null) return fixedDmg;
-  return Math.floor(applyVariance(atkPower) * mult * (1 - dmgReduction / 100));
+  if (fixedDmg != null) return fixedDmg;  // 고정 피해는 감소 없이 그대로
+  const raw = Math.floor(applyVariance(atkPower) * mult * (1 - dmgReduction / 100) * (1 - (externalDmgReduction ?? 0)));
+  return Math.max(0, raw - (fixedDmgReduction ?? 0));
 }
 
 function getTrainingSimdeuk(state: GameState, monsterId: string): number {
@@ -139,6 +143,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     pendingHuntRetry,
   } = state;
   let dodgeCounterActive = state.dodgeCounterActive ?? false;
+  let playerFinisherCharge = state.playerFinisherCharge ?? null;
   let totalKills = state.totalKills ?? 0;
   let hiddenRevealedInField = { ...state.hiddenRevealedInField };
   let equipmentInventory = [...state.equipmentInventory];
@@ -177,13 +182,27 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
   function applyBattleReset() {
     stamina = 0;
-    ultCooldowns = {};
+    applyUltCooldownReset();
     currentBattleDuration = 0;
     currentBattleDamageDealt = 0;
     bossPatternState = null;
     playerStunTimer = 0;
     dodgeCounterActive = false;
     lastEnemyAttack = null;
+    playerFinisherCharge = null;
+  }
+
+  /** ultCooldownPersist 심득이 활성화된 무공의 쿨타임은 유지, 나머지 초기화 */
+  function applyUltCooldownReset() {
+    const { activeMasteries } = state;
+    for (const artId of Object.keys(ultCooldowns)) {
+      const artDef = getArtDef(artId);
+      const activeIds = activeMasteries[artId] ?? [];
+      const persist = artDef?.masteries.some(
+        m => activeIds.includes(m.id) && m.effects?.ultCooldownPersist
+      );
+      if (!persist) delete ultCooldowns[artId];
+    }
   }
 
   const handleDodge = (eName: string, customMsg?: string) => {
@@ -200,7 +219,8 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   // 전투 수치 계산
   const { gi, sim, che } = stats;
   const equipStats = gatherEquipmentStats(state);
-  const critDmg = calcCritDmg();
+  const masteryEffects = gatherMasteryEffects(state);
+  const critDmg = calcCritDamageMultiplier(state);
   const critRate = Math.min(
     calcCritRate(state) + (equipStats.bonusCritRate ?? 0),
     B.CRIT_RATE_CAP,
@@ -216,7 +236,6 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   const effectiveRegen = calcEffectiveRegen(state);
   const qiPerSec = calcQiPerSec(state);
   const combatQiRatio = calcCombatQiRatio(state);
-  const masteryEffects = isBattling ? gatherMasteryEffects(state) : null;
 
   const qiMult = 1 + (equipStats.bonusQiMultiplier ?? 0);
 
@@ -225,14 +244,15 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     qi += qiPerSec * dt * qiMult;
   }
 
-  // 1-1) 전투 중 기운 생산
+  // 1-1) 전투 중 기운 생산 (삼재심법 오의 bonusQiMultiplier 추가 배율 적용)
   if (isBattling && combatQiRatio > 0) {
-    qi += qiPerSec * combatQiRatio * dt * qiMult;
+    const combatQiMult = qiMult * (masteryEffects.bonusQiMultiplier ?? 1.0);
+    qi += qiPerSec * combatQiRatio * dt * combatQiMult;
   }
 
   // 2) HP 자동회복 (전투 외)
   if (!isBattling) {
-    maxHp = calcMaxHp(che, equipStats.bonusHp ?? 0, tierMult);
+    maxHp = Math.floor(calcMaxHp(che, equipStats.bonusHp ?? 0, tierMult) * (1 + (equipStats.bonusHpPercent ?? 0) + (masteryEffects.bonusHpPercent ?? 0)));
     hp = Math.min(hp + maxHp * 0.05 * dt, maxHp);
 
     if (pendingHuntRetry && hp >= maxHp && huntTarget && currentField) {
@@ -246,7 +266,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         enemyAttackTimer = retryMon.attackInterval;
         applyBattleReset();
         bossPatternState = BOSS_PATTERNS[huntTarget]
-          ? { bossStamina: BOSS_PATTERNS[huntTarget].stamina.initial, rageUsed: false, playerFreezeLeft: 0 }
+          ? { bossStamina: BOSS_PATTERNS[huntTarget].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
           : null;
         if (!isSimulating) battleLog = [...battleLog, `— ${retryMon.name} 자동 재도전 —`];
       }
@@ -297,147 +317,260 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
       const freezeMultiplier = (bossPatternState?.playerFreezeLeft ?? 0) > 0 ? 2 : 1;
       playerAttackTimer -= dt / freezeMultiplier;
+      if (playerFinisherCharge) playerFinisherCharge = { ...playerFinisherCharge, timeLeft: playerFinisherCharge.timeLeft - dt };
       if (playerAttackTimer <= 0) {
         if (bossPatternState?.playerFreezeLeft) {
           bossPatternState.playerFreezeLeft = Math.max(0, bossPatternState.playerFreezeLeft - 1);
         }
         const atkSpeedBonus = (masteryEffects?.bonusAtkSpeed ?? 0) + (equipStats.bonusAtkSpeed ?? 0);
-        const attackInterval = Math.max(B.BASE_ATTACK_INTERVAL - atkSpeedBonus, B.ATK_SPEED_MIN);
+        const atkSpeedDebuffMult = bossPatternState?.playerAtkSpeedDebuffMult ?? 1;
+        const attackInterval = Math.max((B.BASE_ATTACK_INTERVAL - atkSpeedBonus) * atkSpeedDebuffMult, B.ATK_SPEED_MIN);
         playerAttackTimer += attackInterval;
 
-        currentEnemy = { ...currentEnemy };
+        // playerFinisherCharge 처리
+        let skipNormalAttack = false;
+        if (playerFinisherCharge) {
+          skipNormalAttack = true;
+          const fcDef = getArtDef(playerFinisherCharge.artId);
+          const fcIntervalMult = fcDef?.attackIntervalMultiplier ?? 1;
+          playerAttackTimer += attackInterval * (fcIntervalMult - 1);
 
-        const effects = masteryEffects!;
-        const { activeMasteries } = state;
-
-        let damage: number;
-        let isCritical = false;
-        let attackName = '평타';
-        let isUlt = false;
-
-        // 절초 판정
-        const ultCandidates = equippedArts.filter(artId => {
-          const def = getArtDef(artId);
-          if (!def?.ultMultiplier || def.ultCost == null) return false;
-          const artActiveMasteries = activeMasteries[artId] ?? [];
-          const hasUltUnlock = def.masteries.some(m =>
-            artActiveMasteries.includes(m.id) && m.effects?.unlockUlt);
-          if (!hasUltUnlock) return false;
-          return stamina >= def.ultCost! && (ultCooldowns[artId] ?? 0) <= 0;
-        });
-
-        if (ultCandidates.length > 0) {
-          const chosenId = ultCandidates[Math.floor(Math.random() * ultCandidates.length)];
-          const chosenDef = getArtDef(chosenId)!;
-
-          isUlt = true;
-
-          const artMasteryIds = activeMasteries[chosenId] ?? [];
-          let ultChangeName: string | undefined;
-          for (const mId of artMasteryIds) {
-            const mDef = chosenDef.masteries.find(m => m.id === mId);
-            if (mDef?.effects?.ultChange?.name) {
-              ultChangeName = mDef.effects.ultChange.name;
+          if (!playerFinisherCharge.attackFirst) {
+            // 차지 후 공격: 차지 완료 시 데미지
+            if (playerFinisherCharge.timeLeft <= 0) {
+              const fcId = playerFinisherCharge.artId;
+              const artMasteryIds2 = state.activeMasteries[fcId] ?? [];
+              const fcUltMultiplier = getEffectiveUltMultiplier(fcDef!, artMasteryIds2);
+              const fcProfType = fcDef!.proficiencyType;
+              const fcProfVal = getProfDamageValue(proficiency[fcProfType] ?? 0);
+              const fcGradeMult = getArtDamageMultiplier(fcDef!, artGradeExp[fcId] ?? 0, artMasteryIds2);
+              let fcDmg = calcAttackDamage(fcDef!.ultBaseDamage ?? 0, fcUltMultiplier, fcProfVal, fcGradeMult, equipStats.bonusAtk ?? 0);
+              let fcCrit = false;
+              if (Math.random() < critRate) { fcDmg *= critDmg / 100; fcCrit = true; }
+              fcDmg = Math.floor(fcDmg * (bossPatternState?.playerAtkDebuffMult ?? 1));
+              currentEnemy = { ...currentEnemy };
+              currentEnemy.hp -= fcDmg;
+              currentBattleDamageDealt += fcDmg;
+              const fcUltChangeName = artMasteryIds2.map(id => fcDef!.masteries.find(m => m.id === id)?.effects?.ultChange?.name).find(Boolean);
+              const fcAttackName = fcUltChangeName ?? fcDef!.ultMessages?.[0] ?? '절초';
+              const fcEName = getMonsterDef(currentEnemy.id)?.name ?? currentEnemy.id;
+              if (fcCrit) {
+                battleLog.push(`치명타! 절초 — ${fcAttackName}! ${fcEName}에게 ${fcDmg} 피해!`);
+              } else {
+                battleLog.push(`절초 — ${fcAttackName}! ${fcEName}에게 ${fcDmg} 피해!`);
+              }
+              if (!isSimulating) {
+                floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: `${fcDmg} 절초!`, type: 'critical' as const, timestamp: Date.now() }];
+                if (floatingTexts.length > 15) floatingTexts = floatingTexts.slice(-15);
+                playerAnim = 'attack';
+              }
+              playerFinisherCharge = null;
+            }
+          } else {
+            // 선공격 후 딜레이: 딜레이 완료 시 null
+            if (playerFinisherCharge.timeLeft <= 0) {
+              playerFinisherCharge = null;
             }
           }
+        }
 
-          const ultProfType = chosenDef.proficiencyType;
-          const ultProf = proficiency[ultProfType] ?? 0;
-          const ultGradeMult = getArtDamageMultiplier(
-            chosenDef,
-            artGradeExp[chosenId] ?? 0,
-            state.activeMasteries[chosenId] ?? [],
-          );
-          damage = calcAttackDamage(
-            chosenDef.ultBaseDamage ?? 0, chosenDef.ultMultiplier!, getProfDamageValue(ultProf),
-            ultGradeMult, equipStats.bonusAtk ?? 0,
-          );
-          stamina -= chosenDef.ultCost!;
-          ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
-          attackName = ultChangeName ?? chosenDef.ultMessages?.[0] ?? '절초';
-        } else {
-          // 일반 초식: 균등 랜덤
-          const activeCandidates = equippedArts
-            .map(id => ({ id, def: getArtDef(id)!, owned: ownedArts.find(a => a.id === id) }))
-            .filter(x => x.def && x.def.artType === 'active' && x.owned);
+        if (!skipNormalAttack) {
+          currentEnemy = { ...currentEnemy };
 
-          if (activeCandidates.length > 0) {
-            const chosen = activeCandidates[Math.floor(Math.random() * activeCandidates.length)];
+          const { activeMasteries } = state;
 
-            const normalProfType = chosen.def.proficiencyType;
-            const normalProf = proficiency[normalProfType] ?? 0;
-            const normalGradeMult = getArtDamageMultiplier(
-              chosen.def,
-              artGradeExp[chosen.id] ?? 0,
-              state.activeMasteries[chosen.id] ?? [],
+          let damage = 0;
+          let isCritical = false;
+          let attackName = '평타';
+          let isUlt = false;
+
+          // 절초 판정
+          const ultCandidates = equippedArts.filter(artId => {
+            const def = getArtDef(artId);
+            if (!def?.ultMultiplier || def.ultCost == null) return false;
+            const artActiveMasteries = activeMasteries[artId] ?? [];
+            const hasUltUnlock = def.masteries.some(m =>
+              artActiveMasteries.includes(m.id) && m.effects?.unlockUlt);
+            if (!hasUltUnlock) return false;
+            let effectiveUltCost = def.ultCost!;
+            for (const m of def.masteries) {
+              if ((activeMasteries[artId] ?? []).includes(m.id) && m.effects?.ultChange?.ultCostBonus) {
+                effectiveUltCost += m.effects.ultChange.ultCostBonus;
+              }
+            }
+            return stamina >= effectiveUltCost && (ultCooldowns[artId] ?? 0) <= 0;
+          });
+
+          if (ultCandidates.length > 0) {
+            const chosenId = ultCandidates[Math.floor(Math.random() * ultCandidates.length)];
+            const chosenDef = getArtDef(chosenId)!;
+
+            const artMasteryIds = activeMasteries[chosenId] ?? [];
+            let ultChangeName: string | undefined;
+            let effectiveUltCostFinal = chosenDef.ultCost!;
+            let ultAtkFirst = false;
+            for (const m of chosenDef.masteries) {
+              if (artMasteryIds.includes(m.id)) {
+                if (m.effects?.ultChange?.name) ultChangeName = m.effects.ultChange.name;
+                if (m.effects?.ultChange?.ultCostBonus) effectiveUltCostFinal += m.effects.ultChange.ultCostBonus;
+                if (m.effects?.ultChange?.ultAttackFirst) ultAtkFirst = true;
+              }
+            }
+            const artIntervalMult = chosenDef.attackIntervalMultiplier ?? 1;
+            playerAttackTimer += attackInterval * (artIntervalMult - 1);
+
+            const ultProfType = chosenDef.proficiencyType;
+            const ultProf = proficiency[ultProfType] ?? 0;
+            const ultGradeMult = getArtDamageMultiplier(
+              chosenDef,
+              artGradeExp[chosenId] ?? 0,
+              artMasteryIds,
             );
-            damage = calcAttackDamage(
-              chosen.def.baseDamage ?? 0, chosen.def.proficiencyCoefficient, getProfDamageValue(normalProf),
-              normalGradeMult, equipStats.bonusAtk ?? 0,
-            );
+            const effectiveUltMultiplier = getEffectiveUltMultiplier(chosenDef, artMasteryIds);
+            const effectiveInterval = attackInterval * artIntervalMult;
+            const ultChargeTime = chosenDef.ultChargeTime ?? 0;
 
-            if (chosen.def.normalMessages && chosen.def.normalMessages.length > 0) {
-              attackName = chosen.def.normalMessages[Math.floor(Math.random() * chosen.def.normalMessages.length)];
+            if (ultChargeTime > 0 && !ultAtkFirst) {
+              // 차지 후 공격: 즉시 데미지 없음
+              stamina -= effectiveUltCostFinal;
+              ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
+              playerFinisherCharge = { artId: chosenId, attackFirst: false, timeLeft: ultChargeTime * effectiveInterval };
+              battleLog.push('기를 응집하기 시작했다...');
+              isUlt = false;
             } else {
-              attackName = chosen.def.name;
+              isUlt = true;
+              damage = calcAttackDamage(
+                chosenDef.ultBaseDamage ?? 0, effectiveUltMultiplier, getProfDamageValue(ultProf),
+                ultGradeMult, equipStats.bonusAtk ?? 0,
+              );
+              stamina -= effectiveUltCostFinal;
+              ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
+              attackName = ultChangeName ?? chosenDef.ultMessages?.[0] ?? '절초';
+              if (ultAtkFirst && ultChargeTime > 0) {
+                playerFinisherCharge = { artId: chosenId, attackFirst: true, timeLeft: ultChargeTime * effectiveInterval };
+              }
             }
           } else {
-            damage = 1;
+            // 일반 초식: 균등 랜덤
+            const activeCandidates = equippedArts
+              .map(id => ({ id, def: getArtDef(id)!, owned: ownedArts.find(a => a.id === id) }))
+              .filter(x => x.def && x.def.artType === 'active' && x.owned);
+
+            if (activeCandidates.length > 0) {
+              const chosen = activeCandidates[Math.floor(Math.random() * activeCandidates.length)];
+
+              const normalProfType = chosen.def.proficiencyType;
+              const normalProf = proficiency[normalProfType] ?? 0;
+              const normalGradeMult = getArtDamageMultiplier(
+                chosen.def,
+                artGradeExp[chosen.id] ?? 0,
+                state.activeMasteries[chosen.id] ?? [],
+              );
+              damage = calcAttackDamage(
+                chosen.def.baseDamage ?? 0, chosen.def.proficiencyCoefficient, getProfDamageValue(normalProf),
+                normalGradeMult, equipStats.bonusAtk ?? 0,
+              );
+
+              if (chosen.def.normalMessages && chosen.def.normalMessages.length > 0) {
+                attackName = chosen.def.normalMessages[Math.floor(Math.random() * chosen.def.normalMessages.length)];
+              } else {
+                attackName = chosen.def.name;
+              }
+
+              // per-art 공격 간격 배율
+              const chosenIntervalMult = chosen.def.attackIntervalMultiplier ?? 1;
+              playerAttackTimer += attackInterval * (chosenIntervalMult - 1);
+            } else {
+              damage = 1;
+            }
           }
-        }
 
-        // 치명타 판정
-        if (Math.random() < critRate) {
-          damage *= critDmg / 100;
-          isCritical = true;
-        }
-
-        // 회피 카운터 배율
-        let isCounterHit = false;
-        if (dodgeCounterActive) {
-          damage *= 1.2;
-          dodgeCounterActive = false;
-          isCounterHit = true;
-        }
-
-        damage = Math.floor(damage);
-        currentEnemy.hp -= damage;
-        currentBattleDamageDealt += damage;
-
-        const monDef = getMonsterDef(currentEnemy.id);
-        const eName = monDef?.name ?? currentEnemy.id;
-
-        if (isUlt) {
-          if (attackName === '태산압정') {
-            battleLog.push(`비기 — 태산압정! ${eName}에게 ${damage}의 거대한 충격!`);
-          } else {
-            battleLog.push(`절초 — ${attackName}! ${eName}에게 ${damage} 피해!`);
+          // 치명타 판정
+          if (Math.random() < critRate) {
+            damage *= critDmg / 100;
+            isCritical = true;
           }
-        } else if (isCritical) {
-          battleLog.push(`치명타! ${attackName} ${eName}에게 ${damage} 피해!`);
-        } else {
-          battleLog.push(`${attackName} ${eName}에게 ${damage} 피해를 입혔다.`);
-        }
-        if (isCounterHit) {
-          battleLog.push('적의 공격을 간파하고 강력한 공격을 가했다!');
-        }
 
-        if (!isSimulating) {
-          if (isUlt) {
-            floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: `${damage} 절초!`, type: 'critical' as const, timestamp: Date.now() }];
-          } else if (isCritical) {
-            floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: `${damage} 치명타!`, type: 'critical' as const, timestamp: Date.now() }];
-          } else if (damage > 0) {
-            floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: `${damage}`, type: 'damage' as const, timestamp: Date.now() }];
+          // 회피 카운터 배율
+          let isCounterHit = false;
+          if (dodgeCounterActive) {
+            damage *= 1.2;
+            dodgeCounterActive = false;
+            isCounterHit = true;
           }
-          if (floatingTexts.length > 15) floatingTexts = floatingTexts.slice(-15);
-          playerAnim = 'attack';
-        }
+
+          damage = Math.floor(damage);
+
+          // 살기 데미지 디버프 적용
+          if (bossPatternState?.playerAtkDebuffMult) {
+            damage = Math.floor(damage * bossPatternState.playerAtkDebuffMult);
+          }
+
+          // [A] 몬스터 passive_dodge 체크
+          const monPattern = BOSS_PATTERNS[currentEnemy.id] ?? null;
+          const monDodgeSkill = monPattern?.skills.find(s => s.type === 'passive_dodge');
+          let monsterDodged = false;
+          if (monDodgeSkill && Math.random() < (monDodgeSkill.dodgeChance ?? 0)) {
+            monsterDodged = true;
+            battleLog.push(monDodgeSkill.logMessages[0]);
+            if (!isSimulating) {
+              floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: '회피!', type: 'evade' as const, timestamp: Date.now() }];
+              if (floatingTexts.length > 15) floatingTexts = floatingTexts.slice(-15);
+            }
+            const monStackSmash = monPattern?.skills.find(s => s.type === 'stack_smash');
+            if (monStackSmash && bossPatternState) {
+              bossPatternState.stackCount = (bossPatternState.stackCount ?? 0) + 1;
+            }
+          }
+
+          if (!monsterDodged) {
+            // [B] passive_dmg_absorb 체크
+            const absorbSkill = monPattern?.skills.find(s => s.type === 'passive_dmg_absorb');
+            if (absorbSkill && Math.random() < (absorbSkill.absorbChance ?? 0)) {
+              damage = Math.floor(damage * (absorbSkill.absorbMultiplier ?? 0.5));
+              battleLog.push(absorbSkill.logMessages[0]);
+            }
+
+            currentEnemy.hp -= damage;
+            currentBattleDamageDealt += damage;
+
+            const monDef = getMonsterDef(currentEnemy.id);
+            const eName = monDef?.name ?? currentEnemy.id;
+
+            if (isUlt) {
+              if (attackName === '태산압정') {
+                battleLog.push(`비기 — 태산압정! ${eName}에게 ${damage}의 거대한 충격!`);
+              } else {
+                battleLog.push(`절초 — ${attackName}! ${eName}에게 ${damage} 피해!`);
+              }
+            } else if (isCritical) {
+              battleLog.push(`치명타! ${attackName} ${eName}에게 ${damage} 피해!`);
+            } else if (!isUlt && damage > 0) {
+              battleLog.push(`${attackName} ${eName}에게 ${damage} 피해를 입혔다.`);
+            }
+            if (isCounterHit) {
+              battleLog.push('적의 공격을 간파하고 강력한 공격을 가했다!');
+            }
+
+            if (!isSimulating) {
+              if (isUlt) {
+                floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: `${damage} 절초!`, type: 'critical' as const, timestamp: Date.now() }];
+              } else if (isCritical) {
+                floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: `${damage} 치명타!`, type: 'critical' as const, timestamp: Date.now() }];
+              } else if (damage > 0) {
+                floatingTexts = [...floatingTexts, { id: nextFloatingId++, text: `${damage}`, type: 'damage' as const, timestamp: Date.now() }];
+              }
+              if (floatingTexts.length > 15) floatingTexts = floatingTexts.slice(-15);
+              playerAnim = 'attack';
+            }
+          } // end !monsterDodged
+        } // end skipNormalAttack
       }
     } // end stun guard
 
     // 적 사망 체크
     if (currentEnemy.hp <= 0) {
+      const potionConsumedRage = currentEnemy.potionConsumedRage ?? false;
       const monDef = getMonsterDef(currentEnemy.id);
       if (monDef) {
         if (monDef.isHidden && currentField) {
@@ -488,8 +621,10 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
             const pType = artDef.proficiencyType;
             if (pType in profGainMap) continue;
             const currentGrade = getProfStarInfo(proficiency[pType] ?? 0).starIndex;
-            const multiplier = Math.pow(2.5, monsterGrade - currentGrade);
-            profGainMap[pType] = baseProfGain * multiplier;
+            const diff = monsterGrade - currentGrade;
+            const multiplier = diff >= 0 ? Math.pow(3, diff) : Math.pow(1 / 9, -diff);
+            const artProfMult = artDef.proficiencyGainMultiplier ?? 1.0;
+            profGainMap[pType] = baseProfGain * multiplier * artProfMult;
           }
           for (const [pType, gain] of Object.entries(profGainMap) as [ProficiencyType, number][]) {
             proficiency[pType] = Math.min((proficiency[pType] ?? 0) + gain, PROF_TABLE[PROF_TABLE.length - 1].cumExp);
@@ -499,7 +634,8 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           const allEquippedArts = [...new Set([...equippedArts, ...(equippedSimbeop ? [equippedSimbeop] : [])])];
           for (const artId of allEquippedArts) {
             const currentArtStar = getArtGradeInfo(artGradeExp[artId] ?? 0).starIndex;
-            const artGradeMultiplier = Math.pow(2.5, monsterGrade - currentArtStar);
+            const artDiff = monsterGrade - currentArtStar;
+            const artGradeMultiplier = artDiff >= 0 ? Math.pow(3, artDiff) : Math.pow(1 / 9, -artDiff);
             artGradeExp[artId] = (artGradeExp[artId] ?? 0) + baseProfGain * artGradeMultiplier;
           }
         }
@@ -563,6 +699,13 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           }
         }
 
+        // 폭혈단 복용 후 처치 시 demonic_note +5%
+        if (potionConsumedRage && Math.random() < 0.05) {
+          materials['demonic_note'] = (materials['demonic_note'] ?? 0) + 1;
+          if (!obtainedMaterials.includes('demonic_note')) obtainedMaterials.push('demonic_note');
+          battleLog.push('마기에 물든 쪽지를 발견했다!');
+        }
+
         // 처치 시 기운 보너스
         if (masteryEffects?.killBonusEnabled && combatQiRatio > 0) {
           const combatQiRate = qiPerSec * combatQiRatio;
@@ -594,7 +737,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           }
         }
 
-        // 선언적 전장 해금
+        // 선언적 전장 해금 — 보스 처치
         if (monDef.isBoss) {
           for (const field of FIELDS) {
             if (fieldUnlocks[field.id]) continue;
@@ -605,6 +748,26 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
             if (bossOk && tierOk) {
               fieldUnlocks[field.id] = true;
             }
+          }
+        }
+        // 선언적 전장 해금 — 일반 몬스터 처치 (monsterKill 조건)
+        for (const field of FIELDS) {
+          if (fieldUnlocks[field.id]) continue;
+          const cond = field.unlockCondition;
+          if (!cond?.monsterKill) continue;
+          if (cond.monsterKill === monDef.id) {
+            const tierOk = cond.minTier == null || state.tier >= cond.minTier;
+            if (tierOk) fieldUnlocks[field.id] = true;
+          }
+        }
+        // 선언적 전장 해금 — 재료 소지 (materialOwned 조건)
+        for (const field of FIELDS) {
+          if (fieldUnlocks[field.id]) continue;
+          const cond = field.unlockCondition;
+          if (!cond?.materialOwned) continue;
+          if ((materials[cond.materialOwned] ?? 0) > 0) {
+            fieldUnlocks[field.id] = true;
+            battleLog.push(`새로운 전장 '${field.name}'이(가) 개방됐다!`);
           }
         }
 
@@ -636,7 +799,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                 currentBattleDuration = 0;
                 currentBattleDamageDealt = 0;
                 stamina = 0;
-                ultCooldowns = {};
+                applyUltCooldownReset();
                 battleLog.push(`— ${nextMon.name} 등장 —`);
                 if (nextMon.isHidden && currentField) {
                   if (!hiddenRevealedInField[currentField]) {
@@ -645,7 +808,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                   hiddenRevealedInField[currentField] = nextMon.id;
                 }
                 bossPatternState = BOSS_PATTERNS[nextMon.id]
-                  ? { bossStamina: BOSS_PATTERNS[nextMon.id].stamina.initial, rageUsed: false, playerFreezeLeft: 0 }
+                  ? { bossStamina: BOSS_PATTERNS[nextMon.id].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
                   : null;
                 playerStunTimer = 0;
                 playerAttackTimer = B.BASE_ATTACK_INTERVAL;
@@ -654,22 +817,34 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
             } else if (!isBossPhase) {
               const field = getFieldDef(currentField!);
               if (field?.boss) {
-                const bossMon = getMonsterDef(field.boss);
-                if (bossMon) {
+                // 보스 기처치 시 10% 확률로 히든이 보스 슬롯 대체
+                const bossKilledBefore = (bossKillCounts[field.boss] ?? 0) > 0;
+                const canSpawnHiddenAtBoss = bossKilledBefore && field.hiddenMonsters.length > 0;
+                const spawnHiddenAtBoss = canSpawnHiddenAtBoss && Math.random() < 0.1;
+                const nextMonId = spawnHiddenAtBoss
+                  ? field.hiddenMonsters[Math.floor(Math.random() * field.hiddenMonsters.length)]
+                  : field.boss;
+                const nextMon = getMonsterDef(nextMonId);
+                if (nextMon) {
                   isBossPhase = true;
                   bossTimer = field.bossTimer ?? 60;
-                  currentEnemy = spawnEnemy(bossMon);
+                  currentEnemy = spawnEnemy(nextMon);
                   currentBattleDuration = 0;
                   currentBattleDamageDealt = 0;
                   stamina = 0;
-                  ultCooldowns = {};
-                  battleLog.push(`— 보스 등장! ${bossMon.name}이(가) 나타났다! —`);
-                  bossPatternState = BOSS_PATTERNS[bossMon.id]
-                    ? { bossStamina: BOSS_PATTERNS[bossMon.id].stamina.initial, rageUsed: false, playerFreezeLeft: 0 }
+                  applyUltCooldownReset();
+                  if (spawnHiddenAtBoss) {
+                    battleLog.push(`— 보스방에 괴이한 존재가 나타났다! ${nextMon.name}이(가) 등장! —`);
+                    if (currentField) hiddenRevealedInField[currentField] = nextMon.id;
+                  } else {
+                    battleLog.push(`— 보스 등장! ${nextMon.name}이(가) 나타났다! —`);
+                  }
+                  bossPatternState = BOSS_PATTERNS[nextMon.id]
+                    ? { bossStamina: BOSS_PATTERNS[nextMon.id].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
                     : null;
                   playerStunTimer = 0;
                   playerAttackTimer = B.BASE_ATTACK_INTERVAL;
-                  enemyAttackTimer = bossMon.attackInterval;
+                  enemyAttackTimer = nextMon.attackInterval;
                 }
               } else {
                 // 보스 미구현 필드: 몬스터 소진 시 즉시 답파 완료
@@ -716,7 +891,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
               playerAttackTimer = B.BASE_ATTACK_INTERVAL;
               enemyAttackTimer = nextMon.attackInterval;
               if (BOSS_PATTERNS[huntTarget]) {
-                bossPatternState = { bossStamina: BOSS_PATTERNS[huntTarget].stamina.initial, rageUsed: false, playerFreezeLeft: 0 };
+                bossPatternState = { bossStamina: BOSS_PATTERNS[huntTarget].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null };
               }
               playerStunTimer = 0;
             }
@@ -729,11 +904,62 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         enemyAttackTimer -= dt;
         if (enemyAttackTimer <= 0) {
           enemyAttackTimer += currentEnemy.attackInterval;
+
+          // 광란 모드 HP 소모 (폭혈단 발동 후 매 공격마다)
+          if (currentEnemy.rageModeActive) {
+            const rageCost = currentEnemy.rageModeHpCost ?? 20;
+            currentEnemy = {
+              ...currentEnemy,
+              hp: currentEnemy.hp - rageCost,
+              rageModeHpCost: rageCost + 10,
+            };
+            if (currentEnemy.hp <= 0) {
+              battleLog.push('폭혈단의 기운이 바닥나 스스로 쓰러졌다!');
+            }
+          }
+
           const monDef = getMonsterDef(currentEnemy.id);
           const eName = monDef?.name ?? currentEnemy.id;
 
           const pattern = bossPatternState ? BOSS_PATTERNS[currentEnemy.id] : null;
           let skillUsed = false;
+
+          // 흑영참 스택 기반 강타 사전 체크
+          const stackSmashSkill = pattern?.skills.find(s => s.type === 'stack_smash');
+          if (stackSmashSkill && bossPatternState && (bossPatternState.stackCount ?? 0) >= (stackSmashSkill.stackTriggerCount ?? 3)) {
+            bossPatternState.stackCount = 0;
+            const smashDmg = calcEnemyDamage(currentEnemy.attackPower, stackSmashSkill.stackSmashMultiplier ?? 4, dmgReduction, undefined, equipStats.bonusFixedDmgReduction ?? 0);
+            hp -= smashDmg;
+            const smashMsg = `${stackSmashSkill.logMessages[0]} ${smashDmg} 피해! 회피불가!`;
+            battleLog.push(smashMsg);
+            lastEnemyAttack = { enemyName: eName, attackMessage: smashMsg };
+            if (!isSimulating) enemyAnim = 'attack';
+            skillUsed = true;
+          }
+
+          // bossChargeState 처리
+          if (bossPatternState?.bossChargeState) {
+            const cs = bossPatternState.bossChargeState;
+            bossPatternState.bossChargeState = { ...cs, turnsLeft: cs.turnsLeft - 1 };
+            if (bossPatternState.bossChargeState.turnsLeft <= 0) {
+              const bypassDef = cs.bypassAllDmgReduction ? 0 : dmgReduction;
+              const csDmg = calcEnemyDamage(currentEnemy.attackPower, cs.damageMultiplier, bypassDef, undefined, equipStats.bonusFixedDmgReduction ?? 0);
+              if (!cs.undodgeable && Math.random() < dodgeRate) {
+                handleDodge(eName);
+              } else {
+                hp -= csDmg;
+                if (cs.stunAfterHit) playerStunTimer = cs.stunAfterHit;
+                const chargeMsg = `격산타우! 보이지 않는 힘이 공간을 가로질러 폭발했다! ${csDmg} 피해!${cs.stunAfterHit ? ' 기절!' : ''}`;
+                battleLog.push(chargeMsg);
+                lastEnemyAttack = { enemyName: eName, attackMessage: chargeMsg };
+                if (!isSimulating) enemyAnim = 'attack';
+              }
+              bossPatternState.bossChargeState = null;
+            } else {
+              battleLog.push('객잔 주인이 기를 응집하고 있다...');
+            }
+            skillUsed = true;
+          }
 
           if (pattern && bossPatternState) {
             const sortedSkills = [...pattern.skills].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
@@ -742,14 +968,37 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
               if (skill.triggerCondition === 'stamina_full' && bossPatternState.bossStamina >= (skill.staminaCost ?? pattern.stamina.max)) {
                 triggered = true;
               } else if (skill.triggerCondition === 'hp_threshold' && skill.hpThreshold != null) {
-                if (currentEnemy.hp / currentEnemy.maxHp <= skill.hpThreshold && !(skill.oneTime && bossPatternState.rageUsed)) {
+                const alreadyUsed = skill.oneTime && bossPatternState.usedOneTimeSkills?.includes(skill.id);
+                if (currentEnemy.hp / currentEnemy.maxHp <= skill.hpThreshold && !alreadyUsed) {
                   triggered = true;
                 }
               } else if (skill.triggerCondition === 'default') {
                 triggered = true;
               }
               if (!triggered) continue;
-              if (skill.type === 'dot_apply' || skill.type === 'double_hit') continue;
+              if (skill.oneTime && bossPatternState.usedOneTimeSkills?.includes(skill.id)) continue;
+              if (skill.type === 'dot_apply' || skill.type === 'double_hit' || skill.type === 'multi_hit'
+                  || skill.type === 'passive_dodge' || skill.type === 'passive_crit'
+                  || skill.type === 'passive_dmg_absorb') continue;
+
+              if (skill.type === 'charged_attack' && skill.chargeTime) {
+                if (!bossPatternState.usedOneTimeSkills?.includes(skill.id)) {
+                  bossPatternState.bossChargeState = {
+                    skillId: skill.id,
+                    turnsLeft: skill.chargeTime,
+                    damageMultiplier: skill.damageMultiplier ?? 1,
+                    stunAfterHit: skill.stunAfterHit,
+                    bypassAllDmgReduction: skill.bypassAllDmgReduction,
+                    undodgeable: skill.undodgeable,
+                  };
+                  if (skill.staminaCost) bossPatternState.bossStamina -= skill.staminaCost;
+                  if (skill.oneTime) bossPatternState.usedOneTimeSkills = [...(bossPatternState.usedOneTimeSkills ?? []), skill.id];
+                  const chargeStartMsg = skill.logMessages[0] ?? '기를 응집하기 시작했다!';
+                  battleLog.push(chargeStartMsg);
+                }
+                skillUsed = true;
+                break;
+              }
 
               skillUsed = true;
               const logMsg = skill.logMessages[Math.floor(Math.random() * skill.logMessages.length)];
@@ -773,9 +1022,30 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                     pattern.stamina.max,
                   );
                 }
+                if (skill.selfHealPercent && currentEnemy) {
+                  const healAmt = currentEnemy.maxHp * (skill.selfHealPercent / 100);
+                  currentEnemy = { ...currentEnemy, hp: Math.min(currentEnemy.hp + healAmt, currentEnemy.maxHp) };
+                }
                 battleLog.push(logMsg);
+                if (skill.debuffAtkPercent != null) {
+                  const usedAlready = bossPatternState.usedOneTimeSkills?.includes(skill.id);
+                  if (!(skill.oneTime && usedAlready)) {
+                    const mentalStarIndex = getProfStarInfo(proficiency.mental ?? 0).starIndex;
+                    if (skill.conditionMinSimbeopGrade != null && mentalStarIndex >= skill.conditionMinSimbeopGrade) {
+                      battleLog.push('살기를 꿰뚫어 보았다! 기백으로 압도한다!');
+                    } else {
+                      bossPatternState.playerAtkDebuffMult = 1 - (skill.debuffAtkPercent ?? 0);
+                      bossPatternState.playerAtkSpeedDebuffMult = 1 + (skill.debuffAtkSpeedPercent ?? 0);
+                      const killMsg = skill.logMessages[1] ?? skill.logMessages[0];
+                      battleLog.push(killMsg);
+                    }
+                    if (skill.oneTime) {
+                      bossPatternState.usedOneTimeSkills = [...(bossPatternState.usedOneTimeSkills ?? []), skill.id];
+                    }
+                  }
+                }
               } else if (skill.type === 'freeze_attack') {
-                const dmg = calcEnemyDamage(currentEnemy.attackPower, skill.damageMultiplier ?? 1, dmgReduction, skill.fixedDamage);
+                const dmg = calcEnemyDamage(currentEnemy.attackPower, skill.damageMultiplier ?? 1, dmgReduction, skill.fixedDamage, equipStats.bonusFixedDmgReduction ?? 0);
                 if (skill.undodgeable || Math.random() >= dodgeRate) {
                   hp -= dmg;
                   if (skill.freezeAttacks && bossPatternState) {
@@ -789,11 +1059,50 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                 } else {
                   handleDodge(eName);
                 }
+              } else if (skill.type === 'atk_buff_bypass') {
+                currentEnemy = {
+                  ...currentEnemy,
+                  attackPower: Math.floor(currentEnemy.attackPower * (1 + (skill.atkBuffPercent ?? 0))),
+                  bypassExternalGradeActive: true,
+                };
+                battleLog.push(skill.logMessages[0]);
+                if (skill.oneTime) {
+                  bossPatternState.usedOneTimeSkills = [...(bossPatternState.usedOneTimeSkills ?? []), skill.id];
+                }
+              } else if (skill.type === 'potion_heal') {
+                const potionRoll = Math.random();
+                let potionCumul = 0;
+                let chosenOpt = skill.healOptions![0];
+                for (const opt of skill.healOptions!) {
+                  potionCumul += opt.probability;
+                  if (potionRoll < potionCumul) { chosenOpt = opt; break; }
+                }
+                if (chosenOpt.rageMode) {
+                  currentEnemy = {
+                    ...currentEnemy,
+                    hp: currentEnemy.maxHp,
+                    attackInterval: chosenOpt.newAttackInterval ?? currentEnemy.attackInterval,
+                    rageModeActive: true,
+                    rageModeHpCost: 20,
+                    potionConsumedRage: true,
+                  };
+                  enemyAttackTimer = currentEnemy.attackInterval;
+                  battleLog.push(skill.logMessages[1] ?? skill.logMessages[0]);
+                } else {
+                  currentEnemy = {
+                    ...currentEnemy,
+                    hp: Math.min(currentEnemy.hp + currentEnemy.maxHp * chosenOpt.healPercent, currentEnemy.maxHp),
+                  };
+                  battleLog.push(skill.logMessages[0]);
+                }
+                if (skill.oneTime) {
+                  bossPatternState.usedOneTimeSkills = [...(bossPatternState.usedOneTimeSkills ?? []), skill.id];
+                }
               } else {
                 if (skill.oneTime && skill.type === 'rage_attack') {
                   bossPatternState.rageUsed = true;
                 }
-                const skillDmg = calcEnemyDamage(currentEnemy.attackPower, skill.damageMultiplier ?? 1, dmgReduction);
+                const skillDmg = calcEnemyDamage(currentEnemy.attackPower, skill.damageMultiplier ?? 1, dmgReduction, undefined, equipStats.bonusFixedDmgReduction ?? 0);
 
                 if (skill.undodgeable || Math.random() >= dodgeRate) {
                   hp -= skillDmg;
@@ -811,12 +1120,33 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           }
 
           if (!skillUsed) {
+            // passive_crit 크리티컬 배율 계산
+            const critSkill = pattern?.skills.find(s => s.type === 'passive_crit');
+            let monAttackMult = 1;
+            let monCritLog: string | null = null;
+            if (critSkill) {
+              const critRoll = Math.random();
+              if (critRoll < (critSkill.critChanceAlt ?? 0)) {
+                monAttackMult = critSkill.critMultiplierAlt ?? 4;
+                monCritLog = critSkill.logMessages[1] ?? critSkill.logMessages[0];
+              } else if (critRoll < (critSkill.critChanceAlt ?? 0) + (critSkill.critChance ?? 0)) {
+                monAttackMult = critSkill.critMultiplier ?? 2;
+                monCritLog = critSkill.logMessages[0];
+              }
+            }
+            // 외공 bypass 적용
+            const bypassActive = currentEnemy?.bypassExternalGradeActive ?? false;
+            const externalDmgRed = calcExternalDmgReduction(state);
+            const effectiveExternalDmgRed = bypassActive ? 0 : externalDmgRed;
+
             if (Math.random() < dodgeRate) {
               handleDodge(eName);
             } else {
-              const incomingDmg = calcEnemyDamage(currentEnemy.attackPower, 1, dmgReduction);
+              let incomingDmg = calcEnemyDamage(currentEnemy.attackPower, monAttackMult, dmgReduction, undefined, equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
+              incomingDmg = Math.floor(incomingDmg * (1 + (equipStats.bonusDmgTakenPercent ?? 0)));
               hp -= incomingDmg;
               if (incomingDmg > 0 && monDef) {
+                if (monCritLog) battleLog.push(monCritLog);
                 const attackMsg = getMonsterAttackMsg(monDef, incomingDmg);
                 battleLog.push(attackMsg);
                 lastEnemyAttack = { enemyName: eName, attackMessage: attackMsg };
@@ -839,7 +1169,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                 if (dblSkill && Math.random() < (dblSkill.chance ?? 0)) {
                   const dmsg = dblSkill.logMessages[Math.floor(Math.random() * dblSkill.logMessages.length)];
                   if (Math.random() >= dodgeRate) {
-                    const dmg2 = calcEnemyDamage(currentEnemy.attackPower, 1, dmgReduction);
+                    const dmg2 = calcEnemyDamage(currentEnemy.attackPower, dblSkill.hitMultiplier ?? 1, dmgReduction, undefined, equipStats.bonusFixedDmgReduction ?? 0);
                     hp -= dmg2;
                     battleLog.push(`${dmsg} ${dmg2} 피해!`);
                   } else {
@@ -853,6 +1183,32 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
                       bossPatternState.bossStamina + dblSkill.staminaGain,
                       dotPattern2.stamina.max,
                     );
+                  }
+                }
+                const tripleSkill = dotPattern2.skills.find(s => s.type === 'multi_hit');
+                if (tripleSkill && Math.random() < (tripleSkill.chance ?? 0)) {
+                  const tripleMsg = tripleSkill.logMessages[Math.floor(Math.random() * tripleSkill.logMessages.length)];
+                  battleLog.push(tripleMsg);
+                  const hitCount = tripleSkill.hitCount ?? 3;
+                  for (let i = 0; i < hitCount; i++) {
+                    if (Math.random() >= dodgeRate) {
+                      const tDmg = calcEnemyDamage(currentEnemy.attackPower, tripleSkill.hitMultiplier ?? 1, dmgReduction, undefined, equipStats.bonusFixedDmgReduction ?? 0);
+                      hp -= tDmg;
+                      battleLog.push(`연격 ${i + 1}타! ${tDmg} 피해!`);
+                    } else {
+                      battleLog.push(`연격 ${i + 1}타 — 회피!`);
+                      if (masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) dodgeCounterActive = true;
+                    }
+                  }
+                  if (tripleSkill.staminaGain) {
+                    bossPatternState.bossStamina = Math.min(
+                      bossPatternState.bossStamina + tripleSkill.staminaGain,
+                      dotPattern2.stamina.max,
+                    );
+                  }
+                  // 흑영참 스택 증가 (dark_triple 발동 시)
+                  if (tripleSkill.id === 'dark_triple' && stackSmashSkill) {
+                    bossPatternState.stackCount = (bossPatternState.stackCount ?? 0) + 1;
                   }
                 }
               }
@@ -957,6 +1313,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     equipmentInventory, materials, obtainedMaterials, knownEquipment,
     bossPatternState, playerStunTimer, lastEnemyAttack,
     proficiency, artGradeExp, pendingHuntRetry, dodgeCounterActive,
+    playerFinisherCharge,
   };
 
   if (!isSimulating) {

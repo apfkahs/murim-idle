@@ -106,6 +106,51 @@ function FieldListScreen({
         </div>
       ) : null}
 
+      {/* 흑풍채 */}
+      {fieldUnlocks.heugpungchae && (
+        <div className="card field-card" onClick={() => onSelectField('heugpungchae')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ fontWeight: 500, fontSize: 13 }}>흑풍채(黑風寨)</span>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                흑도 낭인들의 소굴
+              </div>
+            </div>
+            <span style={{ fontSize: 14, opacity: 0.3 }}>→</span>
+          </div>
+        </div>
+      )}
+
+      {/* 공동파 */}
+      {fieldUnlocks.gongdong && (
+        <div className="card field-card" onClick={() => onSelectField('gongdong')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ fontWeight: 500, fontSize: 13 }}>공동파(崆峒派)</span>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                서역의 명문 무파 · 준비 중
+              </div>
+            </div>
+            <span style={{ fontSize: 14, opacity: 0.3 }}>→</span>
+          </div>
+        </div>
+      )}
+
+      {/* 배화교 */}
+      {fieldUnlocks.baehwagyo && (
+        <div className="card field-card" onClick={() => onSelectField('baehwagyo')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ fontWeight: 500, fontSize: 13 }}>배화교(拜火敎)</span>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                마교의 본진 · 준비 중
+              </div>
+            </div>
+            <span style={{ fontSize: 14, opacity: 0.3 }}>→</span>
+          </div>
+        </div>
+      )}
+
       {/* ── 새외(塞外) — tiger_boss 처치 후 독립 섹션으로 등장 ── */}
       {fieldUnlocks.cheonsan_jangmak && (
         <>

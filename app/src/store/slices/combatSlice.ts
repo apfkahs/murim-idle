@@ -43,6 +43,7 @@ export type CombatSlice = {
   startHunt: (fieldId: string, monsterId: string) => void;
   abandonBattle: () => void;
   dismissBattleResult: () => void;
+  toggleAutoExplore: (fieldId: string) => void;
   isBattling: () => boolean;
   addFloatingText: (text: string, type: FloatingText['type']) => void;
 };
@@ -84,7 +85,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
     const field = getFieldDef(fieldId);
     if (!field || !field.canExplore) return;
 
-    const order = generateExploreOrder(field, state.bossKillCounts);
+    const order = generateExploreOrder(field);
     const firstMon = getMonsterDef(order[0]);
     if (!firstMon) return;
 
@@ -98,7 +99,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
       battleMode: 'explore',
       currentEnemy: spawnEnemy(firstMon),
       bossPatternState: BOSS_PATTERNS[order[0]]
-        ? { bossStamina: BOSS_PATTERNS[order[0]].stamina.initial, rageUsed: false, playerFreezeLeft: 0 }
+        ? { bossStamina: BOSS_PATTERNS[order[0]].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
         : null,
       currentField: fieldId,
       exploreOrder: order,
@@ -126,7 +127,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
       battleMode: 'hunt',
       currentEnemy: spawnEnemy(monDef),
       bossPatternState: BOSS_PATTERNS[monsterId]
-        ? { bossStamina: BOSS_PATTERNS[monsterId].stamina.initial, rageUsed: false, playerFreezeLeft: 0 }
+        ? { bossStamina: BOSS_PATTERNS[monsterId].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
         : null,
       currentField: fieldId,
       huntTarget: monsterId,
@@ -166,7 +167,37 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
   },
 
   dismissBattleResult: () => {
+    const state = get() as GameStore;
+    const result = state.battleResult;
+    const fieldId = state.currentField;
+
+    if (fieldId && state.autoExploreFields[fieldId]) {
+      if (result?.type === 'explore_win') {
+        // 자동 답파: 결과 닫고 즉시 재시작
+        (get() as GameStore).startExplore(fieldId);
+        return;
+      } else if (result?.type === 'explore_fail') {
+        // 실패 시 자동 답파 비활성화
+        set({
+          battleResult: null,
+          pendingHuntRetry: false,
+          autoExploreFields: { ...state.autoExploreFields, [fieldId]: false },
+        });
+        return;
+      }
+    }
+
     set({ battleResult: null, pendingHuntRetry: false });
+  },
+
+  toggleAutoExplore: (fieldId) => {
+    const state = get() as GameStore;
+    set({
+      autoExploreFields: {
+        ...state.autoExploreFields,
+        [fieldId]: !state.autoExploreFields[fieldId],
+      },
+    });
   },
 
   isBattling: () => (get() as GameStore).battleMode !== 'none',

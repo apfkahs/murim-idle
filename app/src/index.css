@@ -4,13 +4,13 @@
    1.1 전체 톤 & 1.2 색상
    ──────────────────────────────── */
 :root {
-  --bg-primary: #141420;
-  --bg-card: rgba(255,255,255,0.04);
-  --border-card: rgba(255,255,255,0.07);
+  --bg-primary: #1e1e2e;
+  --bg-card: rgba(255,255,255,0.06);
+  --border-card: rgba(255,255,255,0.10);
 
   --text-primary: rgba(255,255,255,0.9);
-  --text-secondary: rgba(255,255,255,0.35);
-  --text-dim: rgba(255,255,255,0.2);
+  --text-secondary: rgba(255,255,255,0.45);
+  --text-dim: rgba(255,255,255,0.28);
 
   --gold: rgba(255,215,0,0.9);
   --blue: rgba(100,180,255,0.85);

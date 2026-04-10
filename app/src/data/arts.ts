@@ -6,7 +6,7 @@
 
 export type Faction = 'neutral' | 'righteous' | 'evil';
 export type ArtType = 'active' | 'passive' | 'simbeop';
-export type ProficiencyType = 'sword' | 'palm' | 'footwork' | 'mental';
+export type ProficiencyType = 'sword' | 'palm' | 'footwork' | 'mental' | 'fist';
 // ── 발견 조건 ──
 export interface MasteryDiscovery {
   type: 'simdeuk' | 'boss' | 'event' | 'bijup';
@@ -27,12 +27,19 @@ export interface MasteryEffects {
   normalMultiplierCapIncrease?: number;
   ultChange?: {
     name?: string;
-    simBonusW?: number;
-    simBonusH?: number;
+    ultMultiplierBonus?: number;   // 절초 배율 +N (기존 ultMultiplier에 합산)
+    ultCostBonus?: number;         // 절초 내력 비용 변경 (+10 = 40→50)
+    ultAttackFirst?: boolean;      // true: 선공격 후 딜레이 (격산타우)
   };
+  bonusCritDmg?: number;           // 치명타 데미지 % 증가 (10 = +10%)
+  ultCooldownPersist?: boolean;    // true이면 적 전환 시 이 무공 절초 쿨타임 유지
   killBonusEnabled?: boolean;
   synergyArtId?: string;
   dodgeCounterEnabled?: boolean;  // 회피 성공 시 50% 확률 카운터 공격 활성화
+  bonusDmgReductionPercent?: number;   // % 피해 감소 (철포삼 기본 15%, 비전서 +10%)
+  bonusHpPercent?: number;             // 최대 HP % 증가 (철포삼 비전서 +10%)
+  bonusCombatQiRatioFlat?: number;     // 전투 기운 비율 절대 덧셈 (삼재심법 오의 +0.10)
+  bonusQiMultiplier?: number;          // 기운 생산 배율 (삼재심법 오의 ×1.2)
 }
 
 // ── 초(招) 정의 ──
@@ -99,6 +106,10 @@ export interface ArtDef {
   ultCooldown?: number;
   ultMessages?: string[];
 
+  attackIntervalMultiplier?: number;  // 이 무공 발동 후 다음 공격 간격 배율 (녹림권: 1.5)
+  ultChargeTime?: number;             // 절초 발동 전 차지 턴수 (강렬한 일권: 1.5)
+  ultBypassWeakDefense?: boolean;     // 약한 방어력 무시 플래그
+
   growth: ArtGrowth;
   masteries: MasteryDef[];
 
@@ -107,6 +118,8 @@ export interface ArtDef {
   descriptionByStage?: string[];
   imageKey?: string;
   autoActivateMastery?: boolean;   // true이면 craftArtRecipe로 심득 해금 시 자동 활성화 (pointCost 무시)
+  externalDefenseGrade?: number;   // 외공 등급 (철포삼 = 1)
+  proficiencyGainMultiplier?: number; // 숙련도 획득 배율 (마령심법 = 0.5)
 }
 
 // ============================================================
@@ -125,8 +138,8 @@ export const ARTS: ArtDef[] = [
 
     gradeDamageMultipliers: [0.7, 0.85, 1.0, 1.15],
     masteryGradeMultiplierBonus: {
-      samjae_sword_mastery: 0.05,
-      samjae_sword_taesan: 0.05,
+      samjae_sword_mastery: 0.1,
+      samjae_sword_taesan: 0.1,
     },
 
     proficiencyType: 'sword',
@@ -163,7 +176,7 @@ export const ARTS: ArtDef[] = [
         stage: 2,
         id: 'samjae_sword_sense',
         name: '삼재의 감각',
-        description: '치명타 확률 +5%, 회피 +5%, 데미지 감소 +5%',
+        description: '치명타 확률 +5%, 회피 +5%',
         flavorText: '싸울수록 몸이 적의 움직임에 익숙해진다.',
         requiredSimdeuk: 0,
         requiredTier: 0,
@@ -173,14 +186,13 @@ export const ARTS: ArtDef[] = [
         effects: {
           bonusCritRate: 0.05,
           bonusDodge: 5,
-          bonusDmgReduction: 5,
         },
       },
       {
         stage: 3,
         id: 'samjae_sword_mastery',
         name: '검의 숙련',
-        description: '초식 배율 상한 +0.5, 치명타 확률 +5%',
+        description: '초식 배율 상한 +0.5, 치명타 확률 +5%, 치명타 데미지 +10%',
         flavorText: '반복된 수련으로 검을 다루는 솜씨가 한 단계 올랐다.',
         requiredSimdeuk: 0,
         requiredTier: 0,
@@ -191,13 +203,14 @@ export const ARTS: ArtDef[] = [
         effects: {
           normalMultiplierCapIncrease: 0.5,
           bonusCritRate: 0.05,
+          bonusCritDmg: 10,
         },
       },
       {
         stage: 4,
         id: 'samjae_sword_taesan',
         name: '비기: 태산압정',
-        description: '절초가 태산압정으로 변화. 심(心)이 절초 위력에 기여. 초식 상한 +0.5.',
+        description: '절초가 태산압정으로 변화. 절초 배율 +1(총 ×4). 초식 상한 +0.5. 쿨타임 유지.',
         flavorText: '무거운 일격으로 적을 짓누르는 삼재검법의 오의.',
         requiredSimdeuk: 0,
         requiredTier: 0,
@@ -208,10 +221,10 @@ export const ARTS: ArtDef[] = [
         effects: {
           ultChange: {
             name: '태산압정',
-            simBonusW: 1.5,
-            simBonusH: 120,
+            ultMultiplierBonus: 1,
           },
           normalMultiplierCapIncrease: 0.5,
+          ultCooldownPersist: true,
         },
       },
     ],
@@ -227,11 +240,11 @@ export const ARTS: ArtDef[] = [
     baseGrade: 1,
 
     proficiencyType: 'mental',
-    proficiencyCoefficient: 0.03,
+    proficiencyCoefficient: 1 / 15,
 
     growth: {
       baseQiPerSec: 1.0,
-      maxQiPerSec: 3.0,
+      maxQiPerSec: 100_000_000,
       // qiGrowthRate 생략 → BALANCE_PARAMS.QI_GROWTH_RATE (0.075)
       // baseCombatQiRatio/combatQiGrowthRate/maxCombatQiRatio 생략 → BALANCE_PARAMS 기본값
     },
@@ -293,6 +306,18 @@ export const ARTS: ArtDef[] = [
           bonusRegenPerSec: 1,
         },
       },
+      {
+        stage: 5,
+        id: 'samjae_simbeop_oui',
+        name: '삼재심법 오의',
+        description: '삼재심법의 진수. 전투 중 기운 생산이 1.2배로 증가하고, 전투 기운 비율이 30%로 오른다.',
+        flavorText: '세 가지 이치가 하나로 합쳐질 때, 천지의 기운이 손끝으로 모여든다.',
+        requiredSimdeuk: 0,
+        requiredTier: 0,
+        pointCost: 0,
+        discovery: { type: 'bijup' },
+        effects: { bonusCombatQiRatioFlat: 0.10, bonusQiMultiplier: 1.2 },
+      },
     ],
   },
 
@@ -352,6 +377,129 @@ export const ARTS: ArtDef[] = [
         pointCost: 0,
         requires: ['crude_bobeop_2'],
         effects: { bonusAtkSpeed: 0.1, dodgeCounterEnabled: true },
+      },
+    ],
+  },
+
+  // ── 녹림권 (권법, active) ──
+  {
+    id: 'nokrim_fist',
+    name: '녹림권(綠林拳)',
+    faction: 'neutral',
+    artType: 'active',
+    proficiencyType: 'fist',
+    proficiencyCoefficient: 1,
+    baseDamage: 8,
+    normalMultiplierCap: 1.6,
+    baseGrade: 4,
+    cost: 2,
+    attackIntervalMultiplier: 1.5,
+    ultBaseDamage: 20,
+    ultMultiplier: 7,
+    ultCost: 40,
+    ultCooldown: 15,
+    ultChargeTime: 1.5,
+    ultBypassWeakDefense: true,
+    normalMessages: ['녹림권의 일격!', '거친 권풍이 몰아친다!'],
+    ultMessages: ['강렬한 일권(一拳)! 기를 응집하여 폭발적인 일격을 날린다!'],
+    growth: {},
+    masteries: [
+      {
+        stage: 1,
+        id: 'nokrim_fist_ult',
+        name: '강렬한 일권',
+        description: '절초 강렬한 일권 사용 가능. 1.5턴 차지 후 공격력의 7배 데미지.',
+        requiredSimdeuk: 0,
+        requiredTier: 0,
+        pointCost: 0,
+        effects: { unlockUlt: true },
+        autoActivate: true,
+      },
+      {
+        stage: 2,
+        id: 'nokrim_fist_geoksan',
+        name: '격산타우(隔山打牛)',
+        description: '강렬한 일권이 격산타우로 변화. 선공격 후 1.5턴 딜레이, 8배 데미지, 내력 50 필요.',
+        requiredSimdeuk: 0,
+        requiredTier: 0,
+        pointCost: 0,
+        requiredArtGrade: 4,
+        discovery: { type: 'bijup' },
+        effects: {
+          ultChange: {
+            name: '격산타우(隔山打牛)',
+            ultMultiplierBonus: 1,
+            ultCostBonus: 10,
+            ultAttackFirst: true,
+          },
+          normalMultiplierCapIncrease: 0.25,
+        },
+      },
+    ],
+  },
+
+  // ── 철포삼 (외공, passive) ──
+  {
+    id: 'jeoposaem',
+    name: '철포삼(鐵布衫)',
+    faction: 'neutral',
+    artType: 'passive',
+    cost: 1,
+    baseGrade: 1,
+    externalDefenseGrade: 1,
+    proficiencyType: 'fist',
+    proficiencyCoefficient: 0,
+    descriptionByStage: [
+      '온 몸을 강철처럼 단련하는 외공(外功). 상대의 공격을 맨몸으로 받아내는 기초를 익혔다. 받는 피해가 15% 감소한다.',
+      '철포삼의 오의를 깨쳤다. 받는 피해가 추가로 10% 감소하고, 최대 체력이 10% 증가한다.',
+    ],
+    growth: {},
+    baseEffects: { bonusDmgReductionPercent: 15 },
+    masteries: [
+      {
+        stage: 1,
+        id: 'jeoposaem_secret',
+        name: '철포삼 오의',
+        description: '받는 피해 추가 10% 감소, 최대 체력 +10%',
+        flavorText: '강철 같은 몸이 완성될 때, 비로소 진정한 외공의 경지에 이른다.',
+        requiredSimdeuk: 0,
+        requiredTier: 0,
+        pointCost: 0,
+        requiredArtGrade: 1,
+        discovery: { type: 'bijup' },
+        effects: { bonusDmgReductionPercent: 10, bonusHpPercent: 0.10 },
+      },
+    ],
+  },
+
+  // ── 마령심법 (심법, evil) ──
+  {
+    id: 'maryeong_simbeop',
+    name: '마령심법(魔靈心法)',
+    faction: 'evil',
+    artType: 'simbeop',
+    cost: 0,
+    baseGrade: 1,
+    proficiencyType: 'mental',
+    proficiencyCoefficient: 1 / 15,
+    proficiencyGainMultiplier: 0.5,
+    growth: {
+      baseQiPerSec: 2.0,
+      maxQiPerSec: 100_000_000,
+      baseCombatQiRatio: 0.35,
+    },
+    masteries: [
+      {
+        stage: 2,
+        id: 'maryeong_combat',
+        name: '마령 전투 수련',
+        description: '전투 중에도 자연의 기운을 생산할 수 있게 된다.',
+        flavorText: '마기를 삼켜 자신의 것으로 만들면, 싸우는 순간에도 기운이 샘솟는다.',
+        requiredSimdeuk: 0,
+        requiredTier: 0,
+        pointCost: 0,
+        discovery: { type: 'simdeuk', threshold: 0 },
+        effects: {},
       },
     ],
   },

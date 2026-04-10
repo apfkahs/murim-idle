@@ -13,7 +13,7 @@ export function createInitialState(): GameState {
     totalSimdeuk: 0,
     totalSpentQi: 0,
     stats: { gi: 0, sim: 0, che: 0 },
-    proficiency: { sword: 1, palm: 1, footwork: 1, mental: 1 },
+    proficiency: { sword: 1, palm: 1, footwork: 1, mental: 1, fist: 1 },
     hp: B.HP_BASE,
     maxHp: B.HP_BASE,
     tier: 0,
@@ -87,5 +87,6 @@ export function createInitialState(): GameState {
     obtainedMaterials: [],
     knownEquipment: [],
     dodgeCounterActive: false,
+    autoExploreFields: {},
   };
 }

@@ -189,6 +189,24 @@ export function getMaxEquippedArtGrade(
 }
 
 // ============================================================
+// 절초 배율 (심득 ultMultiplierBonus 포함)
+// ============================================================
+
+/** 심득 ultMultiplierBonus를 포함한 실효 절초 배율 반환 */
+export function getEffectiveUltMultiplier(
+  artDef: { ultMultiplier?: number; masteries: { id: string; effects?: { ultChange?: { ultMultiplierBonus?: number } } }[] },
+  activeIds: string[],
+): number {
+  let mult = artDef.ultMultiplier ?? 0;
+  for (const m of artDef.masteries) {
+    if (activeIds.includes(m.id) && m.effects?.ultChange?.ultMultiplierBonus != null) {
+      mult += m.effects.ultChange.ultMultiplierBonus;
+    }
+  }
+  return mult;
+}
+
+// ============================================================
 // 몬스터 정보 공개 레벨
 // ============================================================
 export function getMonsterRevealLevel(killCount: number): number {

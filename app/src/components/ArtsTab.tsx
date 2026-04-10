@@ -49,7 +49,7 @@ export default function ArtsTab() {
   const effects = gatherMasteryEffects(state);
 
   const PROF_TYPE_LABEL: Record<ProficiencyType, string> = {
-    sword: '검법', palm: '장법', footwork: '보법', mental: '심법',
+    sword: '검법', palm: '장법', footwork: '보법', mental: '심법', fist: '권법',
   };
 
   const [swordExpanded, setSwordExpanded] = useState(false);
@@ -380,6 +380,16 @@ export default function ArtsTab() {
                       </div>
                     </div>
                   )}
+
+                  {def.artType === 'passive' && (() => {
+                    const summary = formatPassiveEffectSummary(def, activeMasteries[owned.id] ?? []);
+                    return summary ? (
+                      <div style={{ marginTop: 10, padding: '7px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>패시브 효과</div>
+                        <div style={{ fontSize: 13, color: 'var(--accent)' }}>{summary}</div>
+                      </div>
+                    ) : null;
+                  })()}
 
                   <MasteryPanel
                     artId={owned.id}
