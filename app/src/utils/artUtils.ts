@@ -2,7 +2,7 @@
  * 무공/숙련도 관련 순수 유틸 함수 모음
  * gameStore.ts에서 분리된 상태 독립 함수들
  */
-import type { ArtDef } from '../data/arts';
+import { getArtDef, type ArtDef } from '../data/arts';
 
 // ============================================================
 // 숙련도 5단계/12성 (60성) 시스템
@@ -110,12 +110,31 @@ export function buildCustomGradeTable(maxStars: number, startExp: number): ProfS
   return table;
 }
 
+/**
+ * PROF_TABLE 기반 무공 등급 테이블 빌더.
+ * 성 쌍(1~2성, 3~4성, …): PROF_TABLE[baseGrade-1+pairIndex].reqExp × 0.2 (100단위 반올림)
+ * maxStars는 반드시 짝수(6, 12 등).
+ */
+export function buildProfBasedGradeTable(baseGrade: number, maxStars: number): ProfStarEntry[] {
+  const table: ProfStarEntry[] = [];
+  let cumExp = 0;
+  const pairs = maxStars / 2;
+  for (let p = 0; p < pairs; p++) {
+    const pairReq = Math.round(PROF_TABLE[baseGrade - 1 + p].reqExp * 0.2 / 100) * 100;
+    for (let s = 0; s < 2; s++) {
+      cumExp += pairReq;
+      table.push({ reqExp: pairReq, cumExp, profDamage: 0 });
+    }
+  }
+  return table;
+}
+
 /** 무공 정의의 gradeMaxStars 설정 여부에 따라 적절한 테이블 반환 */
 export function getGradeTableForArt(artDef: ArtDef): ProfStarEntry[] {
   if (artDef.growth.gradeMaxStars) {
-    return buildCustomGradeTable(
+    return buildProfBasedGradeTable(
+      artDef.baseGrade ?? 1,
       artDef.growth.gradeMaxStars,
-      artDef.growth.gradeStartExp ?? ART_GRADE_TABLE[0].reqExp,
     );
   }
   return ART_GRADE_TABLE;
@@ -131,7 +150,7 @@ export function getArtGradeInfoFromTable(cumExp: number, table: ProfStarEntry[])
     if (cumExp >= table[i].cumExp) si = i;
     else break;
   }
-  const stageIndex = 0;
+  const stageIndex = si;
   const star = si + 1;
   const isMax = si >= table.length - 1;
   const progress = isMax ? 1 : (cumExp - table[si].cumExp) / table[si + 1].reqExp;
@@ -203,26 +222,44 @@ export function getProficiencyGrade(cumExp: number): number {
 // 무공 등급 유틸
 // ============================================================
 
-/** 무공의 현재 등급 = artGradeExp 기반 stageIndex + 1 (1-5) */
+/** 무공의 현재 등급 = artGradeExp 기반 stageIndex + 1
+ *  gradeMaxStars 무공: 커스텀 테이블 기준 1~maxStars
+ *  일반 무공: ART_GRADE_TABLE 기준 1~5
+ */
 export function getArtCurrentGrade(
   artId: string,
   artGradeExp: Record<string, number>,
 ): number {
-  return getArtGradeInfo(artGradeExp[artId] ?? 0).stageIndex + 1;
+  const artDef = getArtDef(artId);
+  const cumExp = artGradeExp[artId] ?? 0;
+  if (artDef?.growth.gradeMaxStars) {
+    const table = getGradeTableForArt(artDef);
+    return getArtGradeInfoFromTable(cumExp, table).stageIndex + 1;
+  }
+  return getArtGradeInfo(cumExp).stageIndex + 1;
 }
 
 /** 무공의 등급·초식 배율 계산
  *  gradeDamageMultipliers가 없으면 1.0 반환
  *  stageIndex 초과 시 마지막 값으로 클램프
+ *  gradeMaxStars 무공은 커스텀 테이블 기준 stageIndex 사용
  */
 export function getArtDamageMultiplier(
-  artDef: { gradeDamageMultipliers?: number[]; masteryGradeMultiplierBonus?: Record<string, number> },
+  artDef: ArtDef,
   cumExp: number,
   activeIds: string[],
 ): number {
   const mults = artDef.gradeDamageMultipliers;
   if (!mults || mults.length === 0) return 1.0;
-  const stageIndex = getArtGradeInfo(cumExp).stageIndex;
+
+  let stageIndex: number;
+  if (artDef.growth.gradeMaxStars) {
+    const table = getGradeTableForArt(artDef);
+    stageIndex = getArtGradeInfoFromTable(cumExp, table).stageIndex;
+  } else {
+    stageIndex = getArtGradeInfo(cumExp).stageIndex;
+  }
+
   let base = mults[Math.min(stageIndex, mults.length - 1)];
   const bonus = artDef.masteryGradeMultiplierBonus ?? {};
   for (const id of activeIds) {

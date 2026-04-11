@@ -4,7 +4,7 @@ import type { InventoryItem, GameState } from '../types';
 import { getArtDef } from '../../data/arts';
 import { getEquipmentDef, type EquipSlot, type EquipmentInstance } from '../../data/equipment';
 import { RECIPES, ART_RECIPES, BIJUP_DEFS, getBijupDef } from '../../data/materials';
-import { getArtGradeInfo } from '../../utils/artUtils';
+import { getArtGradeInfo, getGradeTableForArt, getArtGradeInfoFromTable } from '../../utils/artUtils';
 import { calcMaxHp, calcTierMultiplier, gatherEquipmentStats } from '../../utils/combatCalc';
 
 export type InventorySlice = {
@@ -166,7 +166,11 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
     if ((state.materials[bijupMaterialId] ?? 0) < 1) return false;
     const { artId, masteryId, requiredArtGrade } = bijupDef;
     if (!state.equippedArts.includes(artId) && state.equippedSimbeop !== artId) return false;
-    const currentGrade = getArtGradeInfo(state.artGradeExp[artId] ?? 0).stageIndex + 1;
+    const artDefForGrade = getArtDef(artId);
+    const cumExpForGrade = state.artGradeExp[artId] ?? 0;
+    const currentGrade = artDefForGrade?.growth.gradeMaxStars
+      ? getArtGradeInfoFromTable(cumExpForGrade, getGradeTableForArt(artDefForGrade)).stageIndex + 1
+      : getArtGradeInfo(cumExpForGrade).stageIndex + 1;
     if (currentGrade < requiredArtGrade) return false;
     if ((state.activeMasteries[artId] ?? []).includes(masteryId)) return false;
     const newMaterials = { ...state.materials, [bijupMaterialId]: (state.materials[bijupMaterialId] ?? 0) - 1 };

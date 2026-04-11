@@ -48,4 +48,7 @@ export const PROF_STAGE_LABELS = [
 
 export const STAR_HANJA = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'] as const;
 
-export const GRADE_KOREAN = ['1성', '2성', '3성', '4성', '5성'] as const;
+export const GRADE_KOREAN = [
+  '1성', '2성', '3성', '4성', '5성', '6성',
+  '7성', '8성', '9성', '10성', '11성', '12성',
+] as const;

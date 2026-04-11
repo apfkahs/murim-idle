@@ -41,7 +41,7 @@ export interface MasteryEffects {
   bonusDmgReductionPercent?: number;   // % 피해 감소 (철포삼 기본 15%, 비전서 +10%)
   bonusHpPercent?: number;             // 최대 HP % 증가 (철포삼 비전서 +10%)
   bonusCombatQiRatioFlat?: number;     // 전투 기운 비율 절대 덧셈 (삼재심법 오의 +0.10)
-  bonusQiMultiplier?: number;          // 기운 생산 배율 (삼재심법 오의 ×1.2)
+  simbeopQiMultiplier?: number;        // 장착 심법 자체 기운 생산 배율 (삼재심법 오의 ×1.2). gatherMasteryEffects 집계 대상 아님.
 }
 
 // ── 초(招) 정의 ──
@@ -80,7 +80,8 @@ export interface ArtGrowth {
 
   // 무공별 커스텀 등급 테이블
   gradeMaxStars?: number;   // 무공별 최대 별 수 (기본 60)
-  gradeStartExp?: number;   // 무공별 첫 별 필요 경험치
+  gradeStartExp?: number;   // @deprecated — buildProfBasedGradeTable이 baseGrade에서 직접 계산
+  proficiencyCoefficientByGrade?: number[];  // 성급별 proficiencyCoefficient 오버라이드 (stageIndex 기반)
 }
 
 // ── 무공 정의 ──
@@ -143,7 +144,7 @@ export const ARTS: ArtDef[] = [
     cost: 1,
     baseGrade: 1,
 
-    gradeDamageMultipliers: [0.7, 0.85, 1.0, 1.15],
+    gradeDamageMultipliers: [0.70, 0.73, 0.76, 0.79, 0.82, 0.85, 0.88, 0.91, 0.94, 0.97, 1.00, 1.03],
     masteryGradeMultiplierBonus: {
       samjae_sword_mastery: 0.1,
       samjae_sword_taesan: 0.1,
@@ -163,6 +164,7 @@ export const ARTS: ArtDef[] = [
 
     growth: {
       baseNormalMultiplier: 0.7,
+      gradeMaxStars: 12,
       // normalGrowthRate 생략 → BALANCE_PARAMS.NORMAL_GROWTH_RATE (0.02)
     },
 
@@ -253,8 +255,7 @@ export const ARTS: ArtDef[] = [
       baseQiPerSec: 1.0,
       maxQiPerSec: 100_000_000,
       baseCombatQiRatio: 0.15,  // 처음부터 15% 전투 기운 비율
-      gradeMaxStars: 6,          // 6성 완결 독립 시스템
-      gradeStartExp: 5000,       // 첫 별 필요 경험치
+      gradeMaxStars: 12,         // 12성 완결 독립 시스템
       // qiGrowthRate 생략 → BALANCE_PARAMS.QI_GROWTH_RATE (0.075)
     },
 
@@ -268,7 +269,7 @@ export const ARTS: ArtDef[] = [
         requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
-        discovery: { type: 'artStar', starIndex: 1, unlockStarIndex: 2 },  // 처음부터 표시, 2성 도달 시 자동 해금
+        discovery: { type: 'artStar', starIndex: 1, unlockStarIndex: 4 },  // 처음부터 표시, 4성 도달 시 자동 해금
         effects: { bonusRegenPerSec: 1 },
       },
       {
@@ -280,7 +281,7 @@ export const ARTS: ArtDef[] = [
         requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
-        discovery: { type: 'artStar', starIndex: 3, unlockStarIndex: 4 },  // 3성 발견, 4성 자동 해금
+        discovery: { type: 'artStar', starIndex: 6, unlockStarIndex: 8 },  // 6성 발견, 8성 자동 해금
         effects: {
           bonusQiPerSec: 2,
           bonusCombatQiRatio: 0.10,
@@ -296,7 +297,7 @@ export const ARTS: ArtDef[] = [
         requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
-        discovery: { type: 'artStar', starIndex: 5, unlockStarIndex: 6 },  // 5성 발견, 6성 자동 해금
+        discovery: { type: 'artStar', starIndex: 10, unlockStarIndex: 12 },  // 10성 발견, 12성 자동 해금
         effects: {
           killBonusEnabled: true,
           bonusRegenPerSec: 1,
@@ -306,14 +307,14 @@ export const ARTS: ArtDef[] = [
         stage: 4,
         id: 'samjae_simbeop_oui',
         name: '삼재심법 오의',
-        description: '삼재심법의 진수. 전투 중 기운 생산이 1.2배로 증가하고, 전투 기운 비율이 30%로 오른다.',
+        description: '삼재심법의 진수. 기운 생산이 1.2배로 증가하고, 전투 기운 비율이 30%로 오른다.',
         flavorText: '세 가지 이치가 하나로 합쳐질 때, 천지의 기운이 손끝으로 모여든다.',
         requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         discovery: { type: 'bijup' },
         conditionMastery: 'samjae_simbeop_kill',  // 전투 심법 활성 시에만 효과 적용
-        effects: { bonusCombatQiRatioFlat: 0.10, bonusQiMultiplier: 1.2 },
+        effects: { bonusCombatQiRatioFlat: 0.10, simbeopQiMultiplier: 1.2 },
       },
     ],
   },
@@ -476,7 +477,7 @@ export const ARTS: ArtDef[] = [
     faction: 'evil',
     artType: 'simbeop',
     cost: 0,
-    baseGrade: 1,
+    baseGrade: 5,
     proficiencyType: 'mental',
     proficiencyCoefficient: 1 / 15,
     proficiencyGainMultiplier: 0.5,
@@ -484,6 +485,11 @@ export const ARTS: ArtDef[] = [
       baseQiPerSec: 2.0,
       maxQiPerSec: 100_000_000,
       baseCombatQiRatio: 0.35,
+      gradeMaxStars: 12,
+      proficiencyCoefficientByGrade: [
+        0.0667, 0.0727, 0.0788, 0.0848, 0.0909, 0.0970,
+        0.1030, 0.1091, 0.1152, 0.1212, 0.1273, 0.1333,
+      ],
     },
     masteries: [
       {

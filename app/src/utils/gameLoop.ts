@@ -246,10 +246,9 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     qi += qiPerSec * dt * qiMult;
   }
 
-  // 1-1) 전투 중 기운 생산 (삼재심법 오의 bonusQiMultiplier 추가 배율 적용)
+  // 1-1) 전투 중 기운 생산 (심법 배율은 calcQiPerSec 내부에서 이미 반영됨)
   if (isBattling && combatQiRatio > 0) {
-    const combatQiMult = qiMult * (masteryEffects.bonusQiMultiplier ?? 1.0);
-    qi += qiPerSec * combatQiRatio * dt * combatQiMult;
+    qi += qiPerSec * combatQiRatio * dt * qiMult;
   }
 
   // 2) HP 자동회복 (전투 외)

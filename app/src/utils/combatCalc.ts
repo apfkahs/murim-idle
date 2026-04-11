@@ -6,7 +6,7 @@ import { BALANCE_PARAMS } from '../data/balance';
 import { getArtDef, type MasteryEffects } from '../data/arts';
 import { getEquipmentDef, type EquipSlot, type EquipStats } from '../data/equipment';
 import { type MonsterDef } from '../data/monsters';
-import { getProfDamageValue } from './artUtils';
+import { getProfDamageValue, getGradeTableForArt, getArtGradeInfoFromTable } from './artUtils';
 import type { GameState } from '../store/types';
 
 
@@ -133,7 +133,7 @@ export function gatherMasteryEffects(state: GameState): MasteryEffects {
       if (eff.dodgeCounterEnabled) result.dodgeCounterEnabled = true;
       if (eff.bonusHpPercent) result.bonusHpPercent = (result.bonusHpPercent ?? 0) + eff.bonusHpPercent;
       if (eff.bonusCombatQiRatioFlat) result.bonusCombatQiRatioFlat = (result.bonusCombatQiRatioFlat ?? 0) + eff.bonusCombatQiRatioFlat;
-      if (eff.bonusQiMultiplier) result.bonusQiMultiplier = (result.bonusQiMultiplier ?? 0) + eff.bonusQiMultiplier;
+      // simbeopQiMultiplier는 calcQiPerSec 내부에서 심법 기여분에 직접 적용 — 여기서 집계하지 않음
     }
   }
   return result;
@@ -191,9 +191,28 @@ export function calcQiPerSec(state: GameState): number {
     if (artDef && artDef.growth.baseQiPerSec != null) {
       const mentalProf = state.proficiency?.mental ?? 1;
       const mentalProfDamage = getProfDamageValue(mentalProf);
-      const grown = artDef.growth.baseQiPerSec + Math.floor(artDef.proficiencyCoefficient * mentalProfDamage);
+      let coeff = artDef.proficiencyCoefficient;
+      if (artDef.growth.proficiencyCoefficientByGrade) {
+        const gradeExp = state.artGradeExp?.[state.equippedSimbeop!] ?? 0;
+        const table = getGradeTableForArt(artDef);
+        const { stageIndex } = getArtGradeInfoFromTable(gradeExp, table);
+        const byGrade = artDef.growth.proficiencyCoefficientByGrade;
+        coeff = byGrade[Math.min(stageIndex, byGrade.length - 1)];
+      }
+      const grown = artDef.growth.baseQiPerSec + Math.floor(coeff * mentalProfDamage);
       const capped = Math.min(grown, artDef.growth.maxQiPerSec ?? Infinity);
-      total += capped;
+
+      // 심법 초식의 simbeopQiMultiplier 적용 (conditionMastery 조건 포함)
+      let simbeopMult = 1.0;
+      const simbeopMasteryIds = state.activeMasteries[state.equippedSimbeop] ?? [];
+      for (const mId of simbeopMasteryIds) {
+        const mDef = artDef.masteries.find(m => m.id === mId);
+        if (!mDef?.effects?.simbeopQiMultiplier) continue;
+        if (mDef.conditionMastery && !simbeopMasteryIds.includes(mDef.conditionMastery)) continue;
+        simbeopMult *= mDef.effects.simbeopQiMultiplier;
+      }
+
+      total += capped * simbeopMult;
     }
   }
 

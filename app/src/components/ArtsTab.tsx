@@ -3,7 +3,7 @@
  * 삼재검법 + 삼재심법. 초식/절초/초(招) 패널.
  */
 import { useState } from 'react';
-import { useGameStore, calcQiPerSec, calcCombatQiRatio, calcEffectiveRegen, calcStaminaRegen, gatherMasteryEffects, getArtCurrentGrade, getProfStarInfo, getProfDamageValue, getArtGradeInfo, getArtDamageMultiplier, buildCustomGradeTable, getGradeTableForArt, getArtGradeInfoFromTable } from '../store/gameStore';
+import { useGameStore, calcQiPerSec, calcCombatQiRatio, calcEffectiveRegen, calcStaminaRegen, gatherMasteryEffects, getArtCurrentGrade, getProfStarInfo, getProfDamageValue, getArtGradeInfo, getArtDamageMultiplier, getGradeTableForArt, getArtGradeInfoFromTable } from '../store/gameStore';
 import { getArtDef, getMasteryDefsForArt, getMasteryDef, type ArtDef, type MasteryDef, type ProficiencyType } from '../data/arts';
 import { getTierDef, getMaxSimdeuk } from '../data/tiers';
 import { BALANCE_PARAMS } from '../data/balance';
@@ -12,10 +12,12 @@ import ArtGradeBar from './arts/ArtGradeBar';
 import { formatPassiveEffectSummary, PROF_STAGE_LABELS, STAR_HANJA, GRADE_KOREAN } from './arts/artsUtils';
 
 function getSamjaeGradeDisplay(cumExp: number): string {
-  const table = buildCustomGradeTable(6, 5000);
+  const artDef = getArtDef('samjae_simbeop')!;
+  const table = getGradeTableForArt(artDef);
   const { starIndex } = getArtGradeInfoFromTable(cumExp, table);
-  const star = Math.min(starIndex, 6);
-  return star >= 6 ? `${star}성 完` : `${star}성`;
+  const maxStar = table.length;
+  const star = Math.min(starIndex, maxStar);
+  return star >= maxStar ? `${star}성 完` : `${star}성`;
 }
 
 export default function ArtsTab() {
@@ -344,9 +346,11 @@ export default function ArtsTab() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{def.name}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                    {GRADE_KOREAN[getArtCurrentGrade(owned.id, artGradeExp) - 1]}
-                  </span>
+                  {def.growth.gradeMaxStars && (
+                    <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                      {GRADE_KOREAN[getArtCurrentGrade(owned.id, artGradeExp) - 1]}
+                    </span>
+                  )}
                   {!expanded && collapsedSummary && (
                     <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 4 }}>
                       {collapsedSummary}
@@ -374,8 +378,8 @@ export default function ArtsTab() {
                     </div>
                   )}
 
-                  {/* 등급 진행 바 */}
-                  <ArtGradeBar artId={owned.id} artGradeExp={artGradeExp} />
+                  {/* 등급 진행 바 (성급 시스템 있는 무공만) */}
+                  {def.growth.gradeMaxStars && <ArtGradeBar artId={owned.id} artGradeExp={artGradeExp} />}
 
                   {def.artType === 'active' && (
                     <div style={{ marginTop: 10, padding: '7px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
@@ -454,8 +458,10 @@ function MasteryPanel({ artId, totalSimdeuk, artGradeExp, materials, tier, disco
   const currentActive = activeMasteries[artId] ?? [];
   const isEquipped = equippedArts.includes(artId) || equippedSimbeop === artId;
 
-  const currentGrade = getArtGradeInfo(artGradeExp).stageIndex + 1;
   const gradeTable = getGradeTableForArt(artDef);
+  const currentGrade = gradeTable.length < 60
+    ? getArtGradeInfoFromTable(artGradeExp, gradeTable).stageIndex + 1
+    : getArtGradeInfo(artGradeExp).stageIndex + 1;
   const currentStarIndex = gradeTable.length < 60
     ? getArtGradeInfoFromTable(artGradeExp, gradeTable).starIndex
     : getArtGradeInfo(artGradeExp).starIndex;
