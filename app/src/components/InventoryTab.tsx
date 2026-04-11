@@ -29,6 +29,7 @@ export default function InventoryTab() {
   const isEmpty = scrollItems.length === 0 && !hasMaterials;
 
   const visibleArtRecipes = ART_RECIPES.filter(r => {
+    if ((materials[r.materialId] ?? 0) <= 0) return false;
     if (r.requiresArtId && !ownedArts.some(a => a.id === r.requiresArtId)) return false;
     if (r.requiresMasteryId && !discoveredMasteries.includes(r.requiresMasteryId)) return false;
     const isDone = r.resultArtId
@@ -218,10 +219,10 @@ export default function InventoryTab() {
         </div>
 
         {/* 비급 복원 섹션 */}
-        {visibleRecipes.length > 0 && visibleArtRecipes.length > 0 && (materials['torn_paper'] ?? 0) > 0 && (
+        {visibleRecipes.length > 0 && visibleArtRecipes.length > 0 && (
           <div style={{ height: 1, background: 'var(--border)', margin: '12px 0' }} />
         )}
-        {visibleArtRecipes.length > 0 && (materials['torn_paper'] ?? 0) > 0 && (
+        {visibleArtRecipes.length > 0 && (
           <div>
             <div className="card-label" style={{ fontSize: 12, marginBottom: 8 }}>비급 복원</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -229,6 +230,7 @@ export default function InventoryTab() {
                 const have = materials[r.materialId] ?? 0;
                 const canDo = have >= r.materialCount;
                 const btnLabel = r.resultArtId ? '복원' : '해금';
+                const matDef = MATERIALS.find(m => m.id === r.materialId);
                 return (
                   <div key={r.id} style={{
                     background: 'var(--bg-card)', borderRadius: 6, padding: '10px 12px',
@@ -243,7 +245,7 @@ export default function InventoryTab() {
                           {r.description}
                         </div>
                         <div style={{ fontSize: 12, color: canDo ? 'var(--accent)' : 'var(--text-secondary)' }}>
-                          찢겨진 종이 {r.materialCount}장 필요 · 보유 {have}장
+                          {matDef?.name ?? r.materialId} {r.materialCount}장 필요 · 보유 {have}장
                         </div>
                       </div>
                       <div style={{ flexShrink: 0 }}>
@@ -263,7 +265,7 @@ export default function InventoryTab() {
             </div>
           </div>
         )}
-        {visibleRecipes.length === 0 && ((materials['torn_paper'] ?? 0) === 0 || visibleArtRecipes.length === 0) && (
+        {visibleRecipes.length === 0 && visibleArtRecipes.length === 0 && (
           <div style={{ color: 'var(--text-dim)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
             제작 가능한 항목이 없습니다.
           </div>

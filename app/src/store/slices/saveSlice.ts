@@ -6,6 +6,7 @@ import { getArtDef } from '../../data/arts';
 import { calcMaxHp, calcTierMultiplier, calcStamina } from '../../utils/combatCalc';
 import { simulateTick } from '../../utils/gameLoop';
 import { createInitialState } from '../initialState';
+import { FIELDS } from '../../data/fields';
 
 export type SaveSlice = {
   // ── state ──
@@ -157,10 +158,22 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         playerAttackTimer: data.playerAttackTimer ?? 0,
         enemyAttackTimer: data.enemyAttackTimer ?? 0,
         activeMasteries: data.activeMasteries ?? {},
-        fieldUnlocks: data.fieldUnlocks ?? {
-          training: true, yasan: false, inn: false,
-          cheonsan_jangmak: false, cheonsan_godo: false, cheonsan_simjang: false,
-        },
+        fieldUnlocks: (() => {
+          const saved = data.fieldUnlocks ?? {
+            training: true, yasan: false, inn: false,
+            cheonsan_jangmak: false, cheonsan_godo: false, cheonsan_simjang: false,
+          };
+          const mats: Record<string, number> = data.materials ?? {};
+          // materialOwned 조건 전장: 재료 미소지 시 해금 초기화 (잘못 해금된 세이브 복구)
+          const revalidated = { ...saved };
+          for (const field of FIELDS) {
+            const cond = field.unlockCondition;
+            if (cond?.materialOwned && (mats[cond.materialOwned] ?? 0) === 0) {
+              revalidated[field.id] = false;
+            }
+          }
+          return revalidated;
+        })(),
         inventory: data.inventory ?? [],
         discoveredMasteries: data.discoveredMasteries ?? [],
         pendingEnlightenments: data.pendingEnlightenments ?? [],

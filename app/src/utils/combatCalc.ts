@@ -107,6 +107,10 @@ export function gatherMasteryEffects(state: GameState): MasteryEffects {
     for (const mId of masteryIds) {
       const mDef = artDef.masteries.find(m => m.id === mId);
       if (!mDef?.effects) continue;
+
+      // conditionMastery: 지정된 초식이 활성화되어 있어야 효과 적용
+      if (mDef.conditionMastery && !masteryIds.includes(mDef.conditionMastery)) continue;
+
       const eff = mDef.effects;
 
       if (eff.synergyArtId) {
@@ -136,13 +140,16 @@ export function gatherMasteryEffects(state: GameState): MasteryEffects {
 }
 
 // ============================================================
-// 심법 2초(전투 수련) 해금 확인 (내부 헬퍼)
+// 심법 전투 기운 해금 확인 (내부 헬퍼)
 // ============================================================
 function isCombatQiUnlocked(state: GameState): boolean {
   if (!state.equippedSimbeop) return false;
-  const masteryIds = state.activeMasteries[state.equippedSimbeop] ?? [];
   const artDef = getArtDef(state.equippedSimbeop);
   if (!artDef) return false;
+  // baseCombatQiRatio가 art에 직접 설정된 경우 항상 활성
+  if (artDef.growth.baseCombatQiRatio != null) return true;
+  // 기존 방식: stage 2 초식 해금 여부로 판단
+  const masteryIds = state.activeMasteries[state.equippedSimbeop] ?? [];
   return artDef.masteries.some(m => m.stage === 2 && masteryIds.includes(m.id));
 }
 

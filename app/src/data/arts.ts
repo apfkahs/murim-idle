@@ -9,9 +9,11 @@ export type ArtType = 'active' | 'passive' | 'simbeop';
 export type ProficiencyType = 'sword' | 'palm' | 'footwork' | 'mental' | 'fist';
 // ── 발견 조건 ──
 export interface MasteryDiscovery {
-  type: 'simdeuk' | 'boss' | 'event' | 'bijup';
-  threshold?: number;     // simdeuk 타입일 때 발견 심득
-  bossId?: string;        // boss 타입일 때 보스 ID
+  type: 'simdeuk' | 'boss' | 'event' | 'bijup' | 'artStar';
+  threshold?: number;        // simdeuk 타입일 때 발견 심득
+  bossId?: string;           // boss 타입일 때 보스 ID
+  starIndex?: number;        // artStar: 발견 조건 성 인덱스 (1-based)
+  unlockStarIndex?: number;  // artStar: 자동 해금 성 인덱스 (미설정 시 starIndex와 동일)
 }
 
 // ── 초(招) 효과 ──
@@ -54,6 +56,7 @@ export interface MasteryDef {
   pointCost: number;
   requires?: string[];
   discovery?: MasteryDiscovery;
+  conditionMastery?: string;  // 이 초식의 효과 적용 조건: 해당 masteryId가 활성화되어야 함
   effects?: MasteryEffects;
   requiredArtGrade?: number;  // bijup 타입: 비급 사용에 필요한 최소 무공 등급
   autoActivate?: boolean;     // true이면 무공 획득 즉시 자동 활성화 (포인트 불필요)
@@ -74,6 +77,10 @@ export interface ArtGrowth {
   baseCombatQiRatio?: number;
   combatQiGrowthRate?: number;
   maxCombatQiRatio?: number;
+
+  // 무공별 커스텀 등급 테이블
+  gradeMaxStars?: number;   // 무공별 최대 별 수 (기본 60)
+  gradeStartExp?: number;   // 무공별 첫 별 필요 경험치
 }
 
 // ── 무공 정의 ──
@@ -245,8 +252,10 @@ export const ARTS: ArtDef[] = [
     growth: {
       baseQiPerSec: 1.0,
       maxQiPerSec: 100_000_000,
+      baseCombatQiRatio: 0.15,  // 처음부터 15% 전투 기운 비율
+      gradeMaxStars: 6,          // 6성 완결 독립 시스템
+      gradeStartExp: 5000,       // 첫 별 필요 경험치
       // qiGrowthRate 생략 → BALANCE_PARAMS.QI_GROWTH_RATE (0.075)
-      // baseCombatQiRatio/combatQiGrowthRate/maxCombatQiRatio 생략 → BALANCE_PARAMS 기본값
     },
 
     masteries: [
@@ -256,34 +265,22 @@ export const ARTS: ArtDef[] = [
         name: '기맥 순환',
         description: '내력 회복 +1/초',
         flavorText: '호흡을 고르며 기맥의 흐름을 바로잡는다.',
-        requiredSimdeuk: 120,
+        requiredSimdeuk: 0,
         requiredTier: 0,
-        pointCost: 1,
-        discovery: { type: 'simdeuk', threshold: 60 },
+        pointCost: 0,
+        discovery: { type: 'artStar', starIndex: 1, unlockStarIndex: 2 },  // 처음부터 표시, 2성 도달 시 자동 해금
         effects: { bonusRegenPerSec: 1 },
       },
       {
         stage: 2,
-        id: 'samjae_simbeop_combat',
-        name: '전투 수련',
-        description: '전투 중에도 자연의 기운을 생산할 수 있게 된다',
-        flavorText: '싸우면서도 자연의 기운을 조금씩 받아들인다.',
-        requiredSimdeuk: 300,
-        requiredTier: 0,
-        pointCost: 1,
-        discovery: { type: 'simdeuk', threshold: 150 },
-        // effects 없음 — 2초 해금 여부로 combatQiRatio 활성 판단
-      },
-      {
-        stage: 3,
         id: 'samjae_simbeop_synergy',
         name: '삼재 조화',
         description: '삼재검법 장착 시: 기운 +2/초, 전투 중 기운 +10%',
         flavorText: '검법과 심법을 함께 익혀 서로의 부족함을 메운다.',
-        requiredSimdeuk: 500,
-        requiredTier: 1,
-        pointCost: 1,
-        discovery: { type: 'simdeuk', threshold: 400 },
+        requiredSimdeuk: 0,
+        requiredTier: 0,
+        pointCost: 0,
+        discovery: { type: 'artStar', starIndex: 3, unlockStarIndex: 4 },  // 3성 발견, 4성 자동 해금
         effects: {
           bonusQiPerSec: 2,
           bonusCombatQiRatio: 0.10,
@@ -291,23 +288,22 @@ export const ARTS: ArtDef[] = [
         },
       },
       {
-        stage: 4,
+        stage: 3,
         id: 'samjae_simbeop_kill',
         name: '전투 심법',
         description: '처치 시 전투시간 20%에 해당하는 기운 즉시 획득. 내력 회복 +1/초.',
         flavorText: '적을 쓰러뜨릴 때 흩어지는 기운을 거둬들인다.',
-        requiredSimdeuk: 720,
-        requiredTier: 2,
-        pointCost: 2,
-        requires: ['samjae_simbeop_regen'],
-        discovery: { type: 'simdeuk', threshold: 600 },
+        requiredSimdeuk: 0,
+        requiredTier: 0,
+        pointCost: 0,
+        discovery: { type: 'artStar', starIndex: 5, unlockStarIndex: 6 },  // 5성 발견, 6성 자동 해금
         effects: {
           killBonusEnabled: true,
           bonusRegenPerSec: 1,
         },
       },
       {
-        stage: 5,
+        stage: 4,
         id: 'samjae_simbeop_oui',
         name: '삼재심법 오의',
         description: '삼재심법의 진수. 전투 중 기운 생산이 1.2배로 증가하고, 전투 기운 비율이 30%로 오른다.',
@@ -316,6 +312,7 @@ export const ARTS: ArtDef[] = [
         requiredTier: 0,
         pointCost: 0,
         discovery: { type: 'bijup' },
+        conditionMastery: 'samjae_simbeop_kill',  // 전투 심법 활성 시에만 효과 적용
         effects: { bonusCombatQiRatioFlat: 0.10, bonusQiMultiplier: 1.2 },
       },
     ],

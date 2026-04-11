@@ -13,6 +13,7 @@ import { getMaxSimdeuk } from '../data/tiers';
 import {
   getArtDamageMultiplier, getEffectiveUltMultiplier, getMaxEquippedArtGrade,
   getArtGradeInfo, getProfStarInfo, getProfDamageValue, PROF_TABLE,
+  getGradeTableForArt, getArtGradeInfoFromTable,
 } from './artUtils';
 import {
   calcCritDamageMultiplier, calcCritRate, calcDodge, calcDmgReduction, calcTierMultiplier,
@@ -149,6 +150,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   let equipmentInventory = [...state.equipmentInventory];
   let materials = { ...state.materials };
   let artGradeExp = { ...state.artGradeExp };
+  let activeMasteries = { ...state.activeMasteries };
   let obtainedMaterials = [...state.obtainedMaterials];
   let knownEquipment = [...state.knownEquipment];
   let ultCooldowns = { ...state.ultCooldowns };
@@ -638,6 +640,33 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
             const artGradeMultiplier = artDiff >= 0 ? Math.pow(3, artDiff) : Math.pow(1 / 9, -artDiff);
             artGradeExp[artId] = (artGradeExp[artId] ?? 0) + baseProfGain * artGradeMultiplier;
           }
+
+          // artStar 타입 초식 발견 + 자동 해금 처리
+          for (const artId of allEquippedArts) {
+            const artDef = getArtDef(artId);
+            if (!artDef) continue;
+            const table = getGradeTableForArt(artDef);
+            const currentStarIdx = getArtGradeInfoFromTable(artGradeExp[artId] ?? 0, table).starIndex;
+
+            for (const m of artDef.masteries) {
+              if (m.discovery?.type !== 'artStar') continue;
+              const discoverStar = m.discovery.starIndex!;
+              const unlockStar = m.discovery.unlockStarIndex ?? discoverStar;
+
+              // 발견 처리
+              if (currentStarIdx >= discoverStar && !discoveredMasteries.includes(m.id)) {
+                discoveredMasteries.push(m.id);
+                pendingEnlightenments.push({ artId, masteryId: m.id, masteryName: m.name });
+                battleLog.push(`깨달음! ${artDef.name}의 오의 '${m.name}'을(를) 깨우쳤다!`);
+              }
+
+              // 자동 해금 처리
+              if (currentStarIdx >= unlockStar && !(activeMasteries[artId] ?? []).includes(m.id)) {
+                activeMasteries[artId] = [...(activeMasteries[artId] ?? []), m.id];
+                battleLog.push(`'${m.name}' 자동 해금!`);
+              }
+            }
+          }
         }
 
         // 드롭
@@ -742,10 +771,10 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           for (const field of FIELDS) {
             if (fieldUnlocks[field.id]) continue;
             const cond = field.unlockCondition;
-            if (!cond) continue;
-            const bossOk = !cond.bossKill || cond.bossKill === monDef.id;
+            if (!cond?.bossKill) continue;
+            if (cond.bossKill !== monDef.id) continue;
             const tierOk = cond.minTier == null || state.tier >= cond.minTier;
-            if (bossOk && tierOk) {
+            if (tierOk) {
               fieldUnlocks[field.id] = true;
             }
           }
@@ -1302,7 +1331,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     stamina, ultCooldowns, currentBattleDuration, currentBattleDamageDealt,
     equipmentInventory, materials, obtainedMaterials, knownEquipment,
     bossPatternState, playerStunTimer, lastEnemyAttack,
-    proficiency, artGradeExp, pendingHuntRetry, dodgeCounterActive,
+    proficiency, artGradeExp, activeMasteries, pendingHuntRetry, dodgeCounterActive,
     playerFinisherCharge,
   };
 

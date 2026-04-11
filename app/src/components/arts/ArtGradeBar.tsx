@@ -1,12 +1,17 @@
-import { getArtGradeInfo } from '../../store/gameStore';
+import { getArtGradeInfo, getArtGradeInfoFromTable, getGradeTableForArt } from '../../store/gameStore';
+import { getArtDef } from '../../data/arts';
 
 export default function ArtGradeBar({ artId, artGradeExp }: {
   artId: string;
   artGradeExp: Record<string, number>;
 }) {
   const cumExp = artGradeExp[artId] ?? 0;
-  const { starIndex, progress } = getArtGradeInfo(cumExp);
-  const isMax = starIndex >= 60;
+  const artDef = getArtDef(artId);
+  const customTable = artDef && artDef.growth.gradeMaxStars ? getGradeTableForArt(artDef) : undefined;
+  const { starIndex, progress } = customTable
+    ? getArtGradeInfoFromTable(cumExp, customTable)
+    : getArtGradeInfo(cumExp);
+  const isMax = customTable ? starIndex >= customTable.length : starIndex >= 60;
   return (
     <div style={{ marginTop: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>

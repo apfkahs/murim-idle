@@ -539,7 +539,7 @@ export const BANDIT_LEADER_DEF: MonsterDef = {
 
 // 객잔 보스
 export const INN_BOSS: MonsterDef = {
-  id: 'innkeeper_true', name: '객잔 주인 (본모습)',
+  id: 'innkeeper_true', name: '객잔 주인',
   hp: 2000, attackPower: 70, attackInterval: 2.2, regen: 0,
   simdeuk: 0, baseProficiency: 6,
   drops: [{ artId: 'nokrim_fist', chance: 0.01 }],

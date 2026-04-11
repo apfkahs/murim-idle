@@ -3,13 +3,20 @@
  * 삼재검법 + 삼재심법. 초식/절초/초(招) 패널.
  */
 import { useState } from 'react';
-import { useGameStore, calcQiPerSec, calcCombatQiRatio, calcEffectiveRegen, calcStaminaRegen, gatherMasteryEffects, getArtCurrentGrade, getProfStarInfo, getProfDamageValue, getArtGradeInfo, getArtDamageMultiplier } from '../store/gameStore';
+import { useGameStore, calcQiPerSec, calcCombatQiRatio, calcEffectiveRegen, calcStaminaRegen, gatherMasteryEffects, getArtCurrentGrade, getProfStarInfo, getProfDamageValue, getArtGradeInfo, getArtDamageMultiplier, buildCustomGradeTable, getGradeTableForArt, getArtGradeInfoFromTable } from '../store/gameStore';
 import { getArtDef, getMasteryDefsForArt, getMasteryDef, type ArtDef, type MasteryDef, type ProficiencyType } from '../data/arts';
 import { getTierDef, getMaxSimdeuk } from '../data/tiers';
 import { BALANCE_PARAMS } from '../data/balance';
 import { getBijupDefByMastery } from '../data/materials';
 import ArtGradeBar from './arts/ArtGradeBar';
 import { formatPassiveEffectSummary, PROF_STAGE_LABELS, STAR_HANJA, GRADE_KOREAN } from './arts/artsUtils';
+
+function getSamjaeGradeDisplay(cumExp: number): string {
+  const table = buildCustomGradeTable(6, 5000);
+  const { starIndex } = getArtGradeInfoFromTable(cumExp, table);
+  const star = Math.min(starIndex, 6);
+  return star >= 6 ? `${star}성 完` : `${star}성`;
+}
 
 export default function ArtsTab() {
   const ownedArts = useGameStore(s => s.ownedArts);
@@ -236,7 +243,7 @@ export default function ArtsTab() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{simbeopDef.name}</span>
                 <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                  {GRADE_KOREAN[getArtCurrentGrade('samjae_simbeop', artGradeExp) - 1]}
+                  {getSamjaeGradeDisplay(artGradeExp['samjae_simbeop'] ?? 0)}
                 </span>
                 {!simbeopExpanded && (
                   <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 4 }}>
@@ -448,6 +455,10 @@ function MasteryPanel({ artId, totalSimdeuk, artGradeExp, materials, tier, disco
   const isEquipped = equippedArts.includes(artId) || equippedSimbeop === artId;
 
   const currentGrade = getArtGradeInfo(artGradeExp).stageIndex + 1;
+  const gradeTable = getGradeTableForArt(artDef);
+  const currentStarIndex = gradeTable.length < 60
+    ? getArtGradeInfoFromTable(artGradeExp, gradeTable).starIndex
+    : getArtGradeInfo(artGradeExp).starIndex;
 
   return (
     <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.03)', fontSize: 12 }}>
@@ -461,6 +472,7 @@ function MasteryPanel({ artId, totalSimdeuk, artGradeExp, materials, tier, disco
         {masteries.map((m, idx) => {
           const isActive = currentActive.includes(m.id);
           const isBijupType = m.discovery?.type === 'bijup';
+          const isArtStarType = m.discovery?.type === 'artStar';
 
           // ── 비급 타입 처리 ──
           if (isBijupType) {
@@ -524,6 +536,72 @@ function MasteryPanel({ artId, totalSimdeuk, artGradeExp, materials, tier, disco
                   )}
                   {m.description}
                 </div>
+                {m.flavorText && (
+                  <div style={{ fontSize: 10, fontStyle: 'italic', color: 'var(--text-dim)', marginTop: 2, paddingLeft: 22 }}>
+                    "{m.flavorText}"
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // ── artStar 타입 처리 ──
+          if (isArtStarType) {
+            const discoverStar = m.discovery!.starIndex!;
+            const unlockStar = m.discovery!.unlockStarIndex ?? discoverStar;
+            const discovered = currentStarIndex >= discoverStar;
+
+            // 해금됨 (활성 상태)
+            if (isActive) {
+              return (
+                <div key={m.id} className="mastery-item mastery-active">
+                  <div className="mastery-item-header">
+                    <div className="mastery-item-left">
+                      <span className="mastery-icon">☯</span>
+                      <span className="mastery-name mastery-name-active" style={{ color: 'var(--gold)' }}>
+                        {m.stage}초 — {m.name}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mastery-desc mastery-desc-active">{m.description}</div>
+                  {m.flavorText && (
+                    <div style={{ fontSize: 10, fontStyle: 'italic', color: 'var(--text-dim)', marginTop: 2, paddingLeft: 22 }}>
+                      "{m.flavorText}"
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            // 미발견 → ???
+            if (!discovered) {
+              return (
+                <div key={m.id} className="mastery-item mastery-locked-grade">
+                  <div className="mastery-item-header">
+                    <div className="mastery-item-left">
+                      <span className="mastery-icon">🔒</span>
+                      <span className="mastery-name" style={{ color: 'var(--text-dim)' }}>
+                        {m.stage}초 — ???
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // 발견 + 미해금 → 자동 해금 대기 표시
+            return (
+              <div key={m.id} className="mastery-item mastery-unlocked">
+                <div className="mastery-item-header">
+                  <div className="mastery-item-left">
+                    <span className="mastery-icon">⭐</span>
+                    <span className="mastery-name">{m.stage}초 — {m.name}</span>
+                    <span className="mastery-cost" style={{ color: 'var(--text-secondary)', fontSize: 10 }}>
+                      {unlockStar}성 도달 시 자동 해금
+                    </span>
+                  </div>
+                </div>
+                <div className="mastery-desc">{m.description}</div>
                 {m.flavorText && (
                   <div style={{ fontSize: 10, fontStyle: 'italic', color: 'var(--text-dim)', marginTop: 2, paddingLeft: 22 }}>
                     "{m.flavorText}"

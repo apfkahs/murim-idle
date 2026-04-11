@@ -185,8 +185,9 @@ export default function FieldDetailScreen({ fieldId, onBack }: { fieldId: string
           <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.03)' }}>
             {(() => {
               const revealedId = hiddenRevealedInField[fieldId];
-              if (revealedId) {
-                const hiddenMon = getMonsterDef(revealedId);
+              const isActualHidden = !!revealedId && field.hiddenMonsters.includes(revealedId);
+              if (isActualHidden) {
+                const hiddenMon = getMonsterDef(revealedId!);
                 return (
                   <div style={{ fontSize: 11, color: 'var(--gold)' }}>
                     히든: {hiddenMon?.name ?? revealedId}

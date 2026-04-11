@@ -15,6 +15,13 @@ const RARITY_COLOR: Record<string, string> = {
   superior: '#ffd76e',
 };
 
+function formatChance(chance: number): string {
+  const pct = chance * 100;
+  if (pct >= 1) return `${pct.toFixed(0)}%`;
+  if (pct >= 0.1) return `${pct.toFixed(1)}%`;
+  return `${pct.toFixed(2)}%`;
+}
+
 export default function ItemsScreen({ onBack }: { onBack: () => void }) {
   const craftedRecipes = useGameStore(s => s.craftedRecipes);
   const obtainedMaterials = useGameStore(s => s.obtainedMaterials);
@@ -143,7 +150,7 @@ export default function ItemsScreen({ onBack }: { onBack: () => void }) {
                                   padding: '3px 0', borderBottom: '1px solid var(--border)',
                                 }}>
                                   <span>{monster.name}</span>
-                                  <span style={{ color: 'var(--text-dim)' }}>{Math.round(chance * 100)}% 확률</span>
+                                  <span style={{ color: 'var(--text-dim)' }}>{formatChance(chance)} 확률</span>
                                 </div>
                               ))}
                             </div>

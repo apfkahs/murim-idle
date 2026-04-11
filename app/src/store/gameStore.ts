@@ -79,6 +79,7 @@ export {
   getArtCurrentGrade, getArtDamageMultiplier, getMaxEquippedArtGrade,
   getArtGradeInfo, getProfStarInfo, getProfDamageValue, getProficiencyGrade,
   getMonsterRevealLevel, PROF_TABLE, ART_GRADE_TABLE, PROF_STAGES,
+  buildCustomGradeTable, getGradeTableForArt, getArtGradeInfoFromTable,
   type ArtGradeInfo, type ProfStarInfo,
 } from '../utils/artUtils';
 

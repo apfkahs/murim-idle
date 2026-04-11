@@ -3,6 +3,7 @@ import { FIELDS } from '../../data/fields';
 import { getMonsterDef, getGradeName } from '../../data/monsters';
 import { ARTS } from '../../data/arts';
 import { EQUIPMENT } from '../../data/equipment';
+import { MATERIALS } from '../../data/materials';
 import { getEnemyImage, getEnemyEmoji } from '../../assets/index';
 import { ALL_MONSTERS, getDocRevealLevel, getNextThreshold } from './encyclopediaUtils';
 
@@ -131,6 +132,13 @@ export function MonsterListScreen({ fieldId, onBack, onSelect }: {
   );
 }
 
+function formatChance(chance: number): string {
+  const pct = chance * 100;
+  if (pct >= 1) return `${pct.toFixed(0)}%`;
+  if (pct >= 0.1) return `${pct.toFixed(1)}%`;
+  return `${pct.toFixed(2)}%`;
+}
+
 // ── MonsterDetailScreen ─────────────────────────────────────────────────────
 
 export function MonsterDetailScreen({ monsterId, onBack }: {
@@ -159,6 +167,10 @@ export function MonsterDetailScreen({ monsterId, onBack }: {
     ...(mon.equipDrops ?? []).map(d => {
       const equip = EQUIPMENT.find(e => e.id === d.equipId);
       return { name: equip?.name ?? d.equipId, type: '장비', chance: d.chance };
+    }),
+    ...(mon.materialDrops ?? []).map(d => {
+      const mat = MATERIALS.find(m => m.id === d.materialId);
+      return { name: mat?.name ?? d.materialId, type: '재료', chance: d.chance };
     }),
   ];
 
@@ -247,7 +259,7 @@ export function MonsterDetailScreen({ monsterId, onBack }: {
                   <td style={{ padding: '6px 0' }}>{d.name}</td>
                   <td style={{ padding: '6px 0', color: 'var(--text-dim)' }}>{d.type}</td>
                   <td style={{ padding: '6px 0', textAlign: 'right' }}>
-                    {reveal >= 6 ? `${(d.chance * 100).toFixed(0)}%` : QM}
+                    {reveal >= 6 ? formatChance(d.chance) : QM}
                   </td>
                 </tr>
               ))}

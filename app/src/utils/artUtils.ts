@@ -2,6 +2,7 @@
  * 무공/숙련도 관련 순수 유틸 함수 모음
  * gameStore.ts에서 분리된 상태 독립 함수들
  */
+import type { ArtDef } from '../data/arts';
 
 // ============================================================
 // 숙련도 5단계/12성 (60성) 시스템
@@ -83,6 +84,59 @@ function buildArtGradeTable(): ProfStarEntry[] {
 }
 
 export const ART_GRADE_TABLE = buildArtGradeTable();
+
+/** 커스텀 최대 별 수와 첫 별 경험치로 등급 테이블 빌드 */
+export function buildCustomGradeTable(maxStars: number, startExp: number): ProfStarEntry[] {
+  const table: ProfStarEntry[] = [];
+  let rawExp = startExp;
+  let eff = ART_GRADE_BALANCE.START_EFFICIENCY;
+  let dmg = ART_GRADE_BALANCE.BASE_DAMAGE;
+  let totalExp = 0;
+  for (let i = 1; i <= maxStars; i++) {
+    if (i === 1) {
+      totalExp += rawExp;
+      table.push({ reqExp: rawExp, cumExp: totalExp, profDamage: 0 });
+    } else {
+      rawExp *= (i - 1) % maxStars === 0
+        ? ART_GRADE_BALANCE.LEVEL_UP_MULTIPLIER
+        : ART_GRADE_BALANCE.STAR_MULTIPLIER;
+      eff *= ART_GRADE_BALANCE.EFFICIENCY_DECAY;
+      const disp = Math.round(rawExp / 100) * 100;
+      dmg += disp * eff;
+      totalExp += disp;
+      table.push({ reqExp: disp, cumExp: totalExp, profDamage: Math.floor(dmg) - ART_GRADE_BALANCE.BASE_DAMAGE });
+    }
+  }
+  return table;
+}
+
+/** 무공 정의의 gradeMaxStars 설정 여부에 따라 적절한 테이블 반환 */
+export function getGradeTableForArt(artDef: ArtDef): ProfStarEntry[] {
+  if (artDef.growth.gradeMaxStars) {
+    return buildCustomGradeTable(
+      artDef.growth.gradeMaxStars,
+      artDef.growth.gradeStartExp ?? ART_GRADE_TABLE[0].reqExp,
+    );
+  }
+  return ART_GRADE_TABLE;
+}
+
+/** 커스텀 테이블을 직접 받는 등급 정보 반환 */
+export function getArtGradeInfoFromTable(cumExp: number, table: ProfStarEntry[]): ArtGradeInfo {
+  if (cumExp < table[0].cumExp) {
+    return { stageIndex: 0, star: 1, starIndex: 1, progress: cumExp / table[0].reqExp };
+  }
+  let si = 0;
+  for (let i = 0; i < table.length; i++) {
+    if (cumExp >= table[i].cumExp) si = i;
+    else break;
+  }
+  const stageIndex = 0;
+  const star = si + 1;
+  const isMax = si >= table.length - 1;
+  const progress = isMax ? 1 : (cumExp - table[si].cumExp) / table[si + 1].reqExp;
+  return { stageIndex, star, starIndex: si + 1, progress };
+}
 
 export interface ArtGradeInfo {
   stageIndex: number; // 0-4
