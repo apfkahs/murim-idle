@@ -1,0 +1,271 @@
+/* styles/field.css — Tab padding, character circle, neigong, battlefield, monsters, iOS safe area */
+
+/* ────────────────────────────────
+   탭바 하단 여백
+   ──────────────────────────────── */
+.app-content {
+  padding-bottom: 72px;
+}
+
+/* ────────────────────────────────
+   캐릭터 원형 영역 (2.1)
+   ──────────────────────────────── */
+.char-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%);
+  margin: 0 auto 12px;
+}
+
+.char-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* ────────────────────────────────
+   심법 카드 내부 (2.1)
+   ──────────────────────────────── */
+.simbeop-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(100,180,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+/* ────────────────────────────────
+   보스 타이머 바
+   ──────────────────────────────── */
+.boss-timer-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.boss-timer-fill {
+  height: 100%;
+  background: var(--red);
+  border-radius: 2px;
+  transition: width 0.2s;
+}
+
+/* ────────────────────────────────
+   UI개편 CSS 클래스
+   ──────────────────────────────── */
+
+/* 내공 값/비율/회복 */
+.neigong-value {
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.neigong-rate {
+  font-size: 12px;
+  color: var(--green);
+  margin-top: 4px;
+}
+
+.heal-link {
+  font-size: 11px;
+  color: var(--blue);
+  margin-top: 8px;
+}
+
+.heal-link.disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
+.heal-link:not(.disabled) {
+  cursor: pointer;
+  opacity: 1;
+}
+
+/* 경지 요구사항 */
+.tier-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tier-requirements {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 8px;
+}
+
+/* 포인트/경고 */
+.points-display {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.battle-warning {
+  font-size: 12px;
+  color: var(--red);
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* 전장 카드 */
+.field-card {
+  cursor: pointer;
+}
+
+.field-card.locked {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 전장 상세 헤더 */
+.field-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.field-back-btn {
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0.6;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+}
+
+.field-back-btn:hover {
+  opacity: 1;
+}
+
+/* 전장 상세 배경 배너 */
+.field-detail-banner {
+  position: relative;
+  height: 120px;
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(20, 20, 40, 0.6);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.field-detail-banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.3));
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+/* 몬스터 썸네일 */
+.monster-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.monster-emoji-thumb {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+/* 몬스터 행 */
+.monster-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.monster-row + .monster-row {
+  border-top: 1px solid rgba(255,255,255,0.03);
+}
+
+.monster-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.monster-name {
+  font-size: 13px;
+}
+
+.monster-stats {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-left: 8px;
+}
+
+/* 전투 레이아웃 */
+.battle-layout {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+}
+
+.battle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+/* 전투 결과 */
+.battle-result {
+  text-align: center;
+  padding: 32px;
+}
+
+.battle-result-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.battle-result-title.win {
+  color: var(--gold);
+}
+
+.battle-result-title.lose {
+  color: var(--red);
+}
+
+.battle-result-actions {
+  margin-top: 8px;
+}
+
+/* iOS 안전 영역 */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .tab-bar {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* 탭 버튼 크기 조정 */
+.tab-btn {
+  font-size: 8px;
+}

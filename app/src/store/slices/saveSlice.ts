@@ -134,7 +134,19 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         achievements: data.achievements ?? [],
         achievementCount: data.achievementCount ?? 0,
         killCounts: data.killCounts ?? {},
-        bossKillCounts: data.bossKillCounts ?? {},
+        bossKillCounts: (() => {
+          if (data.bossKillCounts && Object.keys(data.bossKillCounts).length > 0) {
+            return data.bossKillCounts;
+          }
+          // 구버전 세이브 마이그레이션: bossKillCounts 필드가 없던 시절 killCounts에서 복원
+          const bossIds = ['tiger_boss', 'innkeeper_true', 'bandit_leader'];
+          const migrated: Record<string, number> = {};
+          for (const id of bossIds) {
+            const n = (data.killCounts ?? {})[id] ?? 0;
+            if (n > 0) migrated[id] = n;
+          }
+          return migrated;
+        })(),
         totalYasanKills: data.totalYasanKills ?? 0,
         totalKills: data.totalKills ?? 0,
         hiddenRevealedInField: data.hiddenRevealedInField ?? {},

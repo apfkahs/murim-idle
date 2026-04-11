@@ -1,0 +1,232 @@
+/* styles/components.css — Cards, buttons, badges, HP bar, progress bar, stars */
+
+/* ────────────────────────────────
+   1.5 카드 패널
+   ──────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.card-label {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+
+/* ────────────────────────────────
+   스탯 행
+   ──────────────────────────────── */
+.stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.stat-row + .stat-row {
+  border-top: 1px solid rgba(255,255,255,0.03);
+}
+
+.stat-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.stat-label {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.stat-level {
+  color: var(--text-primary);
+  font-size: 13px;
+  margin-left: auto;
+  margin-right: 12px;
+}
+
+.stat-cost {
+  color: var(--text-dim);
+  font-size: 11px;
+  margin-right: 8px;
+}
+
+/* ────────────────────────────────
+   1.4 버튼
+   ──────────────────────────────── */
+.btn {
+  padding: 8px 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.15);
+}
+
+.btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-small {
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+.btn-plus {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 300;
+}
+
+.btn-danger {
+  border-color: rgba(255,100,100,0.2);
+  color: var(--red);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgba(255,100,100,0.08);
+  border-color: rgba(255,100,100,0.3);
+}
+
+.btn-gold {
+  border-color: rgba(255,215,0,0.2);
+  color: var(--gold);
+}
+
+.btn-gold:hover:not(:disabled) {
+  background: rgba(255,215,0,0.06);
+  border-color: rgba(255,215,0,0.3);
+}
+
+.btn-gold.glow {
+  box-shadow: 0 0 12px rgba(255,215,0,0.15);
+}
+
+/* ────────────────────────────────
+   HP 바
+   ──────────────────────────────── */
+.hp-bar-container {
+  width: 100%;
+  height: 4px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.hp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(90,255,150,0.6), rgba(90,255,150,0.9));
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.enemy-hp-fill {
+  background: linear-gradient(90deg, rgba(255,100,100,0.5), rgba(255,100,100,0.8));
+}
+
+/* ────────────────────────────────
+   프로그레스 바
+   ──────────────────────────────── */
+.progress-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--gold);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+/* ────────────────────────────────
+   성급 별
+   ──────────────────────────────── */
+.stars {
+  color: var(--gold);
+  letter-spacing: 1px;
+  font-size: 11px;
+}
+
+.star-empty {
+  opacity: 0.2;
+}
+
+/* ────────────────────────────────
+   뱃지
+   ──────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.badge-gold {
+  border: 1px solid rgba(255,215,0,0.2);
+  background: rgba(255,215,0,0.05);
+  color: var(--gold);
+}
+
+.badge-faction-righteous {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(100,180,255,0.15);
+  color: rgba(100,180,255,0.6);
+}
+
+.badge-faction-evil {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255,100,100,0.15);
+  color: rgba(255,100,100,0.6);
+}
+
+.badge-art-type {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.badge-active {
+  background: rgba(255,215,0,0.12);
+  color: rgba(255,215,0,0.7);
+}
+.badge-passive {
+  background: rgba(100,200,150,0.12);
+  color: rgba(100,200,150,0.7);
+}
+.badge-bobeop {
+  background: rgba(180,140,255,0.12);
+  color: rgba(180,140,255,0.7);
+}

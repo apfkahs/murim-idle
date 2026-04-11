@@ -4,34 +4,18 @@ import type { GameState } from '../types';
 import { BALANCE_PARAMS } from '../../data/balance';
 import { TIERS } from '../../data/tiers';
 import { FIELDS } from '../../data/fields';
-import { getMasteryDef } from '../../data/arts';
-import { getArtDef } from '../../data/arts';
 import {
   calcMaxHp, calcTierMultiplier, calcQiPerSec,
   gatherEquipmentStats, gatherMasteryEffects,
 } from '../../utils/combatCalc';
+
+import { calcUsedPoints } from '../utils/sliceHelpers';
 
 const B = BALANCE_PARAMS;
 
 // ── 내부 헬퍼 ──
 function calcStatCost(level: number): number {
   return Math.max(1, Math.floor(Math.pow(level, 1.25)));
-}
-
-function calcUsedPoints(state: GameState): number {
-  let used = state.equippedArts.reduce((sum, artId) => {
-    const def = getArtDef(artId);
-    return sum + (def?.cost ?? 0);
-  }, 0);
-
-  for (const [artId, mIds] of Object.entries(state.activeMasteries)) {
-    for (const mId of mIds) {
-      const mDef = getMasteryDef(artId, mId);
-      if (mDef) used += mDef.pointCost;
-    }
-  }
-
-  return used;
 }
 
 export type ProgressSlice = {

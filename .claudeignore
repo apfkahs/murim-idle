@@ -1,0 +1,28 @@
+# ============================================
+# .claudeignore — 무림방치록 토큰 최적화
+# ============================================
+
+# --- 바이너리 에셋 (111MB PNG) ---
+# index.ts(에셋 매핑)는 유지, 이미지 폴더만 제외
+app/src/assets/arts/
+app/src/assets/backgrounds/
+app/src/assets/enemies/
+app/src/assets/methods/
+app/src/assets/player/
+
+# --- 빌드 산출물 & 의존성 ---
+node_modules/
+dist/
+app/package-lock.json
+
+# --- 아카이브/불필요 파일 ---
+unpacked_ui/
+reports/
+screencapture-*.png
+game-balance-designer.zip
+
+# --- Word 문서 (.md 버전 존재) ---
+docs/**/*.docx
+
+# --- 로컬 설정 ---
+.claude/settings.local.json

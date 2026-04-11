@@ -3,23 +3,7 @@ import type { GameStore } from '../gameStore';
 import type { GameState } from '../types';
 import { getArtDef, getMasteryDef, getMasteryDefsForArt } from '../../data/arts';
 import { getArtGradeInfo } from '../../utils/artUtils';
-
-// ── 내부 헬퍼 ──
-function calcUsedPoints(state: GameState): number {
-  let used = state.equippedArts.reduce((sum, artId) => {
-    const def = getArtDef(artId);
-    return sum + (def?.cost ?? 0);
-  }, 0);
-
-  for (const [artId, mIds] of Object.entries(state.activeMasteries)) {
-    for (const mId of mIds) {
-      const mDef = getMasteryDef(artId, mId);
-      if (mDef) used += mDef.pointCost;
-    }
-  }
-
-  return used;
-}
+import { calcUsedPoints } from '../utils/sliceHelpers';
 
 export type ArtsSlice = {
   // ── state ──

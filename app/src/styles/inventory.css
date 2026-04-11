@@ -1,0 +1,74 @@
+/* styles/inventory.css — Inventory tab */
+
+.inventory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inventory-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+}
+
+.inventory-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inventory-item-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.inventory-item-origin {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.inventory-item-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.inventory-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-card);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.inventory-btn.learn {
+  border-color: rgba(255, 215, 0, 0.3);
+  color: var(--gold);
+}
+.inventory-btn.learn:hover {
+  background: rgba(255, 215, 0, 0.1);
+  border-color: var(--gold);
+}
+
+.inventory-btn.discard {
+  color: var(--text-secondary);
+}
+.inventory-btn.discard:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+
+.inventory-owned-label {
+  font-size: 10px;
+  color: var(--text-dim);
+}

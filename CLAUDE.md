@@ -44,3 +44,61 @@
 - 에셋 생성: `app/scripts/generate-assets.ts` (DALL-E 이미지 생성)
 - Dev 서버 설정: `.claude/launch.json` (name: "dev", port: 5173)
 - Dev 서버 실행: `node node_modules/vite/bin/vite.js` (Windows에서 npx 사용 불가)
+
+## 핵심 파일 맵
+모든 경로는 `app/src/` 기준.
+
+| 영역 | 파일 |
+|------|------|
+| **데이터** | `data/arts.ts`, `monsters.ts`, `materials.ts`, `equipment.ts`, `fields.ts`, `achievements.ts`, `tiers.ts`, `balance.ts` |
+| **게임 로직** | `utils/gameLoop.ts` (오케스트레이터), `utils/combat/tickContext.ts` (공유 상태), `utils/combat/damageCalc.ts` (데미지 계산), `utils/combat/playerCombat.ts` (플레이어 공격), `utils/combat/enemyCombat.ts` (적 공격/보스), `utils/combat/battleRewards.ts` (처치 보상), `utils/combatCalc.ts` (전투 수식), `utils/artUtils.ts` (무공 유틸) |
+| **스토어** | `store/gameStore.ts` (진입점), `store/slices/` (artsSlice, combatSlice, inventorySlice, progressSlice, saveSlice), `store/types.ts`, `store/initialState.ts`, `store/utils/sliceHelpers.ts` (공유 헬퍼) |
+| **UI (탭)** | `components/ArtsTab.tsx`, `BattleTab.tsx`, `NeigongTab.tsx`, `InventoryTab.tsx`, `EquipmentTab.tsx`, `EncyclopediaTab.tsx`, `AchievementTab.tsx` + 서브: `arts/` (ArtGradeBar, MasteryPanel, artsUtils), `battle/`, `encyclopedia/` |
+| **UI (모달)** | `components/EnlightenmentModal.tsx`, `OfflineResultModal.tsx`, `SaveSlotModal.tsx` |
+| **유틸(기타)** | `utils/format.ts` (포맷팅) |
+| **타입** | `types/index.ts` |
+| **스타일** | `styles/variables.css`, `layout.css`, `components.css`, `battle.css`, `field.css`, `arts.css`, `modals.css`, `misc.css`, `inventory.css`, `equipment.css` |
+| **테스트** | `testAdapter.ts` (테스트 인터페이스), `scripts/test-*.ts` (밸런스 테스트) |
+| **에셋** | `assets/index.ts` (에셋 매핑, 이미지 폴더는 .claudeignore 제외) |
+
+## 자주 수정하는 파일 (최근 30커밋 기준, 정기 갱신 필요)
+
+| 순위 | 파일 | 수정 횟수 |
+|------|------|-----------|
+| 1 | `store/gameStore.ts` | 21 |
+| 2 | `components/ArtsTab.tsx` | 15 |
+| 3 | `data/arts.ts` | 13 |
+| 4 | `data/monsters.ts` | 12 |
+| 5 | `components/BattleTab.tsx` | 11 |
+| 6 | `styles/*.css` (구 index.css) | 7 |
+| 7 | `components/NeigongTab.tsx` | 7 |
+| 8 | `components/InventoryTab.tsx` | 7 |
+| 9 | `utils/gameLoop.ts` | 6 |
+| 10 | `data/materials.ts` | 6 |
+
+마지막 갱신: `ee3b688`
+
+## 접근 제한 영역
+
+| 경로 | 상태 | 비고 |
+|------|------|------|
+| `app/src/assets/` (이미지 폴더) | .claudeignore 제외 | `assets/index.ts` 매핑만 접근 가능 |
+| `reports/` | .claudeignore 제외 | balance-tester가 생성, 직접 접근 불가 |
+| `unpacked_ui/` | .claudeignore 제외 | 아카이브, 접근 불가 |
+| `docs/버전히스토리/` | 읽기 전용 | 수정 금지 |
+
+## 에이전트별 작업 범위 (에이전트 .md 수정 시 이 표도 갱신)
+
+| 에이전트 | 접근 파일 | 역할 |
+|----------|-----------|------|
+| **combat-dev** | `store/gameStore.ts`, `store/slices/*`, `store/utils/*`, `utils/gameLoop.ts`, `utils/combat/*`, `utils/combatCalc.ts`, `testAdapter.ts` | 전투/성장 로직 구현 |
+| **content-writer** | `data/arts.ts`, `data/monsters.ts`, `data/fields.ts`, `data/achievements.ts`, `data/materials.ts`, `scripts/generate-assets.ts` | 무공/몬스터/전장/업적 데이터 추가 |
+| **ui-dev** | `components/*.tsx`, `components/arts/*`, `styles/*.css`, `App.tsx` | UI 레이아웃/스타일/애니메이션 |
+| **balance-tester** | `scripts/test-*.ts`, `scripts/test-helpers.ts`, `testAdapter.ts` (읽기), `data/*.ts` (읽기) | 밸런스 테스트 & 리포트 |
+
+## 자동 유지보수 규칙
+- 새 파일을 생성하면 "핵심 파일 맵"에 추가
+- 파일을 삭제/이동하면 파일 맵에서 제거
+- 새 에셋 폴더가 추가되면 .claudeignore에 추가
+- 에이전트 .md를 수정하면 "에이전트별 작업 범위" 표도 갱신
+- 수정 빈도 TOP 10: 40커밋마다 갱신 (마지막 갱신 커밋 해시를 표 아래에 기록)

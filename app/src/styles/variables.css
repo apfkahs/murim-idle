@@ -1,0 +1,52 @@
+/* styles/variables.css — CSS variables & reset */
+
+/* 무림 방치록 — UI개편 글로벌 스타일 */
+
+/* ────────────────────────────────
+   1.1 전체 톤 & 1.2 색상
+   ──────────────────────────────── */
+:root {
+  --bg-primary: #1e1e2e;
+  --bg-card: rgba(255,255,255,0.06);
+  --border-card: rgba(255,255,255,0.10);
+
+  --text-primary: rgba(255,255,255,0.9);
+  --text-secondary: rgba(255,255,255,0.45);
+  --text-dim: rgba(255,255,255,0.28);
+
+  --gold: rgba(255,215,0,0.9);
+  --blue: rgba(100,180,255,0.85);
+  --green: rgba(90,255,150,0.8);
+  --red: rgba(255,100,100,0.7);
+  --grey: rgba(255,255,255,0.3);
+
+  /* stat dots */
+  --dot-sungi: #60a5fa;
+  --dot-gyeongsin: #a78bfa;
+  --dot-magi: #f87171;
+
+  --font-body: 'Noto Sans KR', sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
