@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { getArtDef } from '../../data/arts';
 import { getMonsterDef } from '../../data/monsters';
@@ -15,17 +14,6 @@ export default function BattleResultScreen() {
   const qi = useGameStore(s => s.qi);
   const pendingHuntRetry = useGameStore(s => s.pendingHuntRetry);
   const huntTarget = useGameStore(s => s.huntTarget);
-  const currentField = useGameStore(s => s.currentField);
-  const autoExploreFields = useGameStore(s => s.autoExploreFields);
-
-  useEffect(() => {
-    const isAutoOn = currentField && autoExploreFields[currentField];
-    if (battleResult?.type === 'explore_win' && isAutoOn) {
-      const timer = setTimeout(() => dismissBattleResult(), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [battleResult, currentField, autoExploreFields]);
-
   if (!battleResult) return null;
 
   const isWin = battleResult.type === 'explore_win';

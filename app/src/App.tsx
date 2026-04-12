@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useGameStore, type OfflineResult } from './store/gameStore';
+import pkg from '../package.json';
 import NeigongTab from './components/NeigongTab';
 import ArtsTab from './components/ArtsTab';
 import BattleTab from './components/BattleTab';
@@ -32,6 +33,10 @@ export default function App() {
   const gameSpeed = useGameStore(s => s.gameSpeed);
   const setGameSpeed = useGameStore(s => s.setGameSpeed);
   const inventoryCount = useGameStore(s => s.inventory.length);
+  const battleResult = useGameStore(s => s.battleResult);
+  const currentField = useGameStore(s => s.currentField);
+  const autoExploreFields = useGameStore(s => s.autoExploreFields);
+  const dismissBattleResult = useGameStore(s => s.dismissBattleResult);
   const saveTimerRef = useRef(0);
   const hiddenAtRef = useRef<number | null>(null);
 
@@ -81,6 +86,16 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
+  // 자동 답파 결과 자동 처리 (탭 전환 무관)
+  useEffect(() => {
+    const isAutoOn = currentField && autoExploreFields[currentField];
+    if ((battleResult?.type === 'explore_win' || battleResult?.type === 'death') && isAutoOn) {
+      const delay = battleResult.type === 'explore_win' ? 3000 : 2000;
+      const timer = setTimeout(() => dismissBattleResult(), delay);
+      return () => clearTimeout(timer);
+    }
+  }, [battleResult, currentField, autoExploreFields, dismissBattleResult]);
+
   // Game loop: 1s ticks
   useEffect(() => {
     const interval = setInterval(() => {
@@ -129,6 +144,8 @@ export default function App() {
         {activeTab === 'battle' && <BattleTab />}
         {activeTab === 'encyclopedia' && <EncyclopediaTab />}
       </main>
+
+      <span className="app-version">v{pkg.version}</span>
 
       <nav className="tab-bar">
         {TABS.map(tab => (

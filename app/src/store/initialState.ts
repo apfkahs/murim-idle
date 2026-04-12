@@ -32,6 +32,7 @@ export function createInitialState(): GameState {
     battleMode: 'none',
     huntTarget: null,
     pendingHuntRetry: false,
+    pendingAutoExplore: false,
     currentEnemy: null,
     exploreStep: 0,
     exploreOrder: [],

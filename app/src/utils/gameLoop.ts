@@ -11,6 +11,7 @@
  */
 import { BALANCE_PARAMS } from '../data/balance';
 import { getMonsterDef, BOSS_PATTERNS } from '../data/monsters';
+import { getFieldDef, generateExploreOrder } from '../data/fields';
 import { calcMaxHp, spawnEnemy } from './combatCalc';
 import { createTickContext, applyBattleReset, buildResult } from './combat/tickContext';
 import { buildAchievementContext, ACHIEVEMENTS } from './combat/damageCalc';
@@ -53,6 +54,37 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           ? { bossStamina: BOSS_PATTERNS[ctx.huntTarget].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
           : null;
         if (!isSimulating) ctx.battleLog = [...ctx.battleLog, `— ${retryMon.name} 자동 재도전 —`];
+      }
+    }
+
+    // 자동 답파 재시작 (사망 후 HP 회복 시)
+    if (ctx.pendingAutoExplore && ctx.hp >= ctx.maxHp * 0.5 && ctx.currentField && state.autoExploreFields?.[ctx.currentField]) {
+      const field = getFieldDef(ctx.currentField);
+      if (field?.canExplore) {
+        const order = generateExploreOrder(field);
+        const firstMon = getMonsterDef(order[0]);
+        if (firstMon) {
+          ctx.pendingAutoExplore = false;
+          ctx.battleMode = 'explore';
+          ctx.currentEnemy = spawnEnemy(firstMon);
+          ctx.exploreOrder = order;
+          ctx.exploreStep = 0;
+          ctx.isBossPhase = false;
+          ctx.bossTimer = 0;
+          ctx.explorePendingRewards = { simdeuk: 0, drops: [] };
+          ctx.battleResult = null;
+          ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
+          ctx.enemyAttackTimer = firstMon.attackInterval;
+          ctx.bossPatternState = BOSS_PATTERNS[order[0]]
+            ? { bossStamina: BOSS_PATTERNS[order[0]].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
+            : null;
+          ctx.playerStunTimer = 0;
+          if (!ctx.isSimulating) ctx.battleLog = [`— ${firstMon.name} 등장 —`];
+        } else {
+          ctx.pendingAutoExplore = false;
+        }
+      } else {
+        ctx.pendingAutoExplore = false;
       }
     }
   }

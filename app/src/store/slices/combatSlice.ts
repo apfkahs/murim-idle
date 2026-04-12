@@ -184,6 +184,14 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
           autoExploreFields: { ...state.autoExploreFields, [fieldId]: false },
         });
         return;
+      } else if (result?.type === 'death') {
+        // 사망 + 자동 답파: HP 회복 후 재탐험 예약
+        set({
+          battleResult: null,
+          pendingHuntRetry: false,
+          pendingAutoExplore: true,
+        });
+        return;
       }
     }
 

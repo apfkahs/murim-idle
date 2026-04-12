@@ -92,6 +92,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
       knownEquipment: state.knownEquipment,
       proficiency: state.proficiency,
       autoExploreFields: state.autoExploreFields,
+      pendingAutoExplore: state.pendingAutoExplore,
       currentSaveSlot: targetSlot,
       lastTickTime: Date.now(),
       savedAt: Date.now(),
@@ -241,6 +242,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         obtainedMaterials: data.obtainedMaterials ?? [],
         knownEquipment: data.knownEquipment ?? [],
         dodgeCounterActive: data.dodgeCounterActive ?? false,
+        pendingAutoExplore: data.pendingAutoExplore ?? false,
         currentSaveSlot: slot,
         battleResult: null,
         battleLog: [],
@@ -461,6 +463,18 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
             } as GameState;
           }
         }
+      }
+      // 사망 + 자동 답파: result 닫고 pendingAutoExplore 예약
+      if (
+        currentState.battleResult?.type === 'death' &&
+        currentState.currentField &&
+        currentState.autoExploreFields[currentState.currentField]
+      ) {
+        currentState = {
+          ...currentState,
+          battleResult: null,
+          pendingAutoExplore: true,
+        } as GameState;
       }
     }
 

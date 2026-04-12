@@ -75,6 +75,21 @@
 /* ────────────────────────────────
    1.6 탭바
    ──────────────────────────────── */
+/* ────────────────────────────────
+   버전 표시
+   ──────────────────────────────── */
+.app-version {
+  position: fixed;
+  bottom: 52px;
+  right: 6px;
+  font-size: 9px;
+  color: rgba(255,255,255,0.18);
+  z-index: 49;
+  pointer-events: none;
+  letter-spacing: 0.3px;
+  font-family: var(--font-body);
+}
+
 .tab-bar {
   display: flex;
   position: fixed;

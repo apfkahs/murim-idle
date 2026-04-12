@@ -61,6 +61,7 @@ export interface TickContext {
   playerStunTimer: number;
   lastEnemyAttack: GameState['lastEnemyAttack'];
   pendingHuntRetry: boolean;
+  pendingAutoExplore: boolean;
   dodgeCounterActive: boolean;
   playerFinisherCharge: GameState['playerFinisherCharge'];
   totalKills: number;
@@ -113,6 +114,7 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
     bossPatternState, playerStunTimer, lastEnemyAttack,
     pendingHuntRetry,
   } = state;
+  let pendingAutoExplore = state.pendingAutoExplore ?? false;
   let dodgeCounterActive = state.dodgeCounterActive ?? false;
   let playerFinisherCharge = state.playerFinisherCharge ?? null;
   let totalKills = state.totalKills ?? 0;
@@ -186,7 +188,7 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
     discoveredMasteries, pendingEnlightenments,
     stamina, currentBattleDuration, currentBattleDamageDealt,
     bossPatternState, playerStunTimer, lastEnemyAttack,
-    pendingHuntRetry, dodgeCounterActive, playerFinisherCharge,
+    pendingHuntRetry, pendingAutoExplore, dodgeCounterActive, playerFinisherCharge,
     totalKills, hiddenRevealedInField,
     equipmentInventory, materials, artGradeExp, activeMasteries,
     obtainedMaterials, knownEquipment, ultCooldowns,
@@ -260,7 +262,7 @@ export function buildResult(ctx: TickContext, extras: {
     obtainedMaterials: ctx.obtainedMaterials, knownEquipment: ctx.knownEquipment,
     bossPatternState: ctx.bossPatternState, playerStunTimer: ctx.playerStunTimer, lastEnemyAttack: ctx.lastEnemyAttack,
     proficiency: ctx.proficiency, artGradeExp: ctx.artGradeExp, activeMasteries: ctx.activeMasteries,
-    pendingHuntRetry: ctx.pendingHuntRetry, dodgeCounterActive: ctx.dodgeCounterActive,
+    pendingHuntRetry: ctx.pendingHuntRetry, pendingAutoExplore: ctx.pendingAutoExplore, dodgeCounterActive: ctx.dodgeCounterActive,
     playerFinisherCharge: ctx.playerFinisherCharge,
   };
 

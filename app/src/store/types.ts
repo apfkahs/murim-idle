@@ -92,6 +92,7 @@ export interface GameState {
   battleMode: 'none' | 'explore' | 'hunt';
   huntTarget: string | null;
   pendingHuntRetry: boolean;
+  pendingAutoExplore: boolean;
   currentEnemy: {
     id: string; hp: number; maxHp: number; attackPower: number;
     attackInterval: number; regen: number;
