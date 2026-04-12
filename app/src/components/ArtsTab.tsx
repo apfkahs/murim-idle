@@ -356,9 +356,9 @@ export default function ArtsTab() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={e => e.stopPropagation()}>
                   {isEquipped ? (
-                    <button className="btn btn-small btn-danger" onClick={() => unequipArt(owned.id)} disabled={battling}>해제</button>
+                    <button className="btn btn-small btn-danger" onClick={() => def.artType === 'simbeop' ? unequipSimbeop() : unequipArt(owned.id)} disabled={battling}>해제</button>
                   ) : (
-                    <button className="btn btn-small" onClick={() => equipArt(owned.id)} disabled={battling || availablePoints < def.cost}>장착</button>
+                    <button className="btn btn-small" onClick={() => def.artType === 'simbeop' ? equipSimbeop(owned.id) : equipArt(owned.id)} disabled={battling || (def.artType !== 'simbeop' && availablePoints < def.cost)}>장착</button>
                   )}
                   <span style={{ fontSize: 12, color: 'var(--text-dim)', padding: '0 4px' }}>
                     {expanded ? '▲' : '▼'}
