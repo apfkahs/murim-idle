@@ -61,6 +61,9 @@ export interface MasteryDef {
   effects?: MasteryEffects;
   requiredArtGrade?: number;  // bijup 타입: 비급 사용에 필요한 최소 무공 등급
   autoActivate?: boolean;     // true이면 무공 획득 즉시 자동 활성화 (포인트 불필요)
+  isUltSlot?: boolean;        // true: "절초 — X" 표시, 번호 초식 목록에서 제외
+  isUltReplace?: boolean;     // true: 활성화 시 절초 슬롯 이름/설명 교체 (비급 타입)
+  inlineInParent?: string;    // 부모 mastery ID — 별도 행 대신 부모 카드 내 인라인 렌더
 }
 
 // ── 성장 커브 ──
@@ -393,12 +396,15 @@ export const ARTS: ArtDef[] = [
     ultBypassWeakDefense: true,
     gradeDamageMultipliers: [2.00, 2.14, 2.27, 2.41, 2.55, 2.68, 2.82, 2.95, 3.09, 3.23, 3.36, 3.50],
     masteryGradeMultiplierBonus: {
-      nokrim_fist_chokmokta_cap: 0.5,
-      nokrim_fist_mokseok_cap: 0.5,
-      nokrim_fist_gomokpa_cap: 0.5,
+      nokrim_fist_chokmokta_cap: 0.35,
+      nokrim_fist_mokseok_cap: 0.35,
+      nokrim_fist_gomokpa_cap: 0.35,
     },
     normalMessages: ['녹림권의 일격!', '거친 권풍이 몰아친다!'],
     ultMessages: ['강렬한 일권(一拳)! 기를 응집하여 폭발적인 일격을 날린다!'],
+    descriptionByStage: [
+      '녹림(綠林)의 거친 산야에서 다듬어진 실전 권법.\n화려한 초식도, 심오한 이치도 없다. 오직 상대를 쓰러뜨리겠다는 하나의 집념만이 이 권법을 이루고 있다.',
+    ],
     growth: { gradeMaxStars: 12 },
     masteries: [
       {
@@ -410,6 +416,7 @@ export const ARTS: ArtDef[] = [
         pointCost: 0,
         effects: { unlockUlt: true },
         autoActivate: true,
+        isUltSlot: true,
       },
       {
         stage: 2,
@@ -420,6 +427,7 @@ export const ARTS: ArtDef[] = [
         pointCost: 0,
         requiredArtGrade: 4,
         discovery: { type: 'bijup' },
+        isUltReplace: true,
         effects: {
           ultChange: {
             name: '격산타우(隔山打牛)',
@@ -431,7 +439,7 @@ export const ARTS: ArtDef[] = [
         },
       },
       {
-        stage: 3,
+        stage: 1,
         id: 'nokrim_fist_chokmokta',
         name: '초목타(草木打)',
         description: '치명타 확률 +10%, 공격 간격 배율 1.5→1.4',
@@ -448,15 +456,16 @@ export const ARTS: ArtDef[] = [
         stage: 4,
         id: 'nokrim_fist_chokmokta_cap',
         name: '초목타 배율 강화',
-        description: '초식 배율 상한 +0.5',
+        description: '초식 배율 상한 +0.35',
         flavorText: '초목의 유연함이 초식에 담기며 일격의 무게가 깊어진다.',
         requiredTier: 0,
         pointCost: 2,
         requires: ['nokrim_fist_chokmokta'],
+        inlineInParent: 'nokrim_fist_chokmokta',
         effects: {},
       },
       {
-        stage: 5,
+        stage: 2,
         id: 'nokrim_fist_mokseok',
         name: '목석격(木石擊)',
         description: '절초 명중 시 적 기절 2초 (보스 면역)',
@@ -472,15 +481,16 @@ export const ARTS: ArtDef[] = [
         stage: 6,
         id: 'nokrim_fist_mokseok_cap',
         name: '목석격 배율 강화',
-        description: '초식 배율 상한 +0.5',
+        description: '초식 배율 상한 +0.35',
         flavorText: '목석의 무게가 초식에 더해져 파괴력이 한층 높아진다.',
         requiredTier: 0,
         pointCost: 2,
         requires: ['nokrim_fist_mokseok'],
+        inlineInParent: 'nokrim_fist_mokseok',
         effects: {},
       },
       {
-        stage: 7,
+        stage: 3,
         id: 'nokrim_fist_gomokpa',
         name: '고목파(古木破)',
         description: '보스/히든 몬스터 대상 피해 +10%, 공격 간격 배율 추가 1.4→1.3',
@@ -497,11 +507,12 @@ export const ARTS: ArtDef[] = [
         stage: 8,
         id: 'nokrim_fist_gomokpa_cap',
         name: '고목파 배율 강화',
-        description: '초식 배율 상한 +0.5',
+        description: '초식 배율 상한 +0.35',
         flavorText: '고목을 쪼개는 힘이 초식에 녹아들어 최고의 경지에 이른다.',
         requiredTier: 0,
         pointCost: 2,
         requires: ['nokrim_fist_gomokpa'],
+        inlineInParent: 'nokrim_fist_gomokpa',
         effects: {},
       },
     ],

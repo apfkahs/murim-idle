@@ -2,6 +2,7 @@
  * MasteryPanel — 무공 초(招) 패널
  * ArtsTab.tsx에서 분리.
  */
+import { useState } from 'react';
 import { useGameStore, getArtGradeInfo, getGradeTableForArt, getArtGradeInfoFromTable } from '../../store/gameStore';
 import { getArtDef, getMasteryDefsForArt, getMasteryDef } from '../../data/arts';
 import { getTierDef } from '../../data/tiers';
@@ -28,6 +29,13 @@ export function MasteryPanel({ artId, artGradeExp, materials, tier, discoveredMa
   const artDef = getArtDef(artId);
   if (!artDef) return null;
 
+  const [collapsedCaps, setCollapsedCaps] = useState<Set<string>>(new Set());
+  const toggleCap = (id: string) => setCollapsedCaps(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
   const battling = battleMode !== 'none';
   const masteries = getMasteryDefsForArt(artId);
   const currentActive = activeMasteries[artId] ?? [];
@@ -41,6 +49,23 @@ export function MasteryPanel({ artId, artGradeExp, materials, tier, discoveredMa
     ? getArtGradeInfoFromTable(artGradeExp, gradeTable).starIndex
     : getArtGradeInfo(artGradeExp).starIndex;
 
+  // 절초 슬롯 초식 분류
+  const ultSlotMastery    = masteries.find(m => m.isUltSlot);
+  const ultReplaceMastery = masteries.find(m => m.isUltReplace);
+  const isUltReplaced     = ultReplaceMastery ? currentActive.includes(ultReplaceMastery.id) : false;
+
+  // 인라인 업그레이드 맵 (부모ID → 자식 MasteryDef)
+  const inlineMap = new Map<string, typeof masteries[number]>();
+  for (const m of masteries) {
+    if (m.inlineInParent) inlineMap.set(m.inlineInParent, m);
+  }
+
+  // 별도 행에서 제외할 ID 집합
+  const skipIds = new Set<string>();
+  if (ultSlotMastery)    skipIds.add(ultSlotMastery.id);
+  if (ultReplaceMastery) skipIds.add(ultReplaceMastery.id);
+  for (const m of masteries) if (m.inlineInParent) skipIds.add(m.id);
+
   return (
     <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.03)', fontSize: 12 }}>
       <div className="mastery-panel">
@@ -50,7 +75,57 @@ export function MasteryPanel({ artId, artGradeExp, materials, tier, discoveredMa
           <div className="mastery-unequipped-warn">효과 비활성 중 (미장착)</div>
         )}
 
+        {ultSlotMastery && (() => {
+          const bijupDef = ultReplaceMastery ? getBijupDefByMastery(ultReplaceMastery.id) : null;
+          const hasBijup  = bijupDef ? (materials[bijupDef.materialId] ?? 0) > 0 : false;
+          const gradeMet  = ultReplaceMastery
+            ? currentGrade >= (ultReplaceMastery.requiredArtGrade ?? 0)
+            : true;
+          const displayM  = isUltReplaced ? ultReplaceMastery! : ultSlotMastery;
+
+          return (
+            <div className="mastery-item mastery-active">
+              <div className="mastery-item-header">
+                <div className="mastery-item-left">
+                  <span className="mastery-icon">☯</span>
+                  <span className="mastery-name mastery-name-active" style={{ color: 'var(--gold)' }}>
+                    절초 — {displayM.name}
+                  </span>
+                  {!isUltReplaced && hasBijup && (
+                    <span className="mastery-cost" style={{ color: 'var(--gold)', fontSize: 10 }}>비급 보유</span>
+                  )}
+                </div>
+                <div className="mastery-item-right">
+                  {!isUltReplaced && hasBijup && bijupDef && (
+                    <button
+                      className="btn btn-small btn-gold"
+                      onClick={(e) => { e.stopPropagation(); useBijup(bijupDef.materialId); }}
+                      disabled={battling || !gradeMet || !isEquipped}
+                    >
+                      사용
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className={`mastery-desc ${isUltReplaced ? 'mastery-desc-active' : ''}`}>
+                {!isUltReplaced && hasBijup && !gradeMet && ultReplaceMastery && (
+                  <span className="mastery-lock-reason">
+                    {ultReplaceMastery.requiredArtGrade}등급 필요 (현재 {currentGrade}등급) |{' '}
+                  </span>
+                )}
+                {displayM.description}
+              </div>
+              {displayM.flavorText && (
+                <div style={{ fontSize: 10, fontStyle: 'italic', color: 'var(--text-dim)', marginTop: 2, paddingLeft: 22 }}>
+                  "{displayM.flavorText}"
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         {masteries.map((m, idx) => {
+          if (skipIds.has(m.id)) return null;
           const isActive = currentActive.includes(m.id);
           const isBijupType = m.discovery?.type === 'bijup';
           const isArtStarType = m.discovery?.type === 'artStar';
@@ -145,6 +220,44 @@ export function MasteryPanel({ artId, artGradeExp, materials, tier, discoveredMa
                       "{m.flavorText}"
                     </div>
                   )}
+                  {(() => {
+                    const cap = inlineMap.get(m.id);
+                    if (!cap) return null;
+                    const capActive = currentActive.includes(cap.id);
+                    const canCap = !capActive && getAvailablePoints() >= cap.pointCost && isEquipped && !battling;
+                    const capCollapsed = collapsedCaps.has(cap.id);
+                    return (
+                      <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px dashed rgba(255,255,255,0.08)', marginLeft: 14 }}>
+                        <div className="mastery-item-header" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); toggleCap(cap.id); }}>
+                          <div className="mastery-item-left">
+                            <span className="mastery-icon" style={{ fontSize: 10 }}>{capActive ? '✓' : '☐'}</span>
+                            <span className="mastery-name" style={{ fontSize: 11, color: capActive ? 'var(--gold)' : undefined }}>
+                              배율 강화 ({cap.pointCost}pt)
+                            </span>
+                            <span style={{ fontSize: 9, color: 'var(--text-dim)', marginLeft: 2 }}>{capCollapsed ? '▶' : '▼'}</span>
+                          </div>
+                          <div className="mastery-item-right" onClick={(e) => e.stopPropagation()}>
+                            {capActive
+                              ? <button className="btn btn-small btn-danger" onClick={(e) => { e.stopPropagation(); deactivateMastery(artId, cap.id); }} disabled={battling}>해제</button>
+                              : <button className="btn btn-small btn-gold" onClick={(e) => { e.stopPropagation(); activateMastery(artId, cap.id); }} disabled={!canCap}>투자</button>
+                            }
+                          </div>
+                        </div>
+                        {!capCollapsed && (
+                          <>
+                            <div className={`mastery-desc ${capActive ? 'mastery-desc-active' : ''}`} style={{ fontSize: 11 }}>
+                              {cap.description}
+                            </div>
+                            {cap.flavorText && (
+                              <div style={{ fontSize: 10, fontStyle: 'italic', color: 'var(--text-dim)', marginTop: 2, paddingLeft: 22 }}>
+                                "{cap.flavorText}"
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             }
