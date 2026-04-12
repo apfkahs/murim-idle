@@ -42,6 +42,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
 
     const saveData = {
       version: '4.0',
+      dataVersion: 1,
       qi: state.qi,
       totalSpentQi: state.totalSpentQi,
       stats: state.stats,
@@ -130,6 +131,9 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         return migrated;
       })();
 
+      const savedDataVersion = data.dataVersion ?? 0; // 미래 마이그레이션 게이팅용
+      void savedDataVersion;
+
       const tier = data.tier ?? 0;
       const tierMult = calcTierMultiplier(tier);
       const maxHp = calcMaxHp(data.stats?.che ?? 0, 0, tierMult);
@@ -147,12 +151,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         ownedArts: (data.ownedArts ?? []).map((a: { id: string }) => ({ id: a.id })),
         equippedArts: data.equippedArts ?? [],
         artPoints: data.artPoints ?? 3,
-        artGradeExp: (() => {
-          const gradeExp: Record<string, number> = { ...(data.artGradeExp ?? {}) };
-          // nokrim_fist 4→5등급 개편: 성급 테이블 변경으로 기존 artGradeExp 무효화
-          if ('nokrim_fist' in gradeExp) gradeExp.nokrim_fist = 0;
-          return gradeExp;
-        })(),
+        artGradeExp: { ...(data.artGradeExp ?? {}) },
         achievements: (() => {
           const achs: string[] = data.achievements ?? [];
           // 마이그레이션: 구 체인(first→3→5→10→all) → 신 체인(first→1→3→5→8→12→17→all)
