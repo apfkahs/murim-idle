@@ -67,7 +67,7 @@ export function getEnemyEmoji(key: string): string {
 const PLAYER_TIER_KEYS = ['tier0_hucheon', 'tier1_seongcheon', 'tier2_jeoljeong', 'tier3_hwagyeong'];
 
 export function getPlayerByTier(tier: number): { url: string | null; emoji: string } {
-  const key = PLAYER_TIER_KEYS[Math.min(tier, PLAYER_TIER_KEYS.length - 1)];
+  const key = PLAYER_TIER_KEYS[Math.min(Math.floor(tier / 3), PLAYER_TIER_KEYS.length - 1)];
   return {
     url: _playerMap[key] ?? null,
     emoji: '🧑',

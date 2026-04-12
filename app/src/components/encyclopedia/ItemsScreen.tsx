@@ -3,6 +3,7 @@ import { useGameStore } from '../../store/gameStore';
 import { FIELDS } from '../../data/fields';
 import { EQUIPMENT } from '../../data/equipment';
 import { MATERIALS, RECIPES } from '../../data/materials';
+import { ARTS } from '../../data/arts';
 import { ALL_MONSTERS } from './encyclopediaUtils';
 
 const RARITY_LABEL: Record<string, string> = {
@@ -26,6 +27,8 @@ export default function ItemsScreen({ onBack }: { onBack: () => void }) {
   const craftedRecipes = useGameStore(s => s.craftedRecipes);
   const obtainedMaterials = useGameStore(s => s.obtainedMaterials);
   const fieldUnlocks = useGameStore(s => s.fieldUnlocks);
+  const ownedArts = useGameStore(s => s.ownedArts);
+  const inventory = useGameStore(s => s.inventory);
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (id: string) => setExpanded(prev => {
@@ -34,7 +37,7 @@ export default function ItemsScreen({ onBack }: { onBack: () => void }) {
     return next;
   });
 
-  // 전장별 재료 목록 구성
+  // 전장별 재료 + 비급 목록 구성
   const fieldItems = FIELDS
     .filter(f => f.id === 'training' || (fieldUnlocks[f.id] ?? false))
     .map(field => {
@@ -49,9 +52,15 @@ export default function ItemsScreen({ onBack }: { onBack: () => void }) {
           return mon?.materialDrops?.some(d => d.materialId === mat.id);
         })
       );
-      return { field, mats };
+      const artDrops = ARTS.filter(art =>
+        allFieldMonsters.some(mId => {
+          const mon = ALL_MONSTERS.find(m => m.id === mId);
+          return mon?.drops?.some(d => d.artId === art.id);
+        })
+      );
+      return { field, mats, artDrops };
     })
-    .filter(({ mats }) => mats.length > 0);
+    .filter(({ mats, artDrops }) => mats.length > 0 || artDrops.length > 0);
 
   return (
     <div>
@@ -64,10 +73,16 @@ export default function ItemsScreen({ onBack }: { onBack: () => void }) {
         </p>
       )}
 
-      {fieldItems.map(({ field, mats }) => {
+      {fieldItems.map(({ field, mats, artDrops }) => {
         const fieldKey = `field-${field.id}`;
         const isFieldOpen = expanded.has(fieldKey);
-        const obtainedInField = mats.filter(m => obtainedMaterials.includes(m.id));
+
+        const obtainedMatsCount = mats.filter(m => obtainedMaterials.includes(m.id)).length;
+        const obtainedArtsCount = artDrops.filter(art =>
+          ownedArts.some(a => a.id === art.id) || inventory.some(i => i.itemType === 'art_scroll' && i.artId === art.id)
+        ).length;
+        const totalObtained = obtainedMatsCount + obtainedArtsCount;
+        const totalItems = mats.length + artDrops.length;
 
         return (
           <div key={field.id} style={{ marginBottom: 12 }}>
@@ -84,13 +99,14 @@ export default function ItemsScreen({ onBack }: { onBack: () => void }) {
                 {field.name}
               </span>
               <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                {obtainedInField.length}/{mats.length} 발견 {isFieldOpen ? '▲' : '▼'}
+                {totalObtained}/{totalItems} 발견 {isFieldOpen ? '▲' : '▼'}
               </span>
             </div>
 
-            {/* 전장 내 재료 목록 */}
+            {/* 전장 내 아이템 목록 */}
             {isFieldOpen && (
               <div style={{ paddingLeft: 4 }}>
+                {/* 재료 목록 */}
                 {mats.map(mat => {
                   const isObtained = obtainedMaterials.includes(mat.id);
                   if (!isObtained) {
@@ -193,6 +209,85 @@ export default function ItemsScreen({ onBack }: { onBack: () => void }) {
                     </div>
                   );
                 })}
+
+                {/* 비급 목록 */}
+                {artDrops.length > 0 && (
+                  <div style={{ marginTop: mats.length > 0 ? 8 : 0 }}>
+                    {mats.length > 0 && (
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6, paddingLeft: 2 }}>
+                        비급(祕笈)
+                      </div>
+                    )}
+                    {artDrops.map(art => {
+                      const isArtObtained = ownedArts.some(a => a.id === art.id)
+                        || inventory.some(i => i.itemType === 'art_scroll' && i.artId === art.id);
+
+                      if (!isArtObtained) {
+                        return (
+                          <div key={art.id} style={{
+                            padding: '7px 12px', marginBottom: 6,
+                            background: 'var(--bg-card)', borderRadius: 6,
+                            border: '1px solid var(--border)',
+                            color: 'var(--text-dim)', fontSize: 12, fontStyle: 'italic',
+                          }}>
+                            ???
+                          </div>
+                        );
+                      }
+
+                      const artKey = `art-${field.id}-${art.id}`;
+                      const isOpen = expanded.has(artKey);
+                      const artDropSources = ALL_MONSTERS
+                        .filter(m =>
+                          field.monsters.concat(field.hiddenMonsters, field.boss ? [field.boss] : []).includes(m.id)
+                          && m.drops?.some(d => d.artId === art.id)
+                        )
+                        .map(m => ({ monster: m, chance: m.drops!.find(d => d.artId === art.id)!.chance }));
+
+                      return (
+                        <div key={art.id} className="card" style={{ marginBottom: 6 }}>
+                          <div
+                            onClick={() => toggle(artKey)}
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                          >
+                            <div>
+                              <span style={{ fontWeight: 600, fontSize: 13 }}>{art.name}</span>
+                              <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 8 }}>비급(祕笈)</span>
+                            </div>
+                            <span style={{ fontSize: 11, color: 'var(--text-dim)', userSelect: 'none' }}>
+                              {isOpen ? '▲' : '▼'}
+                            </span>
+                          </div>
+
+                          {isOpen && (
+                            <div style={{ marginTop: 10 }}>
+                              {(art as any).descriptionByStage?.[0] && (
+                                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10, fontStyle: 'italic' }}>
+                                  {(art as any).descriptionByStage[0]}
+                                </div>
+                              )}
+                              {artDropSources.length > 0 && (
+                                <div>
+                                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>드롭처</div>
+                                  {artDropSources.map(({ monster, chance }) => (
+                                    <div key={monster.id} style={{
+                                      display: 'flex', justifyContent: 'space-between',
+                                      fontSize: 12, color: 'var(--text-primary)',
+                                      padding: '3px 0', borderBottom: '1px solid var(--border)',
+                                    }}>
+                                      <span>{monster.name}</span>
+                                      <span style={{ color: 'var(--text-dim)' }}>{formatChance(chance)} 확률</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
