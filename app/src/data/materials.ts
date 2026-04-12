@@ -314,7 +314,7 @@ export function getArtRecipeDef(id: string): ArtRecipeDef | undefined {
   return ART_RECIPES.find(r => r.id === id);
 }
 
-// ── 복합 재료 제작 레시피 (복수 재료 소모, 심득/무공 해금) ──
+// ── 복합 재료 제작 레시피 (복수 재료 소모, 무공 해금) ──
 export interface CompoundArtRecipeDef {
   id: string;
   name: string;

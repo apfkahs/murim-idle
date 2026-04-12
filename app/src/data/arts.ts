@@ -9,8 +9,7 @@ export type ArtType = 'active' | 'passive' | 'simbeop';
 export type ProficiencyType = 'sword' | 'palm' | 'footwork' | 'mental' | 'fist';
 // ── 발견 조건 ──
 export interface MasteryDiscovery {
-  type: 'simdeuk' | 'boss' | 'event' | 'bijup' | 'artStar';
-  threshold?: number;        // simdeuk 타입일 때 발견 심득
+  type: 'boss' | 'event' | 'bijup' | 'artStar';
   bossId?: string;           // boss 타입일 때 보스 ID
   starIndex?: number;        // artStar: 발견 조건 성 인덱스 (1-based)
   unlockStarIndex?: number;  // artStar: 자동 해금 성 인덱스 (미설정 시 starIndex와 동일)
@@ -51,7 +50,6 @@ export interface MasteryDef {
   name: string;
   description: string;
   flavorText?: string;
-  requiredSimdeuk: number;
   requiredTier: number;
   pointCost: number;
   requires?: string[];
@@ -175,7 +173,6 @@ export const ARTS: ArtDef[] = [
         name: '강한 내려치기',
         description: '절초 사용 가능. 내력이 충분하고 쿨타임이 돌아왔을 때 자동 발동.',
         flavorText: '내력을 실어 묵직하게 내려치는 기본 절초.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         autoActivate: true,  // 삼재검법 획득 즉시 자동 활성화
@@ -187,7 +184,6 @@ export const ARTS: ArtDef[] = [
         name: '삼재의 감각',
         description: '치명타 확률 +5%, 회피 +5%',
         flavorText: '싸울수록 몸이 적의 움직임에 익숙해진다.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         requiredArtGrade: 2,
@@ -203,7 +199,6 @@ export const ARTS: ArtDef[] = [
         name: '검의 숙련',
         description: '초식 배율 상한 +0.5, 치명타 확률 +5%, 치명타 데미지 +10%',
         flavorText: '반복된 수련으로 검을 다루는 솜씨가 한 단계 올랐다.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         requiredArtGrade: 3,
@@ -221,7 +216,6 @@ export const ARTS: ArtDef[] = [
         name: '비기: 태산압정',
         description: '절초가 태산압정으로 변화. 절초 배율 +1(총 ×4). 초식 상한 +0.5. 쿨타임 유지.',
         flavorText: '무거운 일격으로 적을 짓누르는 삼재검법의 오의.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         requiredArtGrade: 4,
@@ -266,7 +260,6 @@ export const ARTS: ArtDef[] = [
         name: '기맥 순환',
         description: '내력 회복 +1/초',
         flavorText: '호흡을 고르며 기맥의 흐름을 바로잡는다.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         discovery: { type: 'artStar', starIndex: 1, unlockStarIndex: 4 },  // 처음부터 표시, 4성 도달 시 자동 해금
@@ -278,7 +271,6 @@ export const ARTS: ArtDef[] = [
         name: '삼재 조화',
         description: '삼재검법 장착 시: 기운 +2/초, 전투 중 기운 +10%',
         flavorText: '검법과 심법을 함께 익혀 서로의 부족함을 메운다.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         discovery: { type: 'artStar', starIndex: 6, unlockStarIndex: 8 },  // 6성 발견, 8성 자동 해금
@@ -294,7 +286,6 @@ export const ARTS: ArtDef[] = [
         name: '전투 심법',
         description: '처치 시 전투시간 20%에 해당하는 기운 즉시 획득. 내력 회복 +1/초.',
         flavorText: '적을 쓰러뜨릴 때 흩어지는 기운을 거둬들인다.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         discovery: { type: 'artStar', starIndex: 10, unlockStarIndex: 12 },  // 10성 발견, 12성 자동 해금
@@ -309,7 +300,6 @@ export const ARTS: ArtDef[] = [
         name: '삼재심법 오의',
         description: '삼재심법의 진수. 기운 생산이 1.2배로 증가하고, 전투 기운 비율이 30%로 오른다.',
         flavorText: '세 가지 이치가 하나로 합쳐질 때, 천지의 기운이 손끝으로 모여든다.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         discovery: { type: 'bijup' },
@@ -347,7 +337,6 @@ export const ARTS: ArtDef[] = [
         name: '허술한 발놀림',
         description: '공격 속도 0.1초 추가 감소',
         flavorText: '발이 한결 더 빨라지는 것 같다.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         effects: { bonusAtkSpeed: 0.1 },
@@ -358,7 +347,6 @@ export const ARTS: ArtDef[] = [
         name: '가벼운 보법',
         description: '공격 속도 0.1초 추가 감소, 회피 +10%',
         flavorText: '몸이 한결 가볍게 느껴지며 적의 공격을 흘릴 수 있게 되었다.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         requires: ['crude_bobeop_1'],
@@ -370,7 +358,6 @@ export const ARTS: ArtDef[] = [
         name: '바람걸음',
         description: '공격 속도 0.1초 추가 감소, 회피 성공 시 50% 확률로 다음 공격 최종 피해 1.2배',
         flavorText: '바람처럼 흘리고 나면 적의 빈틈이 보인다.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         requires: ['crude_bobeop_2'],
@@ -407,7 +394,6 @@ export const ARTS: ArtDef[] = [
         id: 'nokrim_fist_ult',
         name: '강렬한 일권',
         description: '절초 강렬한 일권 사용 가능. 1.5턴 차지 후 공격력의 7배 데미지.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         effects: { unlockUlt: true },
@@ -418,7 +404,6 @@ export const ARTS: ArtDef[] = [
         id: 'nokrim_fist_geoksan',
         name: '격산타우(隔山打牛)',
         description: '강렬한 일권이 격산타우로 변화. 선공격 후 1.5턴 딜레이, 8배 데미지, 내력 50 필요.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         requiredArtGrade: 4,
@@ -460,7 +445,6 @@ export const ARTS: ArtDef[] = [
         name: '철포삼 오의',
         description: '받는 피해 추가 10% 감소, 최대 체력 +10%',
         flavorText: '강철 같은 몸이 완성될 때, 비로소 진정한 외공의 경지에 이른다.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
         requiredArtGrade: 1,
@@ -498,10 +482,8 @@ export const ARTS: ArtDef[] = [
         name: '마령 전투 수련',
         description: '전투 중에도 자연의 기운을 생산할 수 있게 된다.',
         flavorText: '마기를 삼켜 자신의 것으로 만들면, 싸우는 순간에도 기운이 샘솟는다.',
-        requiredSimdeuk: 0,
         requiredTier: 0,
         pointCost: 0,
-        discovery: { type: 'simdeuk', threshold: 0 },
         effects: {},
       },
     ],

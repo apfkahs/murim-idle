@@ -9,14 +9,13 @@ import { getBijupDefByMastery } from '../../data/materials';
 
 interface MasteryPanelProps {
   artId: string;
-  totalSimdeuk: number;
   artGradeExp: number;
   materials: Record<string, number>;
   tier: number;
   discoveredMasteries: string[];
 }
 
-export function MasteryPanel({ artId, totalSimdeuk, artGradeExp, materials, tier, discoveredMasteries }: MasteryPanelProps) {
+export function MasteryPanel({ artId, artGradeExp, materials, tier, discoveredMasteries }: MasteryPanelProps) {
   const activeMasteries = useGameStore(s => s.activeMasteries);
   const activateMastery = useGameStore(s => s.activateMastery);
   const deactivateMastery = useGameStore(s => s.deactivateMastery);
@@ -211,15 +210,14 @@ export function MasteryPanel({ artId, totalSimdeuk, artGradeExp, materials, tier
             );
           }
 
-          const simdeukMet = totalSimdeuk >= m.requiredSimdeuk;
           const tierMet = m.requiredTier === 0 || tier >= m.requiredTier;
           const requiresUnmet = m.requires ? m.requires.filter(rid => !currentActive.includes(rid)) : [];
           const prereqMet = requiresUnmet.length === 0;
-          const canActivate = !isActive && simdeukMet && tierMet && prereqMet && availPts >= m.pointCost && isEquipped;
+          const canActivate = !isActive && tierMet && prereqMet && availPts >= m.pointCost && isEquipped;
 
           let statusClass = 'mastery-locked-grade';
           if (isActive) statusClass = 'mastery-active';
-          else if (simdeukMet && tierMet) statusClass = 'mastery-unlocked';
+          else if (tierMet) statusClass = 'mastery-unlocked';
           else if (!tierMet) statusClass = 'mastery-locked-tier';
 
           return (
@@ -227,7 +225,7 @@ export function MasteryPanel({ artId, totalSimdeuk, artGradeExp, materials, tier
               <div className="mastery-item-header">
                 <div className="mastery-item-left">
                   <span className="mastery-icon">
-                    {isActive ? '☯' : (simdeukMet && tierMet) ? '☐' : '🔒'}
+                    {isActive ? '☯' : tierMet ? '☐' : '🔒'}
                   </span>
                   <span className={`mastery-name ${isActive ? 'mastery-name-active' : ''}`}
                     style={isActive ? { color: 'var(--gold)' } : undefined}
@@ -246,7 +244,7 @@ export function MasteryPanel({ artId, totalSimdeuk, artGradeExp, materials, tier
                       해제
                     </button>
                   )}
-                  {!isActive && simdeukMet && tierMet && (
+                  {!isActive && tierMet && (
                     <button
                       className="btn btn-small btn-gold"
                       onClick={(e) => { e.stopPropagation(); activateMastery(artId, m.id); }}
@@ -258,10 +256,7 @@ export function MasteryPanel({ artId, totalSimdeuk, artGradeExp, materials, tier
                 </div>
               </div>
               <div className={`mastery-desc ${isActive ? 'mastery-desc-active' : ''}`}>
-                {!simdeukMet && (
-                  <span className="mastery-lock-reason">심득 {totalSimdeuk}/{m.requiredSimdeuk} | </span>
-                )}
-                {simdeukMet && !tierMet && (
+                {!tierMet && (
                   <span className="mastery-lock-reason">{getTierDef(m.requiredTier).name} 필요 | </span>
                 )}
                 {m.description}

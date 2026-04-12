@@ -72,7 +72,6 @@ export default function AchievementTab() {
   const achievementCount = useGameStore(s => s.achievementCount);
   const totalYasanKills = useGameStore(s => s.totalYasanKills);
   const bossKillCounts = useGameStore(s => s.bossKillCounts);
-  const totalSimdeuk = useGameStore(s => s.totalSimdeuk);
   const ownedArts = useGameStore(s => s.ownedArts);
   const totalKills = useGameStore(s => s.totalKills);
   const stats = useGameStore(s => s.stats);
@@ -80,7 +79,6 @@ export default function AchievementTab() {
   const proficiency = useGameStore(s => s.proficiency);
 
   const totalStats = stats.gi + stats.sim + stats.che;
-  const maxArtSimdeuk = ownedArts.reduce((m, a) => Math.max(m, a.totalSimdeuk ?? 0), 0);
   const tigerBossKills = bossKillCounts['tiger_boss'] ?? 0;
   const innKills = INN_IDS.reduce((sum, id) => sum + (killCounts[id] ?? 0), 0);
   const cheonsanKills = CHEONSAN_IDS.reduce((sum, id) => sum + (killCounts[id] ?? 0), 0);

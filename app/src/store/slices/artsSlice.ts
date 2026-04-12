@@ -8,7 +8,7 @@ import { calcUsedPoints } from '../utils/sliceHelpers';
 export type ArtsSlice = {
   // ── state ──
   equippedSimbeop: string | null;
-  ownedArts: { id: string; totalSimdeuk: number }[];
+  ownedArts: { id: string }[];
   equippedArts: string[];
   artPoints: number;
   artGradeExp: Record<string, number>;
@@ -119,8 +119,6 @@ export const createArtsSlice: StateCreator<GameStore, [], [], ArtsSlice> = (set,
 
     const currentMasteries = state.activeMasteries[artId] ?? [];
     if (currentMasteries.includes(masteryId)) return;
-
-    if (owned.totalSimdeuk < mDef.requiredSimdeuk) return;
 
     if (mDef.requiredTier > 0 && state.tier < mDef.requiredTier) return;
 

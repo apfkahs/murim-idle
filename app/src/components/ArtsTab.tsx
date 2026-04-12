@@ -218,7 +218,6 @@ export default function ArtsTab() {
                 {/* 초(招) 패널 */}
                 <MasteryPanel
                   artId="samjae_sword"
-                  totalSimdeuk={swordOwned.totalSimdeuk}
                   artGradeExp={artGradeExp['samjae_sword'] ?? 0}
                   materials={materials}
                   tier={tier}
@@ -293,7 +292,6 @@ export default function ArtsTab() {
 
                 <MasteryPanel
                   artId="samjae_simbeop"
-                  totalSimdeuk={simbeopOwned.totalSimdeuk}
                   artGradeExp={artGradeExp['samjae_simbeop'] ?? 0}
                   materials={materials}
                   tier={tier}
@@ -403,7 +401,6 @@ export default function ArtsTab() {
 
                   <MasteryPanel
                     artId={owned.id}
-                    totalSimdeuk={owned.totalSimdeuk}
                     artGradeExp={artGradeExp[owned.id] ?? 0}
                     materials={materials}
                     tier={tier}

@@ -21,7 +21,6 @@ export interface InventoryItem {
 // ============================================================
 export interface BattleResult {
   type: 'explore_win' | 'explore_fail' | 'hunt_end' | 'death';
-  simdeuk: number;
   drops: string[];
   message: string;
   deathLog?: string;
@@ -34,7 +33,7 @@ export interface BattleResult {
 export interface FloatingText {
   id: number;
   text: string;
-  type: 'damage' | 'simdeuk' | 'drop' | 'heal' | 'evade' | 'critical';
+  type: 'damage' | 'drop' | 'heal' | 'evade' | 'critical';
   timestamp: number;
 }
 
@@ -44,7 +43,6 @@ export interface FloatingText {
 export interface OfflineResult {
   elapsedTime: number;
   qiGained: number;
-  simdeukGained: number;
   killCount: number;
   deathCount: number;
   battleTime: number;
@@ -68,7 +66,6 @@ export interface SaveMeta {
 // ============================================================
 export interface GameState {
   qi: number;
-  totalSimdeuk: number;
   totalSpentQi: number;
   stats: { gi: number; sim: number; che: number };
   proficiency: Record<ProficiencyType, number>;
@@ -83,7 +80,7 @@ export interface GameState {
   currentBattleDamageDealt: number;
 
   equippedSimbeop: string | null;
-  ownedArts: { id: string; totalSimdeuk: number }[];
+  ownedArts: { id: string }[];
   equippedArts: string[];
   artPoints: number;
   artGradeExp: Record<string, number>;
@@ -105,7 +102,7 @@ export interface GameState {
   exploreOrder: string[];
   isBossPhase: boolean;
   bossTimer: number;
-  explorePendingRewards: { simdeuk: number; drops: string[] };
+  explorePendingRewards: { drops: string[] };
   battleLog: string[];
 
   playerAttackTimer: number;

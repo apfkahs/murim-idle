@@ -34,12 +34,6 @@ export default function OfflineResultModal({ result, onClose }: Props) {
               <span className="offline-result-value">+{formatNumber(Math.floor(result.qiGained))}</span>
             </div>
           )}
-          {result.simdeukGained > 0 && (
-            <div className="offline-result-row">
-              <span>심득</span>
-              <span className="offline-result-value">+{formatNumber(Math.floor(result.simdeukGained))}</span>
-            </div>
-          )}
           {result.killCount > 0 && (
             <div className="offline-result-row">
               <span>처치</span>

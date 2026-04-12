@@ -71,7 +71,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           ctx.exploreStep = 0;
           ctx.isBossPhase = false;
           ctx.bossTimer = 0;
-          ctx.explorePendingRewards = { simdeuk: 0, drops: [] };
+          ctx.explorePendingRewards = { drops: [] };
           ctx.battleResult = null;
           ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
           ctx.enemyAttackTimer = firstMon.attackInterval;
@@ -143,7 +143,6 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       if (ctx.battleMode === 'explore') {
         ctx.battleResult = {
           type: 'death',
-          simdeuk: 0,
           drops: [],
           message: '패배... 보상이 없습니다.',
           deathLog,
@@ -152,7 +151,6 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       } else {
         ctx.battleResult = {
           type: 'hunt_end',
-          simdeuk: ctx.totalSimdeuk - state.totalSimdeuk,
           drops: [],
           message: '사망! 전투 종료.',
           deathLog,
@@ -173,7 +171,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
   const achCtx = buildAchievementContext({
     ...state, killCounts: ctx.killCounts, bossKillCounts: ctx.bossKillCounts, ownedArts: ctx.ownedArts,
-    totalSimdeuk: ctx.totalSimdeuk, achievements, hiddenRevealedInField: ctx.hiddenRevealedInField,
+    achievements, hiddenRevealedInField: ctx.hiddenRevealedInField,
     totalYasanKills: ctx.totalYasanKills, fieldUnlocks: ctx.fieldUnlocks, totalKills: ctx.totalKills,
   });
 

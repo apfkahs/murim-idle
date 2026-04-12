@@ -10,7 +10,6 @@ const B = BALANCE_PARAMS;
 export function createInitialState(): GameState {
   return {
     qi: 0,
-    totalSimdeuk: 0,
     totalSpentQi: 0,
     stats: { gi: 0, sim: 0, che: 0 },
     proficiency: { sword: 1, palm: 1, footwork: 1, mental: 1, fist: 1 },
@@ -38,7 +37,7 @@ export function createInitialState(): GameState {
     exploreOrder: [],
     isBossPhase: false,
     bossTimer: 0,
-    explorePendingRewards: { simdeuk: 0, drops: [] },
+    explorePendingRewards: { drops: [] },
     battleLog: [],
     playerAttackTimer: 0,
     enemyAttackTimer: 0,

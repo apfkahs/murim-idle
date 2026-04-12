@@ -21,7 +21,6 @@ function calcStatCost(level: number): number {
 export type ProgressSlice = {
   // ── state ──
   qi: number;
-  totalSimdeuk: number;
   totalSpentQi: number;
   stats: { gi: number; sim: number; che: number };
   proficiency: GameState['proficiency'];
@@ -52,7 +51,6 @@ export type ProgressSlice = {
 export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice> = (set, get) => ({
   // ── 초기 상태 ──
   qi: 0,
-  totalSimdeuk: 0,
   totalSpentQi: 0,
   stats: { gi: 0, sim: 0, che: 0 },
   proficiency: { sword: 1, palm: 1, footwork: 1, mental: 1 },
@@ -147,7 +145,6 @@ export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice>
     const totalStats = state.stats.gi + state.stats.sim + state.stats.che;
 
     if (reqs.totalStats && totalStats < reqs.totalStats) return;
-    if (reqs.totalSimdeuk && state.totalSimdeuk < reqs.totalSimdeuk) return;
     if (reqs.bossKills && (state.bossKillCounts['tiger_boss'] ?? 0) < reqs.bossKills) return;
     if (reqs.achievementCount && (state.achievementCount ?? 0) < reqs.achievementCount) return;
 
@@ -168,7 +165,7 @@ export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice>
     const tutorialFlags = { ...state.tutorialFlags };
     const battleLog = [...state.battleLog];
     if (!tutorialFlags.firstBreakthroughNotified && tierDef.rewards?.artPoints) {
-      battleLog.push(`경지 돌파! 무공포인트 +${tierDef.rewards.artPoints} 획득. 무공(武功) 탭에서 새 무공을 익힐 수 있습니다.`);
+      battleLog.push(`[${tierDef.name}] 경지 돌파! 무공포인트 +${tierDef.rewards.artPoints} 획득. 무공(武功) 탭에서 새 무공을 익힐 수 있습니다.`);
       tutorialFlags.firstBreakthroughNotified = true;
     }
 

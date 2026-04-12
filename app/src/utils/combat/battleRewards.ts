@@ -13,7 +13,7 @@ import {
   PROF_TABLE, getGradeTableForArt, getArtGradeInfoFromTable,
 } from '../artUtils';
 import { spawnEnemy } from '../combatCalc';
-import { getTrainingSimdeuk, applySimdeuk, PROF_LABEL } from './damageCalc';
+import { PROF_LABEL } from './damageCalc';
 import type { TickContext } from './tickContext';
 import { applyBattleReset, applyUltCooldownReset } from './tickContext';
 
@@ -40,26 +40,6 @@ export function processEnemyDeath(ctx: TickContext): void {
 
   if (monDef.isBoss) {
     ctx.bossKillCounts[monDef.id] = (ctx.bossKillCounts[monDef.id] ?? 0) + 1;
-  }
-
-  // 심득
-  let simdeuk = monDef.simdeuk;
-  if (monDef.isTraining) {
-    simdeuk = getTrainingSimdeuk(ctx.state, monDef.id);
-    if (ctx.killCounts[monDef.id] > 1) simdeuk = 0;
-  } else if (monDef.grade > 0) {
-    const maxArtGrade = getMaxEquippedArtGrade(ctx.equippedArts, ctx.equippedSimbeop, ctx.artGradeExp);
-    if (maxArtGrade > 0) {
-      const diff = maxArtGrade - monDef.grade;
-      if (diff >= 3) {
-        simdeuk = 0;
-        if (Math.random() < 0.05) ctx.battleLog.push('너무 약한 상대라 심득을 얻지 못했다.');
-      } else if (diff === 2) {
-        simdeuk = Math.floor(simdeuk * 0.2);
-      } else if (diff === 1) {
-        simdeuk = Math.floor(simdeuk * 0.5);
-      }
-    }
   }
 
   // 숙련도 독립 획득
@@ -202,9 +182,7 @@ export function processEnemyDeath(ctx: TickContext): void {
       if (m.discovery.type === 'bijup') continue;
       if (ctx.discoveredMasteries.includes(m.id)) continue;
       let discovered = false;
-      if (m.discovery.type === 'simdeuk' && m.discovery.threshold != null) {
-        if (artOwned.totalSimdeuk >= m.discovery.threshold) discovered = true;
-      } else if (m.discovery.type === 'boss' && m.discovery.bossId) {
+      if (m.discovery.type === 'boss' && m.discovery.bossId) {
         if ((ctx.bossKillCounts[m.discovery.bossId] ?? 0) >= 1) discovered = true;
       }
       if (discovered) {
@@ -251,30 +229,25 @@ export function processEnemyDeath(ctx: TickContext): void {
 
   // ── 전투 모드별 처리 ──
   if (ctx.battleMode === 'explore') {
-    processExploreMode(ctx, simdeuk, drops, profGainParts, monDef);
+    processExploreMode(ctx, drops, profGainParts, monDef);
   } else if (ctx.battleMode === 'hunt') {
-    processHuntMode(ctx, simdeuk, drops, profGainParts, monDef);
+    processHuntMode(ctx, profGainParts, monDef);
   }
 }
 
 // ── 탐험 모드 ──
 function processExploreMode(
   ctx: TickContext,
-  simdeuk: number,
   drops: string[],
   profGainParts: string[],
   monDef: ReturnType<typeof getMonsterDef> & {},
 ): void {
-  ctx.explorePendingRewards.simdeuk += simdeuk;
   ctx.explorePendingRewards.drops.push(...drops);
-  ctx.battleLog.push(`— ${monDef.name} 처치. 심득 +${simdeuk}${profGainParts.length > 0 ? `  ${profGainParts.join('  ')}` : ''} —`);
+  ctx.battleLog.push(`— ${monDef.name} 처치.${profGainParts.length > 0 ? `  ${profGainParts.join('  ')}` : ''} —`);
 
   if (monDef.isHidden) {
-    ctx.totalSimdeuk += ctx.explorePendingRewards.simdeuk;
-    applySimdeuk(ctx.ownedArts, ctx.equippedArts, ctx.equippedSimbeop, ctx.explorePendingRewards.simdeuk, ctx.state.tier, ctx.battleLog);
     ctx.battleResult = {
       type: 'explore_win',
-      simdeuk: ctx.explorePendingRewards.simdeuk,
       drops: ctx.explorePendingRewards.drops,
       message: '히든 처치! 답파 대성공!',
     };
@@ -346,11 +319,8 @@ function processExploreMode(
         }
       } else {
         // 보스 미구현 필드: 몬스터 소진 시 즉시 답파 완료
-        ctx.totalSimdeuk += ctx.explorePendingRewards.simdeuk;
-        applySimdeuk(ctx.ownedArts, ctx.equippedArts, ctx.equippedSimbeop, ctx.explorePendingRewards.simdeuk, ctx.state.tier, ctx.battleLog);
         ctx.battleResult = {
           type: 'explore_win',
-          simdeuk: ctx.explorePendingRewards.simdeuk,
           drops: ctx.explorePendingRewards.drops,
           message: '답파 완료!',
         };
@@ -360,12 +330,8 @@ function processExploreMode(
       }
     } else {
       // 보스 처치 성공
-      ctx.totalSimdeuk += ctx.explorePendingRewards.simdeuk;
-      applySimdeuk(ctx.ownedArts, ctx.equippedArts, ctx.equippedSimbeop, ctx.explorePendingRewards.simdeuk, ctx.state.tier, ctx.battleLog);
-
       ctx.battleResult = {
         type: 'explore_win',
-        simdeuk: ctx.explorePendingRewards.simdeuk,
         drops: ctx.explorePendingRewards.drops,
         message: '답파 승리! 전체 보상 획득!',
       };
@@ -380,14 +346,10 @@ function processExploreMode(
 // ── 수련 모드 ──
 function processHuntMode(
   ctx: TickContext,
-  simdeuk: number,
-  _drops: string[],
   profGainParts: string[],
   monDef: ReturnType<typeof getMonsterDef> & {},
 ): void {
-  ctx.totalSimdeuk += simdeuk;
-  applySimdeuk(ctx.ownedArts, ctx.equippedArts, ctx.equippedSimbeop, simdeuk, ctx.state.tier, ctx.battleLog);
-  ctx.battleLog.push(`— ${monDef.name} 처치. 심득 +${simdeuk}${profGainParts.length > 0 ? `  ${profGainParts.join('  ')}` : ''} —`);
+  ctx.battleLog.push(`— ${monDef.name} 처치.${profGainParts.length > 0 ? `  ${profGainParts.join('  ')}` : ''} —`);
 
   if (ctx.huntTarget) {
     const nextMon = getMonsterDef(ctx.huntTarget);

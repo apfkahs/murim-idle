@@ -280,10 +280,10 @@ export function getMaxEquippedArtGrade(
 }
 
 // ============================================================
-// 절초 배율 (심득 ultMultiplierBonus 포함)
+// 절초 배율 (초식 ultMultiplierBonus 포함)
 // ============================================================
 
-/** 심득 ultMultiplierBonus를 포함한 실효 절초 배율 반환 */
+/** 초식 ultMultiplierBonus를 포함한 실효 절초 배율 반환 */
 export function getEffectiveUltMultiplier(
   artDef: { ultMultiplier?: number; masteries: { id: string; effects?: { ultChange?: { ultMultiplierBonus?: number } } }[] },
   activeIds: string[],

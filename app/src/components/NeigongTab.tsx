@@ -69,10 +69,6 @@ export default function NeigongTab() {
   const canBreakthrough = nextTier?.requirements ? (() => {
     const reqs = nextTier.requirements!;
     if (reqs.totalStats && totalStats < reqs.totalStats) return false;
-    if (reqs.totalSimdeuk) {
-      const ts = useGameStore.getState().totalSimdeuk;
-      if (ts < reqs.totalSimdeuk) return false;
-    }
     if (reqs.bossKills) {
       const bk = useGameStore.getState().bossKillCounts['tiger_boss'] ?? 0;
       if (bk < reqs.bossKills) return false;
@@ -161,11 +157,6 @@ export default function NeigongTab() {
           <div className="tier-requirements">
             {nextTier.requirements.totalStats && (
               <span>경맥합 {totalStats}/{nextTier.requirements.totalStats}</span>
-            )}
-            {nextTier.requirements.totalSimdeuk && (
-              <span style={{ marginLeft: 12 }}>
-                심득 {formatNumber(useGameStore.getState().totalSimdeuk)}/{formatNumber(nextTier.requirements.totalSimdeuk)}
-              </span>
             )}
             {nextTier.requirements.bossKills && (
               <span style={{ marginLeft: 12 }}>

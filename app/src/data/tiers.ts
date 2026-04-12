@@ -1,15 +1,14 @@
 /**
- * 경지 (돌파) 데이터 (v4.0)
- * 삼류 최하~이류 최하 8단계, achievementCount 조건 추가
+ * 경지 (돌파) 데이터 (v5.0)
+ * 8대등급 × 3단계 = 24단계 (tier 0~23)
+ * 삼류/이류/일류/절정/초절정/화경/현경/무극 각 초입/숙달/대성
  */
 
 export interface TierDef {
   tier: number;
   name: string;
-  maxSimdeuk: number; // 무공별 심득 누적 상한
   requirements?: {
     totalStats?: number;    // 경맥합
-    totalSimdeuk?: number;  // 누적 심득 (레거시, 현재 미사용)
     bossKills?: number;     // 보스 처치 횟수
     achievementCount?: number; // 달성 업적 수
   };
@@ -19,48 +18,77 @@ export interface TierDef {
 }
 
 export const TIERS: TierDef[] = [
-  { tier: 0, name: '삼류 최하', maxSimdeuk: 200 },
+  // ── 삼류 ──
+  { tier: 0, name: '삼류 초입' },
   {
-    tier: 1, name: '삼류 하', maxSimdeuk: 400,
-    requirements: { totalStats: 50 },
+    tier: 1, name: '삼류 숙달',
+    requirements: { totalStats: 300 },
     rewards: { artPoints: 1 },
   },
   {
-    tier: 2, name: '삼류 중하', maxSimdeuk: 800,
-    requirements: { totalStats: 150 },
+    tier: 2, name: '삼류 대성',
+    requirements: { totalStats: 1000, achievementCount: 20 },
     rewards: { artPoints: 1 },
   },
+  // ── 이류 ──
   {
-    tier: 3, name: '삼류 중', maxSimdeuk: 1500,
-    requirements: { totalStats: 300, achievementCount: 12 },
-    rewards: { artPoints: 1 },
-  },
-  {
-    tier: 4, name: '삼류 중상', maxSimdeuk: 2500,
-    requirements: { totalStats: 500, achievementCount: 18 },
-    rewards: { artPoints: 1 },
-  },
-  {
-    tier: 5, name: '삼류 상', maxSimdeuk: 4000,
-    requirements: { totalStats: 800, achievementCount: 25 },
-    rewards: { artPoints: 1 },
-  },
-  {
-    tier: 6, name: '삼류 최상', maxSimdeuk: 6000,
-    requirements: { totalStats: 1200, achievementCount: 33 },
-    rewards: { artPoints: 1 },
-  },
-  {
-    tier: 7, name: '이류 최하', maxSimdeuk: 10000,
+    tier: 3, name: '이류 초입',
     requirements: { totalStats: 2000, achievementCount: 42, bossKills: 20 },
-    rewards: { artPoints: 3 },
+    rewards: { artPoints: 4 },
   },
+  {
+    tier: 4, name: '이류 숙달',
+    requirements: { totalStats: 3500, achievementCount: 46, bossKills: 40 },
+    rewards: { artPoints: 2 },
+  },
+  {
+    tier: 5, name: '이류 대성',
+    requirements: { totalStats: 5500, achievementCount: 50, bossKills: 80 },
+    rewards: { artPoints: 2 },
+  },
+  // ── 일류 ──
+  {
+    tier: 6, name: '일류 초입',
+    requirements: { totalStats: 8000, achievementCount: 54, bossKills: 150 },
+    rewards: { artPoints: 4 },
+  },
+  {
+    tier: 7, name: '일류 숙달',
+    requirements: { totalStats: 12000, achievementCount: 58, bossKills: 250 },
+    rewards: { artPoints: 2 },
+  },
+  {
+    tier: 8, name: '일류 대성',
+    requirements: { totalStats: 18000, bossKills: 400 },
+    rewards: { artPoints: 2 },
+  },
+  // ── 절정 ──
+  {
+    tier: 9, name: '절정 초입',
+    requirements: { totalStats: 27000, bossKills: 700 },
+    rewards: { artPoints: 4 },
+  },
+  { tier: 10, name: '절정 숙달', rewards: { artPoints: 2 } },
+  { tier: 11, name: '절정 대성', rewards: { artPoints: 2 } },
+  // ── 초절정 ──
+  { tier: 12, name: '초절정 초입', rewards: { artPoints: 4 } },
+  { tier: 13, name: '초절정 숙달', rewards: { artPoints: 2 } },
+  { tier: 14, name: '초절정 대성', rewards: { artPoints: 2 } },
+  // ── 화경 ──
+  { tier: 15, name: '화경 초입', rewards: { artPoints: 4 } },
+  { tier: 16, name: '화경 숙달', rewards: { artPoints: 2 } },
+  { tier: 17, name: '화경 대성', rewards: { artPoints: 2 } },
+  // ── 현경 ──
+  { tier: 18, name: '현경 초입', rewards: { artPoints: 4 } },
+  { tier: 19, name: '현경 숙달', rewards: { artPoints: 2 } },
+  { tier: 20, name: '현경 대성', rewards: { artPoints: 2 } },
+  // ── 무극 ──
+  { tier: 21, name: '무극 초입', rewards: { artPoints: 4 } },
+  { tier: 22, name: '무극 숙달', rewards: { artPoints: 2 } },
+  { tier: 23, name: '무극 대성', rewards: { artPoints: 2 } },
 ];
 
 export function getTierDef(tier: number): TierDef {
   return TIERS[tier] ?? TIERS[0];
 }
 
-export function getMaxSimdeuk(tier: number): number {
-  return getTierDef(tier).maxSimdeuk;
-}

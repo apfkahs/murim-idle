@@ -1,5 +1,5 @@
 /**
- * 업적 데이터 (v3.1) — 54개
+ * 업적 데이터 (v3.2) — 58개
  * 카테고리 분류, 기존 임계값 상향, 신규 업적 추가
  * v3.1: 심득 수련 카테고리 → 숙련도 업적으로 교체 후 무공 수련 합산
  */
@@ -41,9 +41,7 @@ export interface AchievementContext {
   killCounts: Record<string, number>;
   bossKillCounts: Record<string, number>;
   ownedArts: string[];
-  artSimdeuks: Record<string, number>;
   totalStats: number;
-  totalSimdeuk: number;
   proficiency: Record<string, number>; // 숙련도 누적 경험치
   tier: number;
   achievements: string[];
@@ -292,45 +290,57 @@ export const ACHIEVEMENTS: AchievementDef[] = [
 
   // ── 경지 돌파 ──
   {
-    id: 'tier_1', name: '삼류 하 진입', description: '삼류 하에 이르다',
-    check: ctx => ctx.tier >= 1,
+    id: 'tier_iru', name: '이류 초입', description: '이류에 이르다',
+    check: ctx => ctx.tier >= 3,
     prerequisite: 'stats_30',
     chainId: 'tier_chain',
     category: 'arts',
   },
   {
-    id: 'tier_2', name: '삼류 중하 진입', description: '삼류 중하에 이르다',
-    check: ctx => ctx.tier >= 2,
-    prerequisite: 'tier_1',
-    chainId: 'tier_chain',
-    category: 'arts',
-  },
-  {
-    id: 'tier_3', name: '삼류 중 진입', description: '삼류 중에 이르다',
-    check: ctx => ctx.tier >= 3,
-    prerequisite: 'tier_2',
-    chainId: 'tier_chain',
-    category: 'arts',
-  },
-  {
-    id: 'tier_4', name: '삼류 중상 진입', description: '삼류 중상에 이르다',
-    check: ctx => ctx.tier >= 4,
-    prerequisite: 'tier_3',
-    chainId: 'tier_chain',
-    category: 'arts',
-  },
-  {
-    id: 'tier_5', name: '삼류 상 진입', description: '삼류 상에 이르다',
-    check: ctx => ctx.tier >= 5,
-    prerequisite: 'tier_4',
-    chainId: 'tier_chain',
-    category: 'arts',
-  },
-  {
-    id: 'tier_6', name: '삼류 최상 진입', description: '삼류 최상에 이르다',
+    id: 'tier_ilru', name: '일류 초입', description: '일류에 이르다',
     check: ctx => ctx.tier >= 6,
-    prerequisite: 'tier_5',
+    prerequisite: 'tier_iru',
     chainId: 'tier_chain',
+    category: 'arts',
+  },
+  {
+    id: 'tier_jeoljung', name: '절정 초입', description: '절정에 이르다',
+    check: ctx => ctx.tier >= 9,
+    prerequisite: 'tier_ilru',
+    chainId: 'tier_chain',
+    secret: true,
+    category: 'arts',
+  },
+  {
+    id: 'tier_chojeoljung', name: '초절정 초입', description: '초절정에 이르다',
+    check: ctx => ctx.tier >= 12,
+    prerequisite: 'tier_jeoljung',
+    chainId: 'tier_chain',
+    secret: true,
+    category: 'arts',
+  },
+  {
+    id: 'tier_hwagyeong', name: '화경 초입', description: '화경에 이르다',
+    check: ctx => ctx.tier >= 15,
+    prerequisite: 'tier_chojeoljung',
+    chainId: 'tier_chain',
+    secret: true,
+    category: 'arts',
+  },
+  {
+    id: 'tier_hyeong', name: '현경 초입', description: '현경에 이르다',
+    check: ctx => ctx.tier >= 18,
+    prerequisite: 'tier_hwagyeong',
+    chainId: 'tier_chain',
+    secret: true,
+    category: 'arts',
+  },
+  {
+    id: 'tier_mugeuk', name: '무극 초입', description: '무극에 이르다',
+    check: ctx => ctx.tier >= 21,
+    prerequisite: 'tier_hyeong',
+    chainId: 'tier_chain',
+    secret: true,
     category: 'arts',
   },
 

@@ -40,12 +40,6 @@ export default function BattleResultScreen() {
         </div>
       )}
 
-      {battleResult.simdeuk > 0 && (
-        <div style={{ color: 'var(--gold)', marginBottom: 4, fontSize: 14 }}>
-          심득 +{battleResult.simdeuk}
-        </div>
-      )}
-
       {battleResult.drops.length > 0 && (
         <div style={{ color: 'var(--gold)', marginBottom: 8, fontSize: 13 }}>
           {battleResult.drops.map(id => getArtDef(id)?.name ?? id).join(', ')} 획득! 전낭에 담겼습니다.

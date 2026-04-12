@@ -31,12 +31,11 @@ export interface TickContext {
   exploreOrder: string[];
   isBossPhase: boolean;
   bossTimer: number;
-  explorePendingRewards: { simdeuk: number; drops: string[] };
+  explorePendingRewards: { drops: string[] };
   battleLog: string[];
   currentField: string | null;
   killCounts: Record<string, number>;
   bossKillCounts: Record<string, number>;
-  totalSimdeuk: number;
   totalYasanKills: number;
   ownedArts: GameState['ownedArts'];
   equippedArts: string[];
@@ -102,7 +101,7 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
     qi, hp, maxHp, battleMode, currentEnemy,
     exploreStep, exploreOrder, isBossPhase, bossTimer,
     explorePendingRewards, battleLog, currentField,
-    killCounts, bossKillCounts, totalSimdeuk, totalYasanKills,
+    killCounts, bossKillCounts, totalYasanKills,
     ownedArts, equippedArts, equippedSimbeop,
     battleResult,
     huntTarget, totalSpentQi,
@@ -134,7 +133,6 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
   bossKillCounts = { ...bossKillCounts };
   ownedArts = ownedArts.map(a => ({ ...a }));
   explorePendingRewards = {
-    simdeuk: explorePendingRewards.simdeuk,
     drops: [...explorePendingRewards.drops],
   };
   battleLog = [...battleLog];
@@ -179,7 +177,7 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
     qi, hp, maxHp, battleMode, currentEnemy,
     exploreStep, exploreOrder, isBossPhase, bossTimer,
     explorePendingRewards, battleLog, currentField,
-    killCounts, bossKillCounts, totalSimdeuk, totalYasanKills,
+    killCounts, bossKillCounts, totalYasanKills,
     ownedArts, equippedArts, equippedSimbeop,
     battleResult, huntTarget, totalSpentQi,
     playerAttackTimer, enemyAttackTimer,
@@ -248,7 +246,7 @@ export function buildResult(ctx: TickContext, extras: {
     qi: ctx.qi, hp: ctx.hp, maxHp: ctx.maxHp, battleMode: ctx.battleMode, currentEnemy: ctx.currentEnemy,
     exploreStep: ctx.exploreStep, exploreOrder: ctx.exploreOrder, isBossPhase: ctx.isBossPhase, bossTimer: ctx.bossTimer,
     explorePendingRewards: ctx.explorePendingRewards, battleLog: ctx.battleLog, killCounts: ctx.killCounts,
-    bossKillCounts: ctx.bossKillCounts, totalSimdeuk: ctx.totalSimdeuk, totalYasanKills: ctx.totalYasanKills, totalKills: ctx.totalKills,
+    bossKillCounts: ctx.bossKillCounts, totalYasanKills: ctx.totalYasanKills, totalKills: ctx.totalKills,
     ownedArts: ctx.ownedArts, battleResult: ctx.battleResult,
     achievements: extras.achievements, achievementCount: extras.achievementCount, artPoints: extras.artPoints,
     hiddenRevealedInField: ctx.hiddenRevealedInField,

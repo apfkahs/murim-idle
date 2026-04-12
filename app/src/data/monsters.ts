@@ -300,7 +300,6 @@ export interface MonsterDef {
   attackPower: number;       // 공격 위력 (1회)
   attackInterval: number;    // 공격 간격 (초). 0이면 공격 안 함
   regen: number;
-  simdeuk: number;
   baseProficiency?: number;  // 숙련도 획득 기본값 (등급 배율 적용 전)
   drops: { artId: string; chance: number }[];
   isTraining?: boolean;
@@ -333,7 +332,7 @@ export const TRAINING_MONSTERS: MonsterDef[] = [
   {
     id: 'training_wood',
     name: '나무인형',
-    hp: 10, attackPower: 0, attackInterval: 0, regen: 0, simdeuk: 1, baseProficiency: 50,
+    hp: 10, attackPower: 0, attackInterval: 0, regen: 0, baseProficiency: 50,
     drops: [{ artId: 'samjae_sword', chance: 1.0 }],
     materialDrops: [{ materialId: 'wood_fragment', chance: 0.4 }],
     isTraining: true, grade: 0,
@@ -343,7 +342,7 @@ export const TRAINING_MONSTERS: MonsterDef[] = [
   {
     id: 'training_iron',
     name: '철인형',
-    hp: 30, attackPower: 0, attackInterval: 0, regen: 1.5, simdeuk: 3, baseProficiency: 100,
+    hp: 30, attackPower: 0, attackInterval: 0, regen: 1.5, baseProficiency: 100,
     drops: [{ artId: 'samjae_simbeop', chance: 1.0 }],
     materialDrops: [{ materialId: 'iron_fragment', chance: 0.4 }],
     isTraining: true, grade: 0,
@@ -356,7 +355,7 @@ export const TRAINING_MONSTERS: MonsterDef[] = [
 export const YASAN_MONSTERS: MonsterDef[] = [
   {
     id: 'squirrel', name: '다람쥐',
-    hp: 25, attackPower: 4, attackInterval: 3.5, regen: 0, simdeuk: 2, baseProficiency: 1,
+    hp: 25, attackPower: 4, attackInterval: 3.5, regen: 0, baseProficiency: 1,
     drops: [], grade: 1, imageKey: 'squirrel',
     materialDrops: [{ materialId: 'torn_paper', chance: 0.01 }],
     attackMessages: ['다람쥐가 재빠르게 물었다!', '다람쥐가 도토리를 던졌다!'],
@@ -364,7 +363,7 @@ export const YASAN_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'rabbit', name: '토끼',
-    hp: 40, attackPower: 5, attackInterval: 3.0, regen: 0, simdeuk: 4, baseProficiency: 1,
+    hp: 40, attackPower: 5, attackInterval: 3.0, regen: 0, baseProficiency: 1,
     drops: [], grade: 1, imageKey: 'rabbit',
     materialDrops: [{ materialId: 'torn_paper', chance: 0.02 }],
     attackMessages: ['토끼가 뒷발로 찼다!', '토끼가 돌진했다!'],
@@ -372,7 +371,7 @@ export const YASAN_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'fox', name: '여우',
-    hp: 70, attackPower: 8, attackInterval: 2.8, regen: 0, simdeuk: 7, baseProficiency: 2,
+    hp: 70, attackPower: 8, attackInterval: 2.8, regen: 0, baseProficiency: 2,
     drops: [], grade: 1, imageKey: 'fox',
     materialDrops: [{ materialId: 'torn_paper', chance: 0.04 }],
     attackMessages: ['여우가 꼬리를 휘둘렀다!', '여우가 날카롭게 물었다!'],
@@ -380,7 +379,7 @@ export const YASAN_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'deer', name: '사슴',
-    hp: 110, attackPower: 6, attackInterval: 3.0, regen: 0, simdeuk: 9, baseProficiency: 2,
+    hp: 110, attackPower: 6, attackInterval: 3.0, regen: 0, baseProficiency: 2,
     drops: [], grade: 1, imageKey: 'deer',
     materialDrops: [{ materialId: 'torn_paper', chance: 0.06 }],
     attackMessages: ['사슴이 뿔로 받았다!', '사슴이 돌진해왔다!'],
@@ -388,7 +387,7 @@ export const YASAN_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'boar', name: '멧돼지',
-    hp: 90, attackPower: 14, attackInterval: 2.2, regen: 0, simdeuk: 10, baseProficiency: 3,
+    hp: 90, attackPower: 14, attackInterval: 2.2, regen: 0, baseProficiency: 3,
     drops: [], grade: 1, imageKey: 'boar',
     materialDrops: [{ materialId: 'torn_paper', chance: 0.08 }],
     attackMessages: ['멧돼지가 이빨로 들이받았다!', '멧돼지의 돌진!'],
@@ -396,7 +395,7 @@ export const YASAN_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'wolf', name: '늑대',
-    hp: 160, attackPower: 16, attackInterval: 2.0, regen: 0, simdeuk: 15, baseProficiency: 2,
+    hp: 160, attackPower: 16, attackInterval: 2.0, regen: 0, baseProficiency: 2,
     drops: [], grade: 2, imageKey: 'wolf',
     materialDrops: [
       { materialId: 'torn_paper', chance: 0.12 },
@@ -407,7 +406,7 @@ export const YASAN_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'bear', name: '곰',
-    hp: 280, attackPower: 22, attackInterval: 2.5, regen: 0, simdeuk: 25, baseProficiency: 2,
+    hp: 280, attackPower: 22, attackInterval: 2.5, regen: 0, baseProficiency: 2,
     drops: [], grade: 3, imageKey: 'bear',
     materialDrops: [
       { materialId: 'torn_paper', chance: 0.20 },
@@ -422,7 +421,7 @@ export const YASAN_MONSTERS: MonsterDef[] = [
 export const HIDDEN_MONSTERS: MonsterDef[] = [
   {
     id: 'dangkang', name: '당강',
-    hp: 1500, attackPower: 50, attackInterval: 3.0, regen: 0, simdeuk: 80, baseProficiency: 5,
+    hp: 1500, attackPower: 50, attackInterval: 3.0, regen: 0, baseProficiency: 5,
     drops: [], isHidden: true, grade: 4, imageKey: 'dangkang',
     attackMessages: ['당강이 뿔로 들이받았다!', '당강의 거대한 몸이 돌진했다!'],
     equipDrops: [{ equipId: 'gusan_gloves', chance: 0.002 }],
@@ -435,8 +434,7 @@ export const HIDDEN_MONSTERS: MonsterDef[] = [
 export const INN_MONSTERS: MonsterDef[] = [
   {
     id: 'drunk_thug', name: '취한 건달',
-    hp: 250, attackPower: 20, attackInterval: 2.2, regen: 0,
-    simdeuk: 30, baseProficiency: 3,
+    hp: 250, attackPower: 20, attackInterval: 2.2, regen: 0, baseProficiency: 3,
     drops: [],
     grade: 3, imageKey: 'drunk_thug',
     materialDrops: [{ materialId: 'map_fragment', chance: 0.001 }],
@@ -445,8 +443,7 @@ export const INN_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'peddler', name: '떠돌이 행상',
-    hp: 450, attackPower: 30, attackInterval: 2.5, regen: 0,
-    simdeuk: 50, baseProficiency: 3.5,
+    hp: 450, attackPower: 30, attackInterval: 2.5, regen: 0, baseProficiency: 3.5,
     drops: [],
     grade: 4, imageKey: 'peddler',
     materialDrops: [{ materialId: 'map_fragment', chance: 0.001 }],
@@ -455,8 +452,7 @@ export const INN_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'troublemaker', name: '객잔 말썽꾼',
-    hp: 350, attackPower: 25, attackInterval: 2.2, regen: 0,
-    simdeuk: 35, baseProficiency: 6,
+    hp: 350, attackPower: 25, attackInterval: 2.2, regen: 0, baseProficiency: 6,
     drops: [],
     grade: 3, imageKey: 'troublemaker',
     materialDrops: [
@@ -469,8 +465,7 @@ export const INN_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'wanderer', name: '떠돌이 무사',
-    hp: 750, attackPower: 55, attackInterval: 2.5, regen: 0,
-    simdeuk: 90, baseProficiency: 2.5,
+    hp: 750, attackPower: 55, attackInterval: 2.5, regen: 0, baseProficiency: 2.5,
     drops: [],
     grade: 5, imageKey: 'wanderer',
     materialDrops: [
@@ -483,8 +478,7 @@ export const INN_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'bounty_hunter', name: '현상금 사냥꾼',
-    hp: 150, attackPower: 18, attackInterval: 2.2, regen: 0,
-    simdeuk: 40, baseProficiency: 40,
+    hp: 150, attackPower: 18, attackInterval: 2.2, regen: 0, baseProficiency: 40,
     drops: [], // TODO: 기획자 설계 후 반영
     grade: 2, imageKey: 'bounty_hunter',
     attackMessages: ['사냥꾼이 단검을 던졌다!', '사냥꾼의 정확한 급소 공격!'],
@@ -492,8 +486,7 @@ export const INN_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'bandit_chief', name: '삼류 도적 두목',
-    hp: 550, attackPower: 40, attackInterval: 2.2, regen: 0,
-    simdeuk: 65, baseProficiency: 4.5,
+    hp: 550, attackPower: 40, attackInterval: 2.2, regen: 0, baseProficiency: 4.5,
     drops: [],
     grade: 4, imageKey: 'bandit_chief',
     materialDrops: [
@@ -509,8 +502,7 @@ export const INN_MONSTERS: MonsterDef[] = [
 export const INN_HIDDEN_MONSTERS: MonsterDef[] = [
   {
     id: 'masked_swordsman', name: '가면 쓴 검객',
-    hp: 3000, attackPower: 110, attackInterval: 1.9, regen: 0,
-    simdeuk: 200, baseProficiency: 6,
+    hp: 3000, attackPower: 110, attackInterval: 1.9, regen: 0, baseProficiency: 6,
     drops: [{ artId: 'maryeong_simbeop', chance: 0.01 }],
     materialDrops: [{ materialId: 'demonic_note', chance: 0.10 }],
     equipDrops: [{ equipId: 'heugak_sword', chance: 0.01 }],
@@ -523,8 +515,7 @@ export const INN_HIDDEN_MONSTERS: MonsterDef[] = [
 // 흑도 낭인 — 흑풍채 전장 이관 대비 데이터 보존 (INN_MONSTERS에서 제거됨)
 export const RONIN_DEF: MonsterDef = {
   id: 'ronin', name: '흑도 낭인',
-  hp: 250, attackPower: 16, attackInterval: 2.0, regen: 0,
-  simdeuk: 55, baseProficiency: 55,
+  hp: 250, attackPower: 16, attackInterval: 2.0, regen: 0, baseProficiency: 55,
   drops: [],
   grade: 3, imageKey: 'ronin',
   attackMessages: ['낭인이 묵직한 도를 내리쳤다!', '낭인이 어둠 속에서 베어냈다!'],
@@ -534,8 +525,7 @@ export const RONIN_DEF: MonsterDef = {
 // 흑풍채 채주 — 데이터 보존 (추후 흑풍채 전장 이관 시 재연결)
 export const BANDIT_LEADER_DEF: MonsterDef = {
   id: 'bandit_leader', name: '흑풍채 채주',
-  hp: 800, attackPower: 32, attackInterval: 1.6, regen: 0,
-  simdeuk: 200, baseProficiency: 400,
+  hp: 800, attackPower: 32, attackInterval: 1.6, regen: 0, baseProficiency: 400,
   drops: [],
   isBoss: true, grade: 4, imageKey: 'bandit_leader',
   attackMessages: ['채주의 대도가 바람을 가르며 내려왔다!', '채주가 포효하며 흑풍을 일으켰다!'],
@@ -545,8 +535,7 @@ export const BANDIT_LEADER_DEF: MonsterDef = {
 // 객잔 보스
 export const INN_BOSS: MonsterDef = {
   id: 'innkeeper_true', name: '객잔 주인',
-  hp: 2000, attackPower: 70, attackInterval: 2.2, regen: 0,
-  simdeuk: 0, baseProficiency: 6,
+  hp: 2000, attackPower: 70, attackInterval: 2.2, regen: 0, baseProficiency: 6,
   drops: [{ artId: 'nokrim_fist', chance: 0.01 }],
   materialDrops: [
     { materialId: 'map_fragment', chance: 0.05 },
@@ -561,7 +550,7 @@ export const INN_BOSS: MonsterDef = {
 // 야산 보스 (v1.1 수치)
 export const YASAN_BOSS: MonsterDef = {
   id: 'tiger_boss', name: '산군',
-  hp: 650, attackPower: 28, attackInterval: 1.8, regen: 0, simdeuk: 120, baseProficiency: 5,
+  hp: 650, attackPower: 28, attackInterval: 1.8, regen: 0, baseProficiency: 5,
   drops: [],
   materialDrops: [
     { materialId: 'bijup_samjae_sense',   chance: 0.01 },
@@ -578,7 +567,7 @@ export const SAEWOE_MONSTERS: MonsterDef[] = [
   {
     id: 'hwahyulsa',
     name: '화혈사(火血蛇)',
-    hp: 12000, attackPower: 25, attackInterval: 2, regen: 5, simdeuk: 30,
+    hp: 12000, attackPower: 25, attackInterval: 2, regen: 5,
     drops: [],
     grade: 3,
     imageKey: 'hwahyulsa',
@@ -588,7 +577,7 @@ export const SAEWOE_MONSTERS: MonsterDef[] = [
   {
     id: 'eunrang',
     name: '은랑(銀狼)',
-    hp: 20000, attackPower: 75, attackInterval: 1.5, regen: 8, simdeuk: 45,
+    hp: 20000, attackPower: 75, attackInterval: 1.5, regen: 8,
     drops: [],
     grade: 3,
     imageKey: 'eunrang',

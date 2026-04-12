@@ -54,7 +54,7 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
       ? { ...state.activeMasteries, [artId]: [...(state.activeMasteries[artId] ?? []), ...autoIds] }
       : state.activeMasteries;
     set({
-      ownedArts: [...state.ownedArts, { id: artId, totalSimdeuk: 0 }],
+      ownedArts: [...state.ownedArts, { id: artId }],
       artGradeExp: { ...state.artGradeExp, [artId]: state.artGradeExp[artId] ?? 0 },
       inventory: state.inventory.filter(i => i.id !== itemId),
       activeMasteries: newActiveMasteries,
@@ -120,7 +120,7 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
     if (recipe.resultMasteryId && state.discoveredMasteries.includes(recipe.resultMasteryId)) return false;
     const newMaterials = { ...state.materials, [recipe.materialId]: have - recipe.materialCount };
     const newOwnedArts = recipe.resultArtId
-      ? [...state.ownedArts, { id: recipe.resultArtId, totalSimdeuk: 0 }]
+      ? [...state.ownedArts, { id: recipe.resultArtId }]
       : state.ownedArts;
     const newDiscoveredMasteries = recipe.resultMasteryId
       ? [...state.discoveredMasteries, recipe.resultMasteryId]
