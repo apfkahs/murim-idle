@@ -11,8 +11,9 @@ import FieldNavigation from './battle/FieldNavigation';
 export default function BattleTab() {
   const battleMode = useGameStore(s => s.battleMode);
   const battleResult = useGameStore(s => s.battleResult);
+  const currentEnemy = useGameStore(s => s.currentEnemy);
 
   if (battleResult) return <BattleResultScreen />;
-  if (battleMode !== 'none') return <BattleScreen />;
+  if (battleMode !== 'none' && currentEnemy) return <BattleScreen />;
   return <FieldNavigation />;
 }

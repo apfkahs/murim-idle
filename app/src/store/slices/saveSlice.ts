@@ -187,7 +187,9 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
           firstBreakthroughNotified: data.tutorialFlags?.firstBreakthroughNotified ?? false,
         },
         lastTickTime: Date.now(),
-        battleMode: data.battleMode ?? 'none',
+        battleMode: (data.battleMode && data.battleMode !== 'none' && !data.currentEnemy)
+          ? 'none'
+          : (data.battleMode ?? 'none'),
         huntTarget: data.huntTarget ?? null,
         currentField: data.currentField ?? null,
         currentEnemy: data.currentEnemy ?? null,
