@@ -26,6 +26,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('neigong');
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [offlineResult, setOfflineResult] = useState<OfflineResult | null>(null);
+  const contentRef = useRef<HTMLElement>(null);
 
   const tick = useGameStore(s => s.tick);
   const saveGame = useGameStore(s => s.saveGame);
@@ -114,6 +115,11 @@ export default function App() {
     setGameSpeed(current === 1 ? 2 : 1);
   }
 
+  function handleTabChange(tabId: TabId) {
+    setActiveTab(tabId);
+    contentRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+  }
+
   return (
     <div className="app-container">
       <header className="app-header">
@@ -136,7 +142,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="app-content">
+      <main ref={contentRef} className="app-content">
         {activeTab === 'neigong' && <NeigongTab />}
         {activeTab === 'arts' && <ArtsTab />}
         {activeTab === 'equipment' && <EquipmentTab />}
@@ -152,7 +158,7 @@ export default function App() {
           <button
             key={tab.id}
             className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
           >
             <span className="tab-icon">{tab.icon}</span>
             {tab.label}

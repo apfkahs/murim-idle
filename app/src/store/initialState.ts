@@ -37,7 +37,7 @@ export function createInitialState(): GameState {
     exploreOrder: [],
     isBossPhase: false,
     bossTimer: 0,
-    explorePendingRewards: { drops: [] },
+    explorePendingRewards: { drops: [], proficiencyGains: {}, materialDrops: {} },
     battleLog: [],
     playerAttackTimer: 0,
     enemyAttackTimer: 0,

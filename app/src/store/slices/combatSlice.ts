@@ -24,7 +24,7 @@ export type CombatSlice = {
   exploreOrder: string[];
   isBossPhase: boolean;
   bossTimer: number;
-  explorePendingRewards: { drops: string[] };
+  explorePendingRewards: { drops: string[]; proficiencyGains?: Record<string, number>; materialDrops?: Record<string, number> };
   battleLog: string[];
   playerAttackTimer: number;
   enemyAttackTimer: number;
@@ -63,7 +63,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
   exploreOrder: [],
   isBossPhase: false,
   bossTimer: 0,
-  explorePendingRewards: { drops: [] },
+  explorePendingRewards: { drops: [], proficiencyGains: {}, materialDrops: {} },
   battleLog: [],
   playerAttackTimer: 0,
   enemyAttackTimer: 0,
@@ -106,7 +106,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
       exploreStep: 0,
       isBossPhase: false,
       bossTimer: 0,
-      explorePendingRewards: { drops: [] },
+      explorePendingRewards: { drops: [], proficiencyGains: {}, materialDrops: {} },
       battleLog: [`— ${firstMon.name} 등장 —`],
       battleResult: null,
       hiddenRevealedInField,
@@ -135,7 +135,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
       exploreStep: 0,
       isBossPhase: false,
       bossTimer: 0,
-      explorePendingRewards: { drops: [] },
+      explorePendingRewards: { drops: [], proficiencyGains: {}, materialDrops: {} },
       battleLog: [`— ${monDef.name} 사냥 시작 —`],
       battleResult: null,
       playerAttackTimer: B.BASE_ATTACK_INTERVAL,
@@ -154,6 +154,8 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
         battleResult: {
           type: 'explore_fail',
           drops: [],
+          proficiencyGains: {},
+          materialDrops: {},
           message: '답파를 포기했습니다. 보상이 없습니다.',
         },
       });

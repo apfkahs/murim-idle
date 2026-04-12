@@ -9,7 +9,7 @@ export type ArtType = 'active' | 'passive' | 'simbeop';
 export type ProficiencyType = 'sword' | 'palm' | 'footwork' | 'mental' | 'fist';
 // ── 발견 조건 ──
 export interface MasteryDiscovery {
-  type: 'boss' | 'event' | 'bijup' | 'artStar';
+  type: 'boss' | 'event' | 'bijup' | 'artStar' | 'recipe';
   bossId?: string;           // boss 타입일 때 보스 ID
   starIndex?: number;        // artStar: 발견 조건 성 인덱스 (1-based)
   unlockStarIndex?: number;  // artStar: 자동 해금 성 인덱스 (미설정 시 starIndex와 동일)
@@ -339,6 +339,7 @@ export const ARTS: ArtDef[] = [
         flavorText: '발이 한결 더 빨라지는 것 같다.',
         requiredTier: 0,
         pointCost: 0,
+        discovery: { type: 'recipe' },
         effects: { bonusAtkSpeed: 0.1 },
       },
       {
@@ -350,6 +351,7 @@ export const ARTS: ArtDef[] = [
         requiredTier: 0,
         pointCost: 0,
         requires: ['crude_bobeop_1'],
+        discovery: { type: 'recipe' },
         effects: { bonusAtkSpeed: 0.1, bonusDodge: 10 },
       },
       {
@@ -361,6 +363,7 @@ export const ARTS: ArtDef[] = [
         requiredTier: 0,
         pointCost: 0,
         requires: ['crude_bobeop_2'],
+        discovery: { type: 'recipe' },
         effects: { bonusAtkSpeed: 0.1, dodgeCounterEnabled: true },
       },
     ],

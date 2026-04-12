@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { YASAN_MONSTERS, INN_MONSTERS } from '../../data/monsters';
 import { getFieldDef } from '../../data/fields';
@@ -11,6 +11,12 @@ import FieldDetailScreen from './FieldDetailScreen';
 export default function FieldNavigation() {
   const [selectedField, setSelectedField] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedField) {
+      document.querySelector<HTMLElement>('.app-content')?.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [selectedField]);
 
   if (selectedField) {
     return <FieldDetailScreen fieldId={selectedField} onBack={() => setSelectedField(null)} />;

@@ -4,7 +4,7 @@
    탭바 하단 여백
    ──────────────────────────────── */
 .app-content {
-  padding-bottom: 72px;
+  padding-bottom: max(72px, calc(env(safe-area-inset-bottom, 0px) + 72px));
 }
 
 /* ────────────────────────────────
@@ -224,6 +224,7 @@
   display: flex;
   flex-direction: column;
   height: calc(100vh - 120px);
+  height: calc(100dvh - 120px);
 }
 
 .battle-header {

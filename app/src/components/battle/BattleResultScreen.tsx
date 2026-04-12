@@ -1,6 +1,8 @@
 import { useGameStore } from '../../store/gameStore';
 import { getArtDef } from '../../data/arts';
 import { getMonsterDef } from '../../data/monsters';
+import { PROF_LABEL } from '../../utils/combat/damageCalc';
+import { MATERIALS } from '../../data/materials';
 
 // ─────────────────────────────────────────────
 // 전투 결과 화면
@@ -43,6 +45,36 @@ export default function BattleResultScreen() {
       {battleResult.drops.length > 0 && (
         <div style={{ color: 'var(--gold)', marginBottom: 8, fontSize: 13 }}>
           {battleResult.drops.map(id => getArtDef(id)?.name ?? id).join(', ')} 획득! 전낭에 담겼습니다.
+        </div>
+      )}
+
+      {battleResult.proficiencyGains && Object.entries(battleResult.proficiencyGains).some(([, v]) => v > 0) && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 3 }}>획득 숙련도</div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            {Object.entries(battleResult.proficiencyGains)
+              .filter(([, v]) => v > 0)
+              .map(([k, v]) => `${PROF_LABEL[k] ?? k} +${v.toFixed(1)}`)
+              .join('  ')}
+          </div>
+        </div>
+      )}
+
+      {battleResult.materialDrops && Object.entries(battleResult.materialDrops).some(([, v]) => v > 0) && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 3 }}>획득 재료</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {Object.entries(battleResult.materialDrops)
+              .filter(([, v]) => v > 0)
+              .map(([id, count]) => {
+                const matDef = MATERIALS.find(m => m.id === id);
+                return (
+                  <div key={id} style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                    {matDef?.name ?? id} ×{count}
+                  </div>
+                );
+              })}
+          </div>
         </div>
       )}
 

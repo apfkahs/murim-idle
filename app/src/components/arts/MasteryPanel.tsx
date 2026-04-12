@@ -186,7 +186,7 @@ export function MasteryPanel({ artId, artGradeExp, materials, tier, discoveredMa
           }
 
           // ── 일반 타입 처리 ──
-          const isDiscovered = !m.discovery || discoveredMasteries.includes(m.id);
+          const isDiscovered = !m.discovery || discoveredMasteries.includes(m.id) || currentActive.includes(m.id);
           const availPts = getAvailablePoints();
 
           const prevMastery = idx > 0 ? masteries[idx - 1] : null;

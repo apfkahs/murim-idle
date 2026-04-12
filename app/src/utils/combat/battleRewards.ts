@@ -63,6 +63,13 @@ export function processEnemyDeath(ctx: TickContext): void {
       ctx.proficiency[pType] = Math.min((ctx.proficiency[pType] ?? 0) + gain, PROF_TABLE[PROF_TABLE.length - 1].cumExp);
       profGainParts.push(`${PROF_LABEL[pType] ?? pType} +${gain.toFixed(1)}`);
     }
+    if (ctx.battleMode === 'explore') {
+      for (const [pType, gain] of Object.entries(profGainMap) as [ProficiencyType, number][]) {
+        const pg = ctx.explorePendingRewards.proficiencyGains ?? {};
+        pg[pType] = (pg[pType] ?? 0) + gain;
+        ctx.explorePendingRewards.proficiencyGains = pg;
+      }
+    }
 
     const allEquippedArts = [...new Set([...ctx.equippedArts, ...(ctx.equippedSimbeop ? [ctx.equippedSimbeop] : [])])];
     for (const artId of allEquippedArts) {
@@ -153,6 +160,11 @@ export function processEnemyDeath(ctx: TickContext): void {
         }
         const matName = MATERIALS.find(m => m.id === mDrop.materialId)?.name ?? mDrop.materialId;
         ctx.battleLog.push(`${matName}을(를) 주웠다! (${ctx.materials[mDrop.materialId]}개)`);
+        if (ctx.battleMode === 'explore') {
+          const md = ctx.explorePendingRewards.materialDrops ?? {};
+          md[mDrop.materialId] = (md[mDrop.materialId] ?? 0) + 1;
+          ctx.explorePendingRewards.materialDrops = md;
+        }
       }
     }
   }
@@ -249,6 +261,8 @@ function processExploreMode(
     ctx.battleResult = {
       type: 'explore_win',
       drops: ctx.explorePendingRewards.drops,
+      proficiencyGains: ctx.explorePendingRewards.proficiencyGains,
+      materialDrops: ctx.explorePendingRewards.materialDrops,
       message: '히든 처치! 답파 대성공!',
     };
     ctx.battleMode = 'none';
@@ -322,6 +336,8 @@ function processExploreMode(
         ctx.battleResult = {
           type: 'explore_win',
           drops: ctx.explorePendingRewards.drops,
+          proficiencyGains: ctx.explorePendingRewards.proficiencyGains,
+          materialDrops: ctx.explorePendingRewards.materialDrops,
           message: '답파 완료!',
         };
         ctx.battleMode = 'none';
@@ -333,6 +349,8 @@ function processExploreMode(
       ctx.battleResult = {
         type: 'explore_win',
         drops: ctx.explorePendingRewards.drops,
+        proficiencyGains: ctx.explorePendingRewards.proficiencyGains,
+        materialDrops: ctx.explorePendingRewards.materialDrops,
         message: '답파 승리! 전체 보상 획득!',
       };
       ctx.battleMode = 'none';

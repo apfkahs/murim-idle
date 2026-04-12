@@ -115,7 +115,7 @@ export const createArtsSlice: StateCreator<GameStore, [], [], ArtsSlice> = (set,
     const mDef = getMasteryDef(artId, masteryId);
     if (!mDef) return;
 
-    if (mDef.discovery?.type === 'bijup' || mDef.discovery?.type === 'artStar') return;
+    if (mDef.discovery?.type === 'bijup' || mDef.discovery?.type === 'artStar' || mDef.discovery?.type === 'recipe') return;
 
     const currentMasteries = state.activeMasteries[artId] ?? [];
     if (currentMasteries.includes(masteryId)) return;

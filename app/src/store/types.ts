@@ -25,6 +25,8 @@ export interface BattleResult {
   message: string;
   deathLog?: string;
   recentBattleLog?: string[];
+  proficiencyGains?: Record<string, number>;
+  materialDrops?: Record<string, number>;
 }
 
 // ============================================================
@@ -102,7 +104,11 @@ export interface GameState {
   exploreOrder: string[];
   isBossPhase: boolean;
   bossTimer: number;
-  explorePendingRewards: { drops: string[] };
+  explorePendingRewards: {
+    drops: string[];
+    proficiencyGains?: Record<string, number>;
+    materialDrops?: Record<string, number>;
+  };
   battleLog: string[];
 
   playerAttackTimer: number;

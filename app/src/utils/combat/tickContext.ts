@@ -31,7 +31,11 @@ export interface TickContext {
   exploreOrder: string[];
   isBossPhase: boolean;
   bossTimer: number;
-  explorePendingRewards: { drops: string[] };
+  explorePendingRewards: {
+    drops: string[];
+    proficiencyGains?: Record<string, number>;
+    materialDrops?: Record<string, number>;
+  };
   battleLog: string[];
   currentField: string | null;
   killCounts: Record<string, number>;
@@ -134,6 +138,8 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
   ownedArts = ownedArts.map(a => ({ ...a }));
   explorePendingRewards = {
     drops: [...explorePendingRewards.drops],
+    proficiencyGains: { ...(explorePendingRewards.proficiencyGains ?? {}) },
+    materialDrops: { ...(explorePendingRewards.materialDrops ?? {}) },
   };
   battleLog = [...battleLog];
   if (isSimulating) {

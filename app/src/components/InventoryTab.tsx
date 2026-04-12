@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { getArtDef } from '../data/arts';
 import { getMonsterDef } from '../data/monsters';
-import { MATERIALS, RECIPES, ART_RECIPES } from '../data/materials';
+import { MATERIALS, RECIPES, ART_RECIPES, COMPOUND_ART_RECIPES } from '../data/materials';
 import { getEquipmentDef } from '../data/equipment';
 
 export default function InventoryTab() {
@@ -18,6 +18,7 @@ export default function InventoryTab() {
   const craftedRecipes = useGameStore(s => s.craftedRecipes);
   const unlockedRecipes = useGameStore(s => s.unlockedRecipes);
   const craftArtRecipe = useGameStore(s => s.craftArtRecipe);
+  const craftCompoundArtRecipe = useGameStore(s => s.craftCompoundArtRecipe);
   const discoveredMasteries = useGameStore(s => s.discoveredMasteries);
 
   const [view, setView] = useState<'main' | 'craft'>('main');
@@ -38,6 +39,16 @@ export default function InventoryTab() {
         ? discoveredMasteries.includes(r.resultMasteryId)
         : false;
     return !isDone;
+  });
+
+  const visibleCompoundRecipes = COMPOUND_ART_RECIPES.filter(r => {
+    if (r.requiresArtId && !ownedArts.some(a => a.id === r.requiresArtId)) return false;
+    const isDone = r.resultMasteryId
+      ? discoveredMasteries.includes(r.resultMasteryId)
+      : r.resultArtId ? ownedArts.some(a => a.id === r.resultArtId) : false;
+    if (isDone) return false;
+    // 재료를 하나라도 보유 시 표시 (진행도 확인 UX)
+    return r.materials.some(m => (materials[m.materialId] ?? 0) > 0);
   });
 
   // 제작 창에 표시할 레시피: 재료 보유 + 해금 조건 충족
@@ -265,7 +276,63 @@ export default function InventoryTab() {
             </div>
           </div>
         )}
-        {visibleRecipes.length === 0 && visibleArtRecipes.length === 0 && (
+        {/* 복합 비급 제작 섹션 */}
+        {visibleCompoundRecipes.length > 0 && (
+          <>
+            {(visibleRecipes.length > 0 || visibleArtRecipes.length > 0) && (
+              <div style={{ height: 1, background: 'var(--border)', margin: '12px 0' }} />
+            )}
+            <div>
+              <div className="card-label" style={{ fontSize: 12, marginBottom: 8 }}>복합 비급 제작</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {visibleCompoundRecipes.map(r => {
+                  const canDo = r.materials.every(m => (materials[m.materialId] ?? 0) >= m.materialCount);
+                  return (
+                    <div key={r.id} style={{
+                      background: 'var(--bg-card)', borderRadius: 6, padding: '10px 12px',
+                      border: `1px solid ${canDo ? 'var(--accent)' : 'var(--border)'}`,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                            {r.name}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>
+                            {r.description}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {r.materials.map(mat => {
+                              const matDef = MATERIALS.find(m => m.id === mat.materialId);
+                              const have = materials[mat.materialId] ?? 0;
+                              const met = have >= mat.materialCount;
+                              return (
+                                <div key={mat.materialId} style={{ fontSize: 12, color: met ? 'var(--accent)' : 'var(--text-secondary)' }}>
+                                  {matDef?.name ?? mat.materialId} · 필요 {mat.materialCount} / 보유 {have}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div style={{ flexShrink: 0 }}>
+                          <button
+                            className={`inventory-btn${canDo ? ' learn' : ''}`}
+                            onClick={() => craftCompoundArtRecipe(r.id)}
+                            disabled={!canDo}
+                            style={{ opacity: canDo ? 1 : 0.4, cursor: canDo ? 'pointer' : 'default' }}
+                          >
+                            제작
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+
+        {visibleRecipes.length === 0 && visibleArtRecipes.length === 0 && visibleCompoundRecipes.length === 0 && (
           <div style={{ color: 'var(--text-dim)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
             제작 가능한 항목이 없습니다.
           </div>

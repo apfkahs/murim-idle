@@ -3,7 +3,7 @@ import type { GameStore } from '../gameStore';
 import type { InventoryItem, GameState } from '../types';
 import { getArtDef } from '../../data/arts';
 import { getEquipmentDef, type EquipSlot, type EquipmentInstance } from '../../data/equipment';
-import { RECIPES, ART_RECIPES, BIJUP_DEFS, getBijupDef } from '../../data/materials';
+import { RECIPES, ART_RECIPES, BIJUP_DEFS, getBijupDef, COMPOUND_ART_RECIPES } from '../../data/materials';
 import { getArtGradeInfo, getGradeTableForArt, getArtGradeInfoFromTable } from '../../utils/artUtils';
 import { calcMaxHp, calcTierMultiplier, gatherEquipmentStats } from '../../utils/combatCalc';
 
@@ -24,6 +24,7 @@ export type InventorySlice = {
   craft: (recipeId: string, materialCount: number) => boolean;
   unlockRecipe: (recipeId: string) => void;
   craftArtRecipe: (recipeId: string) => boolean;
+  craftCompoundArtRecipe: (recipeId: string) => boolean;
   useBijup: (bijupMaterialId: string) => boolean;
   equipItem: (instanceId: string) => void;
   unequipItem: (slot: EquipSlot) => void;
@@ -156,6 +157,52 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
       activeMasteries: newActiveMasteries2,
       artGradeExp: newArtGradeExp,
     });
+    return true;
+  },
+
+  craftCompoundArtRecipe: (recipeId) => {
+    const recipe = COMPOUND_ART_RECIPES.find(r => r.id === recipeId);
+    if (!recipe) return false;
+    const state = get() as GameStore;
+
+    // 재료 충족 확인 (복수 재료 모두)
+    for (const mat of recipe.materials) {
+      if ((state.materials[mat.materialId] ?? 0) < mat.materialCount) return false;
+    }
+    // 선행 무공 보유 확인
+    if (recipe.requiresArtId && !state.ownedArts.some(a => a.id === recipe.requiresArtId)) return false;
+    // 이미 해금된 경우 차단
+    if (recipe.resultMasteryId && state.discoveredMasteries.includes(recipe.resultMasteryId)) return false;
+    if (recipe.resultArtId && state.ownedArts.some(a => a.id === recipe.resultArtId)) return false;
+
+    // 재료 차감
+    const newMaterials = { ...state.materials };
+    for (const mat of recipe.materials) {
+      newMaterials[mat.materialId] = (newMaterials[mat.materialId] ?? 0) - mat.materialCount;
+    }
+
+    // discoveredMasteries + activeMasteries 동시 추가
+    const newDiscoveredMasteries = recipe.resultMasteryId
+      ? [...state.discoveredMasteries, recipe.resultMasteryId]
+      : state.discoveredMasteries;
+
+    let newActiveMasteries = state.activeMasteries;
+    if (recipe.resultMasteryId && recipe.requiresArtId) {
+      newActiveMasteries = {
+        ...state.activeMasteries,
+        [recipe.requiresArtId]: [
+          ...(state.activeMasteries[recipe.requiresArtId] ?? []),
+          recipe.resultMasteryId,
+        ],
+      };
+    }
+
+    const newOwnedArts = recipe.resultArtId
+      ? [...state.ownedArts, { id: recipe.resultArtId }]
+      : state.ownedArts;
+
+    set({ materials: newMaterials, discoveredMasteries: newDiscoveredMasteries,
+          activeMasteries: newActiveMasteries, ownedArts: newOwnedArts });
     return true;
   },
 
