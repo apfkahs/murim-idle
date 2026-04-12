@@ -491,7 +491,7 @@ export function getYasanKills(ctx: AchievementContext): number {
 }
 
 export function getInnKills(ctx: AchievementContext): number {
-  const innIds = ['drunk_thug','peddler','troublemaker','wanderer','bounty_hunter','bandit_chief','masked_swordsman'];
+  const innIds = ['drunk_thug','peddler','troublemaker','wanderer','bandit_chief','masked_swordsman'];
   return innIds.reduce((sum, id) => sum + (ctx.killCounts[id] ?? 0), 0);
 }
 

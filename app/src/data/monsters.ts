@@ -74,7 +74,7 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
       },
       {
         id: 'tiger_rage', displayName: '분노의 일격', type: 'rage_attack', triggerCondition: 'hp_threshold',
-        hpThreshold: 0.3, oneTime: true, damageMultiplier: 3.5, undodgeable: true, priority: 2,
+        hpThreshold: 0.3, oneTime: true, damageMultiplier: 2.5, undodgeable: true, priority: 2,
         logMessages: ['산군의 분노! 산군이 남아있는 힘을 모아 강력한 일격을 가했다!!'],
       },
     ],
@@ -477,14 +477,6 @@ export const INN_MONSTERS: MonsterDef[] = [
     description: '정처 없이 강호를 떠도는 2류 무인이다. 제법 무공을 익혔으나 뜻을 이루지 못하고 객잔에서 술로 세월을 보내고 있다. 칼을 뽑는 속도만큼은 일류에 버금간다는 소문이 있다.',
   },
   {
-    id: 'bounty_hunter', name: '현상금 사냥꾼',
-    hp: 150, attackPower: 18, attackInterval: 2.2, regen: 0, baseProficiency: 40,
-    drops: [], // TODO: 기획자 설계 후 반영
-    grade: 2, imageKey: 'bounty_hunter',
-    attackMessages: ['사냥꾼이 단검을 던졌다!', '사냥꾼의 정확한 급소 공격!'],
-    description: '돈이 되는 일이라면 가리지 않는 자다. 정확한 급소 공격과 단검 투척이 특기이며, 상대를 분석하는 눈썰미가 예사롭지 않다. 오늘 당신이 쫓기는 신세가 아니길 바랄 따름이다.',
-  },
-  {
     id: 'bandit_chief', name: '삼류 도적 두목',
     hp: 550, attackPower: 40, attackInterval: 2.2, regen: 0, baseProficiency: 4.5,
     drops: [],
@@ -512,10 +504,22 @@ export const INN_HIDDEN_MONSTERS: MonsterDef[] = [
   },
 ];
 
-// 흑도 낭인 — 흑풍채 전장 이관 대비 데이터 보존 (INN_MONSTERS에서 제거됨)
+// 흑풍채 일반 몬스터
+export const HEUGPUNGCHAE_MONSTERS: MonsterDef[] = [
+  {
+    id: 'bounty_hunter', name: '현상금 사냥꾼',
+    hp: 150, attackPower: 18, attackInterval: 2.2, regen: 0, baseProficiency: 0,
+    drops: [], // TODO: 기획자 설계 후 반영
+    grade: 2, imageKey: 'bounty_hunter',
+    attackMessages: ['사냥꾼이 단검을 던졌다!', '사냥꾼의 정확한 급소 공격!'],
+    description: '돈이 되는 일이라면 가리지 않는 자다. 정확한 급소 공격과 단검 투척이 특기이며, 상대를 분석하는 눈썰미가 예사롭지 않다. 오늘 당신이 쫓기는 신세가 아니길 바랄 따름이다.',
+  },
+];
+
+// 흑도 낭인 — 흑풍채
 export const RONIN_DEF: MonsterDef = {
   id: 'ronin', name: '흑도 낭인',
-  hp: 250, attackPower: 16, attackInterval: 2.0, regen: 0, baseProficiency: 55,
+  hp: 250, attackPower: 16, attackInterval: 2.0, regen: 0, baseProficiency: 0,
   drops: [],
   grade: 3, imageKey: 'ronin',
   attackMessages: ['낭인이 묵직한 도를 내리쳤다!', '낭인이 어둠 속에서 베어냈다!'],
@@ -589,7 +593,7 @@ export const SAEWOE_MONSTERS: MonsterDef[] = [
 export function getMonsterDef(id: string): MonsterDef | undefined {
   return [...TRAINING_MONSTERS, ...YASAN_MONSTERS, ...HIDDEN_MONSTERS, YASAN_BOSS,
           ...INN_MONSTERS, ...INN_HIDDEN_MONSTERS, INN_BOSS, ...SAEWOE_MONSTERS,
-          RONIN_DEF, BANDIT_LEADER_DEF]
+          ...HEUGPUNGCHAE_MONSTERS, RONIN_DEF, BANDIT_LEADER_DEF]
     .find(m => m.id === id);
 }
 

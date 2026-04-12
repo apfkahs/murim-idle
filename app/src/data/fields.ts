@@ -53,7 +53,7 @@ export const FIELDS: FieldDef[] = [
     name: '허름한 객잔',
     monsters: [
       'drunk_thug', 'peddler', 'troublemaker', 'wanderer',
-      'bounty_hunter', 'bandit_chief',
+      'bandit_chief',
     ],
     hiddenMonsters: ['masked_swordsman'],
     boss: 'innkeeper_true',
@@ -102,7 +102,7 @@ export const FIELDS: FieldDef[] = [
   {
     id: 'heugpungchae',
     name: '흑풍채',
-    monsters: ['ronin'],
+    monsters: ['bounty_hunter', 'ronin'],
     hiddenMonsters: [],
     canExplore: true,
     unlockCondition: { materialOwned: 'heugpungchae_map' },

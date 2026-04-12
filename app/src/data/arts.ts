@@ -468,6 +468,9 @@ export const ARTS: ArtDef[] = [
     proficiencyType: 'mental',
     proficiencyCoefficient: 1 / 15,
     proficiencyGainMultiplier: 0.5,
+    descriptionByStage: [
+      '사도(邪道)의 기운을 억지로 받아들이는 수련법. 마기가 몸속을 거스르는 탓에 숙련도가 쌓이는 속도가 절반에 그치지만, 기운만은 보통 심법보다 빠르게 차오른다.',
+    ],
     growth: {
       baseQiPerSec: 2.0,
       maxQiPerSec: 100_000_000,
@@ -480,13 +483,14 @@ export const ARTS: ArtDef[] = [
     },
     masteries: [
       {
-        stage: 2,
+        stage: 1,
         id: 'maryeong_combat',
         name: '마령 전투 수련',
         description: '전투 중에도 자연의 기운을 생산할 수 있게 된다.',
         flavorText: '마기를 삼켜 자신의 것으로 만들면, 싸우는 순간에도 기운이 샘솟는다.',
         requiredTier: 0,
         pointCost: 0,
+        autoActivate: true,
         effects: {},
       },
     ],

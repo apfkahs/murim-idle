@@ -4,6 +4,7 @@ import { getMonsterDef, BOSS_PATTERNS } from '../../data/monsters';
 import { getArtDef } from '../../data/arts';
 import { formatNumber } from '../../utils/format';
 import { getEnemyImage, getEnemyEmoji, getPlayerByTier, getFieldBackground } from '../../assets';
+import { getFieldDef } from '../../data/fields';
 
 // ─────────────────────────────────────────────
 // 전투 화면 (v1.1: DPS 제거, 공격 간격 표시)
@@ -65,7 +66,7 @@ export default function BattleScreen() {
       <div className="battle-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 14, fontWeight: 500 }}>
-            {currentField === 'training' ? '수련장' : currentField === 'inn' ? '허름한 객잔' : '야산'}
+            {currentField ? (getFieldDef(currentField)?.name ?? currentField) : ''}
           </span>
           {isExplore && (
             <span className="badge badge-gold" style={{ fontSize: 11, padding: '2px 8px' }}>

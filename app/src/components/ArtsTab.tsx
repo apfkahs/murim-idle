@@ -56,6 +56,13 @@ export default function ArtsTab() {
   const state = useGameStore.getState();
   const effects = gatherMasteryEffects(state);
 
+  const calcQiForArt = (artId: string) =>
+    calcQiPerSec({ ...state, equippedSimbeop: artId }) - BALANCE_PARAMS.BASE_QI_PER_SEC;
+  const calcCombatRatioForArt = (artId: string) =>
+    calcCombatQiRatio({ ...state, equippedSimbeop: artId });
+  const calcRegenBonusForArt = (artId: string) =>
+    Math.max(0, calcEffectiveRegen({ ...state, equippedSimbeop: artId }) - calcStaminaRegen(state.stats.gi));
+
   const PROF_TYPE_LABEL: Record<ProficiencyType, string> = {
     sword: '검법', palm: '장법', footwork: '보법', mental: '심법', fist: '권법',
   };
@@ -231,9 +238,9 @@ export default function ArtsTab() {
 
       {/* 삼재심법 카드 */}
       {simbeopDef && simbeopOwned && (() => {
-        const qiBonus = (calcQiPerSec(state) - BALANCE_PARAMS.BASE_QI_PER_SEC).toFixed(1);
-        const combatRatio = calcCombatQiRatio(state);
-        const regenBonus = Math.max(0, calcEffectiveRegen(state) - calcStaminaRegen(state.stats.gi));
+        const qiBonus = calcQiForArt('samjae_simbeop').toFixed(1);
+        const combatRatio = calcCombatRatioForArt('samjae_simbeop');
+        const regenBonus = calcRegenBonusForArt('samjae_simbeop');
         return (
           <div className="card" style={{ marginBottom: 12, padding: 12 }}>
             <div
@@ -330,6 +337,8 @@ export default function ArtsTab() {
             collapsedSummary = `피해 ${normalDmg}`;
           } else if (def.artType === 'passive') {
             collapsedSummary = formatPassiveEffectSummary(def, activeMasteries[owned.id] ?? []);
+          } else if (def.artType === 'simbeop') {
+            collapsedSummary = `기운 +${calcQiForArt(owned.id).toFixed(1)}/초`;
           } else {
             collapsedSummary = stageDesc ? stageDesc.slice(0, 24) + (stageDesc.length > 24 ? '…' : '') : '';
           }
@@ -397,6 +406,35 @@ export default function ArtsTab() {
                         <div style={{ fontSize: 13, color: 'var(--accent)' }}>{summary}</div>
                       </div>
                     ) : null;
+                  })()}
+
+                  {def.artType === 'simbeop' && (() => {
+                    const qiBonus = calcQiForArt(owned.id).toFixed(1);
+                    const combatRatio = calcCombatRatioForArt(owned.id);
+                    const regenBonus = calcRegenBonusForArt(owned.id);
+                    return (
+                      <div style={{ marginTop: 10, padding: '7px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>{def.name} · 효과</div>
+                        <div style={{ fontSize: 14, fontWeight: 500 }}>
+                          기운 <span style={{ color: 'var(--gold)' }}>+{qiBonus}/초</span>
+                          {combatRatio > 0 && (
+                            <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 8, fontWeight: 400 }}>
+                              전투 중 {(combatRatio * 100).toFixed(0)}%
+                            </span>
+                          )}
+                        </div>
+                        {regenBonus > 0 && (
+                          <div style={{ fontSize: 13, fontWeight: 500, marginTop: 2 }}>
+                            내력 회복 <span style={{ color: 'var(--gold)' }}>+{regenBonus.toFixed(1)}/초</span>
+                          </div>
+                        )}
+                        {def.proficiencyGainMultiplier != null && def.proficiencyGainMultiplier !== 1 && (
+                          <div style={{ fontSize: 13, fontWeight: 500, marginTop: 2 }}>
+                            숙련도 획득 <span style={{ color: 'var(--text-danger, #e06c75)' }}>×{def.proficiencyGainMultiplier}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
                   })()}
 
                   <MasteryPanel

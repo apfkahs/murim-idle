@@ -12,7 +12,7 @@ import {
 import { getProficiencyGrade } from '../store/gameStore';
 import { CODEX_MONSTERS } from '../data/achievements';
 
-const INN_IDS = ['drunk_thug','peddler','troublemaker','wanderer','bounty_hunter','bandit_chief','masked_swordsman'];
+const INN_IDS = ['drunk_thug','peddler','troublemaker','wanderer','bandit_chief','masked_swordsman'];
 const CHEONSAN_IDS = ['hwahyulsa','eunrang'];
 const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS) as AchievementCategory[];
 
