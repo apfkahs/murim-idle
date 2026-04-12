@@ -76,6 +76,7 @@ export function buildAchievementContext(
     artSimdeuks,
     totalStats: state.stats.gi + state.stats.sim + state.stats.che,
     totalSimdeuk: state.totalSimdeuk,
+    proficiency: state.proficiency,
     tier: state.tier,
     achievements: state.achievements,
     hiddenRevealedInField: state.hiddenRevealedInField,

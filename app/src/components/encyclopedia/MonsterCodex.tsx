@@ -1,6 +1,6 @@
 import { useGameStore } from '../../store/gameStore';
 import { FIELDS } from '../../data/fields';
-import { getMonsterDef, getGradeName } from '../../data/monsters';
+import { getMonsterDef, getGradeName, BOSS_PATTERNS } from '../../data/monsters';
 import { ARTS } from '../../data/arts';
 import { EQUIPMENT } from '../../data/equipment';
 import { MATERIALS } from '../../data/materials';
@@ -132,6 +132,53 @@ export function MonsterListScreen({ fieldId, onBack, onSelect }: {
   );
 }
 
+const SKILL_TYPE_LABELS: Record<string, string> = {
+  stun: '기절',
+  rage_attack: '분노 강타',
+  replace_normal: '특수 패시브',
+  charged_attack: '차지 공격',
+  dot_apply: '독/지속피해',
+  double_hit: '이중 타격',
+  freeze_attack: '고정 피해',
+  multi_hit: '다중 타격',
+  passive_dodge: '회피 패시브',
+  passive_crit: '치명 패시브',
+  passive_dmg_absorb: '피해 흡수',
+  potion_heal: '자가 회복',
+  atk_buff_bypass: '공격력 강화',
+  stack_smash: '누적 강타',
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getTriggerLabel(skill: any): string {
+  if (skill.triggerCondition === 'stamina_full') return '내력 만충 시';
+  if (skill.triggerCondition === 'hp_threshold')
+    return `HP ${Math.round((skill.hpThreshold ?? 0) * 100)}% 이하`;
+  if (skill.chance) return `${Math.round(skill.chance * 100)}% 확률`;
+  return '항시';
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getSkillEffectDesc(skill: any): string {
+  switch (skill.type) {
+    case 'stun': return `${skill.stunDuration}초 기절`;
+    case 'rage_attack': return `피해 ×${skill.damageMultiplier}`;
+    case 'charged_attack': return `피해 ×${skill.damageMultiplier}${skill.stunAfterHit ? `, ${skill.stunAfterHit}초 기절` : ''}`;
+    case 'dot_apply': return '독 적용';
+    case 'freeze_attack': return skill.fixedDamage ? `고정 ${skill.fixedDamage}` : `피해 ×${skill.damageMultiplier}`;
+    case 'double_hit': return `2타 ×${skill.hitMultiplier}`;
+    case 'multi_hit': return `${skill.hitCount}타 ×${skill.hitMultiplier}`;
+    case 'passive_dodge': return `${Math.round((skill.dodgeChance ?? 0) * 100)}% 회피`;
+    case 'passive_crit': return `${Math.round((skill.critChance ?? 0) * 100)}% 치명 ×${skill.critMultiplier}`;
+    case 'passive_dmg_absorb': return `${Math.round((skill.absorbChance ?? 0) * 100)}% 흡수 ×${skill.absorbMultiplier}`;
+    case 'potion_heal': return 'HP 회복';
+    case 'atk_buff_bypass': return `공격력 +${Math.round((skill.atkBuffPercent ?? 0) * 100)}%`;
+    case 'replace_normal': return '일반 공격 대체';
+    case 'stack_smash': return `${skill.stackTriggerCount}회 누적 → ×${skill.stackSmashMultiplier}`;
+    default: return '';
+  }
+}
+
 function formatChance(chance: number): string {
   const pct = chance * 100;
   if (pct >= 1) return `${pct.toFixed(0)}%`;
@@ -236,6 +283,45 @@ export function MonsterDetailScreen({ monsterId, onBack }: {
           </div>
         )}
       </div>
+
+      {/* 사용 기술 */}
+      {(() => {
+        const pattern = BOSS_PATTERNS[monsterId];
+        const skills = pattern?.skills ?? [];
+        if (skills.length === 0) return null;
+        return (
+          <div className="card">
+            <div className="card-label">사용 기술</div>
+            {reveal >= 4 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {skills.map(skill => (
+                  <div key={skill.id} style={{ fontSize: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{skill.displayName}</span>
+                      <span style={{
+                        fontSize: 10, padding: '1px 6px', borderRadius: 3,
+                        background: 'rgba(255,255,255,0.06)', color: 'var(--text-dim)',
+                      }}>
+                        {SKILL_TYPE_LABELS[skill.type] ?? skill.type}
+                      </span>
+                    </div>
+                    {reveal >= 5 && (
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2, display: 'flex', gap: 8 }}>
+                        <span>{getTriggerLabel(skill)}</span>
+                        {getSkillEffectDesc(skill) && (
+                          <span style={{ color: 'var(--accent-gold)' }}>{getSkillEffectDesc(skill)}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <span style={{ color: 'var(--text-dim)', letterSpacing: 1, fontSize: 12 }}>???</span>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 드랍 아이템 */}
       <div className="card">

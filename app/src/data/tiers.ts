@@ -37,22 +37,22 @@ export const TIERS: TierDef[] = [
   },
   {
     tier: 4, name: '삼류 중상', maxSimdeuk: 2500,
-    requirements: { totalStats: 500, achievementCount: 16 },
+    requirements: { totalStats: 500, achievementCount: 18 },
     rewards: { artPoints: 1 },
   },
   {
     tier: 5, name: '삼류 상', maxSimdeuk: 4000,
-    requirements: { totalStats: 800, achievementCount: 20 },
+    requirements: { totalStats: 800, achievementCount: 25 },
     rewards: { artPoints: 1 },
   },
   {
     tier: 6, name: '삼류 최상', maxSimdeuk: 6000,
-    requirements: { totalStats: 1200, achievementCount: 26 },
+    requirements: { totalStats: 1200, achievementCount: 33 },
     rewards: { artPoints: 1 },
   },
   {
     tier: 7, name: '이류 최하', maxSimdeuk: 10000,
-    requirements: { totalStats: 2000, achievementCount: 27, bossKills: 5 },
+    requirements: { totalStats: 2000, achievementCount: 42, bossKills: 20 },
     rewards: { artPoints: 3 },
   },
 ];

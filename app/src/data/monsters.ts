@@ -6,6 +6,7 @@
 // ── 보스 스킬/패턴 ──
 export interface BossSkillDef {
   id: string;
+  displayName: string;
   type: 'stun' | 'rage_attack' | 'replace_normal' | 'charged_attack'
      | 'dot_apply'
      | 'double_hit'
@@ -67,12 +68,12 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
     stamina: { initial: 25, max: 25, regenPerSec: 0.8 },
     skills: [
       {
-        id: 'tiger_roar', type: 'stun', triggerCondition: 'stamina_full',
+        id: 'tiger_roar', displayName: '포효(咆哮)', type: 'stun', triggerCondition: 'stamina_full',
         staminaCost: 25, stunDuration: 4, undodgeable: false, priority: 1,
         logMessages: ['무시무시한 포효에 온몸이 얼어붙었다...'],
       },
       {
-        id: 'tiger_rage', type: 'rage_attack', triggerCondition: 'hp_threshold',
+        id: 'tiger_rage', displayName: '분노의 일격', type: 'rage_attack', triggerCondition: 'hp_threshold',
         hpThreshold: 0.3, oneTime: true, damageMultiplier: 3.5, undodgeable: true, priority: 2,
         logMessages: ['산군의 분노! 산군이 남아있는 힘을 모아 강력한 일격을 가했다!!'],
       },
@@ -82,12 +83,12 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
     stamina: { initial: 0, max: 50, regenPerSec: 0 },
     skills: [
       {
-        id: 'earth_shatter', type: 'charged_attack', triggerCondition: 'stamina_full',
+        id: 'earth_shatter', displayName: '대지분쇄(大地粉碎)', type: 'charged_attack', triggerCondition: 'stamina_full',
         staminaCost: 50, damageMultiplier: 10, undodgeable: true, priority: 1,
         logMessages: ['대지분쇄(大地粉碎)! 당강이 땅을 내리찍자 대지가 갈라졌다!', '대지분쇄(大地粉碎)! 산이 울릴 정도의 충격이 몸을 관통했다!'],
       },
       {
-        id: 'harvest_qi', type: 'replace_normal', triggerCondition: 'default',
+        id: 'harvest_qi', displayName: '풍년의 기운', type: 'replace_normal', triggerCondition: 'default',
         staminaGain: 10, useNormalDamage: false, undodgeable: false, priority: 0,
         selfHealPercent: 4,
         logMessages: ['당강이 풍년의 기운을 내뿜었다!', '당강의 몸에서 대지의 기운이 흘러나왔다!', '당강이 뿔을 들이밀며 기운을 모은다!'],
@@ -100,13 +101,13 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
     staminaLabel: '화혈독',
     skills: [
       {
-        id: 'hwahyul_burst', type: 'freeze_attack',
+        id: 'hwahyul_burst', displayName: '화혈분화(火血噴火)', type: 'freeze_attack',
         triggerCondition: 'stamina_full', staminaCost: 3,
         fixedDamage: 400, undodgeable: false, priority: 1,
         logMessages: ['화혈분화(火血噴火)! 온몸에 퍼진 독이 한꺼번에 터졌다!'],
       },
       {
-        id: 'hwahyul_bite', type: 'dot_apply',
+        id: 'hwahyul_bite', displayName: '독니 물기', type: 'dot_apply',
         triggerCondition: 'default', chance: 0.4, staminaGain: 1, priority: 0,
         logMessages: ['화혈사의 독니가 살을 파고들었다! 화혈독이 퍼진다!'],
       },
@@ -117,6 +118,7 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
     skills: [
       {
         id: 'kill_intent',
+        displayName: '살기(殺氣)',
         type: 'replace_normal',
         triggerCondition: 'default',
         oneTime: true,
@@ -131,6 +133,7 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
       },
       {
         id: 'geoksan_charge',
+        displayName: '격산타우(隔山打牛)',
         type: 'charged_attack',
         triggerCondition: 'hp_threshold',
         hpThreshold: 0.30,
@@ -148,6 +151,7 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
       },
       {
         id: 'double_strike',
+        displayName: '이연격(二連擊)',
         type: 'double_hit',
         triggerCondition: 'default',
         chance: 0.15,
@@ -157,6 +161,7 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
       },
       {
         id: 'triple_strike',
+        displayName: '삼연격(三連擊)',
         type: 'multi_hit',
         triggerCondition: 'default',
         chance: 0.05,
@@ -171,13 +176,13 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
     stamina: { initial: 0, max: 3, regenPerSec: 0 },
     skills: [
       {
-        id: 'hwanyeong_ice', type: 'freeze_attack',
+        id: 'hwanyeong_ice', displayName: '환영빙습(幻影氷襲)', type: 'freeze_attack',
         triggerCondition: 'stamina_full', staminaCost: 3,
         fixedDamage: 300, freezeAttacks: 3, undodgeable: false, priority: 1,
         logMessages: ['환영빙습(幻影氷襲)! 은랑의 형체가 흐릿해지더니 순식간에 덮쳐왔다!'],
       },
       {
-        id: 'jeonkwang', type: 'double_hit',
+        id: 'jeonkwang', displayName: '전광석화(電光石火)', type: 'double_hit',
         triggerCondition: 'default', chance: 0.2, staminaGain: 1, priority: 0,
         logMessages: ['전광석화(電光石火)! 은랑이 번개처럼 두 번 덮쳤다!'],
       },
@@ -188,12 +193,12 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
     stamina: { initial: 0, max: 0, regenPerSec: 0 },
     skills: [
       {
-        id: 'drunk_dodge', type: 'passive_dodge', triggerCondition: 'default',
+        id: 'drunk_dodge', displayName: '취권 — 비틀 회피', type: 'passive_dodge', triggerCondition: 'default',
         dodgeChance: 0.15,
         logMessages: ['건달이 비틀거리다 공격을 흘려냈다! (취권 — 회피)'],
       },
       {
-        id: 'drunk_crit', type: 'passive_crit', triggerCondition: 'default',
+        id: 'drunk_crit', displayName: '취권 — 우발 강타', type: 'passive_crit', triggerCondition: 'default',
         critChance: 0.15, critMultiplier: 2,
         critChanceAlt: 0.03, critMultiplierAlt: 4,
         logMessages: ['취권! 우연히 급소를 맞혔다!', '취권의 기적! 몸이 저절로 움직였다! 강력한 일격!'],
@@ -204,7 +209,7 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
     stamina: { initial: 0, max: 0, regenPerSec: 0 },
     skills: [
       {
-        id: 'iron_shirt', type: 'passive_dmg_absorb', triggerCondition: 'default',
+        id: 'iron_shirt', displayName: '철포삼(鐵布衫)', type: 'passive_dmg_absorb', triggerCondition: 'default',
         absorbChance: 0.25, absorbMultiplier: 0.5,
         bypassExternalGrade: 1,
         logMessages: ['철포삼! 강인한 몸이 충격을 흡수했다!'],
@@ -215,7 +220,7 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
     stamina: { initial: 0, max: 0, regenPerSec: 0 },
     skills: [
       {
-        id: 'potion_intake', type: 'potion_heal',
+        id: 'potion_intake', displayName: '단약 복용', type: 'potion_heal',
         triggerCondition: 'hp_threshold', hpThreshold: 0.30, oneTime: true, priority: 5,
         healOptions: [
           { probability: 0.96, healPercent: 0.30 },
@@ -230,7 +235,7 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
     stamina: { initial: 0, max: 0, regenPerSec: 0 },
     skills: [
       {
-        id: 'low_nokrim_crit', type: 'passive_crit', triggerCondition: 'default',
+        id: 'low_nokrim_crit', displayName: '하급 녹림도법', type: 'passive_crit', triggerCondition: 'default',
         critChance: 0.15, critMultiplier: 2,
         logMessages: ['하급 녹림도법! 기세를 실은 일격이 급소를 파고들었다!'],
       },
@@ -240,7 +245,7 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
     stamina: { initial: 0, max: 0, regenPerSec: 0 },
     skills: [
       {
-        id: 'sword_qi_manifest', type: 'atk_buff_bypass',
+        id: 'sword_qi_manifest', displayName: '검기 발현(劍氣發現)', type: 'atk_buff_bypass',
         triggerCondition: 'hp_threshold', hpThreshold: 0.50, oneTime: true, priority: 5,
         atkBuffPercent: 0.20, bypassExternalGrade: 1,
         logMessages: ['검기 발현(劍氣發現)! 검에서 기(氣)가 피어올랐다! 공격력이 증가한다!'],
@@ -251,7 +256,7 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
     stamina: { initial: 0, max: 0, regenPerSec: 0 },
     skills: [
       {
-        id: 'kill_intent_masked', type: 'replace_normal',
+        id: 'kill_intent_masked', displayName: '살기(殺氣)', type: 'replace_normal',
         triggerCondition: 'default', oneTime: true, priority: 10,
         debuffAtkPercent: 0.30, debuffAtkSpeedPercent: 0.30,
         conditionMinSimbeopGrade: 5,
@@ -259,28 +264,28 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
                       '...압도당했다. 심법이 충분치 않다!'],
       },
       {
-        id: 'masked_sword_qi', type: 'atk_buff_bypass',
+        id: 'masked_sword_qi', displayName: '검기 발현', type: 'atk_buff_bypass',
         triggerCondition: 'hp_threshold', hpThreshold: 0.80, oneTime: true, priority: 5,
         atkBuffPercent: 0.20, bypassExternalGrade: 1,
         logMessages: ['검기 발현! 검객의 검에서 검기가 용솟음쳤다!'],
       },
       {
-        id: 'dark_shadow_dodge', type: 'passive_dodge', triggerCondition: 'default',
+        id: 'dark_shadow_dodge', displayName: '흑영검법 — 회피', type: 'passive_dodge', triggerCondition: 'default',
         dodgeChance: 0.10,
         logMessages: ['흑영검법! 그림자처럼 사라졌다!'],
       },
       {
-        id: 'dark_double', type: 'double_hit', triggerCondition: 'default',
+        id: 'dark_double', displayName: '흑영이격(黑影二擊)', type: 'double_hit', triggerCondition: 'default',
         chance: 0.15, hitMultiplier: 0.70,
         logMessages: ['흑영이격(黑影二擊)!'],
       },
       {
-        id: 'dark_triple', type: 'multi_hit', triggerCondition: 'default',
+        id: 'dark_triple', displayName: '흑영삼격(黑影三擊)', type: 'multi_hit', triggerCondition: 'default',
         chance: 0.05, hitCount: 3, hitMultiplier: 0.60,
         logMessages: ['흑영삼격(黑影三擊)!'],
       },
       {
-        id: 'dark_shadow_smash', type: 'stack_smash', triggerCondition: 'default',
+        id: 'dark_shadow_smash', displayName: '흑영참(黑影斬)', type: 'stack_smash', triggerCondition: 'default',
         stackTriggerCount: 3, stackSmashMultiplier: 4, undodgeable: true,
         logMessages: ['흑영참(黑影斬)! 그림자가 실체가 되어 폭발했다!'],
       },

@@ -3,10 +3,14 @@ import type { GameStore } from '../gameStore';
 import type { OfflineResult, SaveMeta, GameState } from '../types';
 import { getTierDef } from '../../data/tiers';
 import { getArtDef } from '../../data/arts';
-import { calcMaxHp, calcTierMultiplier, calcStamina } from '../../utils/combatCalc';
+import { calcMaxHp, calcTierMultiplier, calcStamina, spawnEnemy, CLEAR_BATTLE_STATE } from '../../utils/combatCalc';
 import { simulateTick } from '../../utils/gameLoop';
+import { buildAchievementContext } from '../../utils/combat/damageCalc';
+import { ACHIEVEMENTS, CODEX_MONSTERS } from '../../data/achievements';
 import { createInitialState } from '../initialState';
-import { FIELDS } from '../../data/fields';
+import { FIELDS, getFieldDef, generateExploreOrder } from '../../data/fields';
+import { getMonsterDef, BOSS_PATTERNS } from '../../data/monsters';
+import { BALANCE_PARAMS } from '../../data/balance';
 
 export type SaveSlice = {
   // ── state ──
@@ -112,6 +116,20 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         return;
       }
 
+      // fieldUnlocks IIFE 안에서 참조하기 위해 set() 밖에서 먼저 계산
+      const migratedBossKillCounts: Record<string, number> = (() => {
+        if (data.bossKillCounts && Object.keys(data.bossKillCounts).length > 0) {
+          return data.bossKillCounts;
+        }
+        const bossIds = ['tiger_boss', 'innkeeper_true', 'bandit_leader'];
+        const migrated: Record<string, number> = {};
+        for (const id of bossIds) {
+          const n = (data.killCounts ?? {})[id] ?? 0;
+          if (n > 0) migrated[id] = n;
+        }
+        return migrated;
+      })();
+
       const tier = data.tier ?? 0;
       const tierMult = calcTierMultiplier(tier);
       const maxHp = calcMaxHp(data.stats?.che ?? 0, 0, tierMult);
@@ -131,24 +149,36 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         equippedArts: data.equippedArts ?? [],
         artPoints: data.artPoints ?? 3,
         artGradeExp: data.artGradeExp ?? {},
-        achievements: data.achievements ?? [],
+        achievements: (() => {
+          const achs: string[] = data.achievements ?? [];
+          // 마이그레이션: 구 체인(first→3→5→10→all) → 신 체인(first→1→3→5→8→12→17→all)
+          // 구 데이터에 있을 수 있는 체인 공백 소급 부여
+          if (achs.includes('codex_5') && !achs.includes('codex_3')) achs.push('codex_3');
+          if (achs.includes('codex_3') && !achs.includes('codex_1')) achs.push('codex_1');
+          if (achs.includes('codex_10') && !achs.includes('codex_8')) achs.push('codex_8');
+          // codex_all 재검증: ronin 등 신규 CODEX_MONSTERS 추가로 조건이 강화됐을 수 있음
+          // 현재 기준 미충족 시 제거 → 이후 sweep에서 정확히 재부여
+          const codexAllIdx = achs.indexOf('codex_all');
+          if (codexAllIdx >= 0) {
+            const kc: Record<string, number> = data.killCounts ?? {};
+            if (!CODEX_MONSTERS.every(id => (kc[id] ?? 0) >= 1000)) {
+              achs.splice(codexAllIdx, 1);
+            }
+          }
+          return achs;
+        })(),
         achievementCount: data.achievementCount ?? 0,
         killCounts: data.killCounts ?? {},
-        bossKillCounts: (() => {
-          if (data.bossKillCounts && Object.keys(data.bossKillCounts).length > 0) {
-            return data.bossKillCounts;
-          }
-          // 구버전 세이브 마이그레이션: bossKillCounts 필드가 없던 시절 killCounts에서 복원
-          const bossIds = ['tiger_boss', 'innkeeper_true', 'bandit_leader'];
-          const migrated: Record<string, number> = {};
-          for (const id of bossIds) {
-            const n = (data.killCounts ?? {})[id] ?? 0;
-            if (n > 0) migrated[id] = n;
-          }
-          return migrated;
-        })(),
-        totalYasanKills: data.totalYasanKills ?? 0,
-        totalKills: data.totalKills ?? 0,
+        bossKillCounts: migratedBossKillCounts,
+        totalYasanKills: Math.max(
+          data.totalYasanKills ?? 0,
+          ['squirrel', 'rabbit', 'fox', 'deer', 'boar', 'wolf', 'bear']
+            .reduce((s, id) => s + ((data.killCounts ?? {})[id] ?? 0), 0),
+        ),
+        totalKills: Math.max(
+          data.totalKills ?? 0,
+          Object.values((data.killCounts ?? {}) as Record<string, number>).reduce((s, n) => s + n, 0),
+        ),
         hiddenRevealedInField: data.hiddenRevealedInField ?? {},
         bossPatternState: data.bossPatternState ?? null,
         playerStunTimer: data.playerStunTimer ?? 0,
@@ -175,13 +205,23 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
             training: true, yasan: false, inn: false,
             cheonsan_jangmak: false, cheonsan_godo: false, cheonsan_simjang: false,
           };
+          const rawKillCounts: Record<string, number> = data.killCounts ?? {};
           const mats: Record<string, number> = data.materials ?? {};
-          // materialOwned 조건 전장: 재료 미소지 시 해금 초기화 (잘못 해금된 세이브 복구)
           const revalidated = { ...saved };
           for (const field of FIELDS) {
             const cond = field.unlockCondition;
-            if (cond?.materialOwned && (mats[cond.materialOwned] ?? 0) === 0) {
-              revalidated[field.id] = false;
+            if (!cond) continue;
+            // bossKill/monsterKill: 처치 기록이 있으면 해금 (영구적 조건, 취소 없음)
+            if (cond.bossKill && (migratedBossKillCounts[cond.bossKill] ?? 0) > 0) {
+              revalidated[field.id] = true;
+            }
+            if (cond.monsterKill && (rawKillCounts[cond.monsterKill] ?? 0) > 0) {
+              revalidated[field.id] = true;
+            }
+            // materialOwned: 재료 소지 여부로 해금 상태 결정
+            // (구 세이브에 필드가 없던 경우에도 재료가 있으면 새로 해금됨)
+            if (cond.materialOwned) {
+              revalidated[field.id] = (mats[cond.materialOwned] ?? 0) > 0;
             }
           }
           return revalidated;
@@ -205,6 +245,27 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         battleResult: null,
         battleLog: [],
       });
+
+      // 로드 후 업적 전체 재계산: 누락 업적 소급 부여 + achievementCount 정정
+      // (fieldUnlocks/totalKills 등이 위에서 정확히 재계산된 상태를 사용)
+      const loaded = get() as GameStore;
+      const achCtx = buildAchievementContext(loaded);
+      const achs = [...loaded.achievements];
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const ach of ACHIEVEMENTS) {
+          if (achs.includes(ach.id)) continue;
+          if (ach.prerequisite && !achs.includes(ach.prerequisite)) continue;
+          if (ach.check(achCtx)) {
+            achs.push(ach.id);
+            changed = true;
+          }
+        }
+      }
+      if (achs.length !== loaded.achievements.length || achs.length !== loaded.achievementCount) {
+        set({ achievements: achs, achievementCount: achs.length });
+      }
     } catch {
       // corrupt save
     }
@@ -362,6 +423,45 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
       }
 
       currentState = { ...currentState, ...changes } as GameState;
+
+      // 자동 답파 재시작 (오프라인/백그라운드 시뮬레이션 중)
+      if (
+        currentState.battleResult?.type === 'explore_win' &&
+        currentState.currentField &&
+        currentState.autoExploreFields[currentState.currentField]
+      ) {
+        const fieldId = currentState.currentField;
+        const field = getFieldDef(fieldId);
+        if (field?.canExplore) {
+          const order = generateExploreOrder(field);
+          const firstMon = getMonsterDef(order[0]);
+          if (firstMon) {
+            const hiddenRevealedInField = { ...currentState.hiddenRevealedInField };
+            if (firstMon.isHidden) {
+              hiddenRevealedInField[fieldId] = order[0];
+            }
+            currentState = {
+              ...currentState,
+              ...CLEAR_BATTLE_STATE,
+              battleMode: 'explore',
+              currentEnemy: spawnEnemy(firstMon),
+              bossPatternState: BOSS_PATTERNS[order[0]]
+                ? { bossStamina: BOSS_PATTERNS[order[0]].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
+                : null,
+              currentField: fieldId,
+              exploreOrder: order,
+              exploreStep: 0,
+              isBossPhase: false,
+              bossTimer: 0,
+              explorePendingRewards: { simdeuk: 0, drops: [] },
+              battleResult: null,
+              hiddenRevealedInField,
+              playerAttackTimer: BALANCE_PARAMS.BASE_ATTACK_INTERVAL,
+              enemyAttackTimer: firstMon.attackInterval,
+            } as GameState;
+          }
+        }
+      }
     }
 
     set({
