@@ -305,6 +305,7 @@ export interface MonsterDef {
   isTraining?: boolean;
   isHidden?: boolean;
   isBoss?: boolean;
+  stunnable?: boolean;  // true이면 isBoss임에도 기절 적용 가능 (흑풍채 등)
   grade: number;             // 0=등급외, 1~∞ (시뮬레이션 기반 수동 부여)
   imageKey: string;
   attackMessages?: string[];

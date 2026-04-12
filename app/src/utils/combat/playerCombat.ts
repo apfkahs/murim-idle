@@ -44,14 +44,22 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
     if (ctx.playerFinisherCharge) {
       skipNormalAttack = true;
       const fcDef = getArtDef(ctx.playerFinisherCharge.artId);
-      const fcIntervalMult = fcDef?.attackIntervalMultiplier ?? 1;
+      const fcId = ctx.playerFinisherCharge.artId;
+      const fcMasteryIds = ctx.state.activeMasteries[fcId] ?? [];
+      const fcBaseIntervalMult = fcDef?.attackIntervalMultiplier ?? 1;
+      let fcIntervalReduction = 0;
+      for (const m of (fcDef?.masteries ?? [])) {
+        if (fcMasteryIds.includes(m.id) && m.effects?.attackIntervalMultiplierReduction) {
+          fcIntervalReduction += m.effects.attackIntervalMultiplierReduction;
+        }
+      }
+      const fcIntervalMult = Math.max(1, fcBaseIntervalMult - fcIntervalReduction);
       ctx.playerAttackTimer += attackInterval * (fcIntervalMult - 1);
 
       if (!ctx.playerFinisherCharge.attackFirst) {
         // 차지 후 공격: 차지 완료 시 데미지
         if (ctx.playerFinisherCharge.timeLeft <= 0) {
-          const fcId = ctx.playerFinisherCharge.artId;
-          const artMasteryIds2 = ctx.state.activeMasteries[fcId] ?? [];
+          const artMasteryIds2 = fcMasteryIds;
           const fcUltMultiplier = getEffectiveUltMultiplier(fcDef!, artMasteryIds2);
           const fcProfType = fcDef!.proficiencyType;
           const fcProfVal = getProfDamageValue(ctx.proficiency[fcProfType] ?? 0);
@@ -63,6 +71,20 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           ctx.currentEnemy = { ...ctx.currentEnemy! };
           ctx.currentEnemy!.hp -= fcDmg;
           ctx.currentBattleDamageDealt += fcDmg;
+          // stunOnUlt 처리 (격산타우 경로)
+          {
+            let fcStunDur = 0;
+            for (const m of (fcDef?.masteries ?? [])) {
+              if (fcMasteryIds.includes(m.id) && m.effects?.stunOnUlt) {
+                fcStunDur = m.effects.stunOnUlt;
+              }
+            }
+            const fcEnemyDefStun = getMonsterDef(ctx.currentEnemy!.id);
+            if (fcStunDur > 0 && (!fcEnemyDefStun?.isBoss || fcEnemyDefStun?.stunnable)) {
+              ctx.currentEnemy!.enemyStunTimer = fcStunDur;
+              ctx.battleLog.push(`적이 ${fcStunDur}초간 기절했다!`);
+            }
+          }
           const fcUltChangeName = artMasteryIds2.map(id => fcDef!.masteries.find(m => m.id === id)?.effects?.ultChange?.name).find(Boolean);
           const fcAttackName = fcUltChangeName ?? fcDef!.ultMessages?.[0] ?? '절초';
           const fcEName = getMonsterDef(ctx.currentEnemy!.id)?.name ?? ctx.currentEnemy!.id;
@@ -95,6 +117,8 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
       let isCritical = false;
       let attackName = '평타';
       let isUlt = false;
+      let artDefForBonuses: ReturnType<typeof getArtDef> | null = null;
+      let artMasteryIdsForBonuses: string[] = [];
 
       // 절초 판정
       const ultCandidates = ctx.equippedArts.filter(artId => {
@@ -128,7 +152,14 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
             if (m.effects?.ultChange?.ultAttackFirst) ultAtkFirst = true;
           }
         }
-        const artIntervalMult = chosenDef.attackIntervalMultiplier ?? 1;
+        const baseArtIntervalMult = chosenDef.attackIntervalMultiplier ?? 1;
+        let artIntervalReduction = 0;
+        for (const m of chosenDef.masteries) {
+          if (artMasteryIds.includes(m.id) && m.effects?.attackIntervalMultiplierReduction) {
+            artIntervalReduction += m.effects.attackIntervalMultiplierReduction;
+          }
+        }
+        const artIntervalMult = Math.max(1, baseArtIntervalMult - artIntervalReduction);
         ctx.playerAttackTimer += attackInterval * (artIntervalMult - 1);
 
         const ultProfType = chosenDef.proficiencyType;
@@ -158,6 +189,8 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           ctx.stamina -= effectiveUltCostFinal;
           ctx.ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
           attackName = ultChangeName ?? chosenDef.ultMessages?.[0] ?? '절초';
+          artDefForBonuses = chosenDef;
+          artMasteryIdsForBonuses = artMasteryIds;
           if (ultAtkFirst && ultChargeTime > 0) {
             ctx.playerFinisherCharge = { artId: chosenId, attackFirst: true, timeLeft: ultChargeTime * effectiveInterval };
           }
@@ -190,7 +223,16 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           }
 
           // per-art 공격 간격 배율
-          const chosenIntervalMult = chosen.def.attackIntervalMultiplier ?? 1;
+          artDefForBonuses = chosen.def;
+          artMasteryIdsForBonuses = ctx.state.activeMasteries[chosen.id] ?? [];
+          const chosenBaseIntervalMult = chosen.def.attackIntervalMultiplier ?? 1;
+          let chosenIntervalReduction = 0;
+          for (const m of chosen.def.masteries) {
+            if (artMasteryIdsForBonuses.includes(m.id) && m.effects?.attackIntervalMultiplierReduction) {
+              chosenIntervalReduction += m.effects.attackIntervalMultiplierReduction;
+            }
+          }
+          const chosenIntervalMult = Math.max(1, chosenBaseIntervalMult - chosenIntervalReduction);
           ctx.playerAttackTimer += attackInterval * (chosenIntervalMult - 1);
         } else {
           damage = 1;
@@ -212,6 +254,22 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
       }
 
       damage = Math.floor(damage);
+
+      // 보스/히든 피해 보너스 적용
+      if (artDefForBonuses && damage > 0) {
+        const bossEnemyDef = ctx.currentEnemy ? getMonsterDef(ctx.currentEnemy.id) : null;
+        if (bossEnemyDef?.isBoss || bossEnemyDef?.isHidden) {
+          let bossHiddenBonus = 0;
+          for (const m of artDefForBonuses.masteries) {
+            if (artMasteryIdsForBonuses.includes(m.id) && m.effects?.bossHiddenDmgBonus) {
+              bossHiddenBonus += m.effects.bossHiddenDmgBonus;
+            }
+          }
+          if (bossHiddenBonus > 0) {
+            damage = Math.floor(damage * (1 + bossHiddenBonus));
+          }
+        }
+      }
 
       // 살기 데미지 디버프 적용
       if (ctx.bossPatternState?.playerAtkDebuffMult) {
@@ -245,6 +303,21 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
 
         ctx.currentEnemy!.hp -= damage;
         ctx.currentBattleDamageDealt += damage;
+
+        // stunOnUlt 처리
+        if (isUlt && artDefForBonuses && ctx.currentEnemy) {
+          let stunDur = 0;
+          for (const m of artDefForBonuses.masteries) {
+            if (artMasteryIdsForBonuses.includes(m.id) && m.effects?.stunOnUlt) {
+              stunDur = m.effects.stunOnUlt;
+            }
+          }
+          const stunEnemyDef = getMonsterDef(ctx.currentEnemy.id);
+          if (stunDur > 0 && (!stunEnemyDef?.isBoss || stunEnemyDef?.stunnable)) {
+            ctx.currentEnemy.enemyStunTimer = stunDur;
+            ctx.battleLog.push(`적이 ${stunDur}초간 기절했다!`);
+          }
+        }
 
         const monDef = getMonsterDef(ctx.currentEnemy!.id);
         const eName = monDef?.name ?? ctx.currentEnemy!.id;

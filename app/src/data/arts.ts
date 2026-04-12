@@ -41,6 +41,9 @@ export interface MasteryEffects {
   bonusHpPercent?: number;             // 최대 HP % 증가 (철포삼 비전서 +10%)
   bonusCombatQiRatioFlat?: number;     // 전투 기운 비율 절대 덧셈 (삼재심법 오의 +0.10)
   simbeopQiMultiplier?: number;        // 장착 심법 자체 기운 생산 배율 (삼재심법 오의 ×1.2). gatherMasteryEffects 집계 대상 아님.
+  attackIntervalMultiplierReduction?: number;  // 무공 공속 감소 배율 감소량 (녹림권 1.5→1.4→1.3)
+  stunOnUlt?: number;                          // 절초 명중 시 적 기절 시간(초)
+  bossHiddenDmgBonus?: number;                 // 보스/히든 몬스터 대상 피해 보너스 비율
 }
 
 // ── 초(招) 정의 ──
@@ -379,7 +382,7 @@ export const ARTS: ArtDef[] = [
     proficiencyCoefficient: 1,
     baseDamage: 8,
     normalMultiplierCap: 1.6,
-    baseGrade: 4,
+    baseGrade: 5,
     cost: 2,
     attackIntervalMultiplier: 1.5,
     ultBaseDamage: 20,
@@ -388,9 +391,15 @@ export const ARTS: ArtDef[] = [
     ultCooldown: 15,
     ultChargeTime: 1.5,
     ultBypassWeakDefense: true,
+    gradeDamageMultipliers: [2.00, 2.14, 2.27, 2.41, 2.55, 2.68, 2.82, 2.95, 3.09, 3.23, 3.36, 3.50],
+    masteryGradeMultiplierBonus: {
+      nokrim_fist_chokmokta_cap: 0.5,
+      nokrim_fist_mokseok_cap: 0.5,
+      nokrim_fist_gomokpa_cap: 0.5,
+    },
     normalMessages: ['녹림권의 일격!', '거친 권풍이 몰아친다!'],
     ultMessages: ['강렬한 일권(一拳)! 기를 응집하여 폭발적인 일격을 날린다!'],
-    growth: {},
+    growth: { gradeMaxStars: 12 },
     masteries: [
       {
         stage: 1,
@@ -420,6 +429,80 @@ export const ARTS: ArtDef[] = [
           },
           normalMultiplierCapIncrease: 0.25,
         },
+      },
+      {
+        stage: 3,
+        id: 'nokrim_fist_chokmokta',
+        name: '초목타(草木打)',
+        description: '치명타 확률 +10%, 공격 간격 배율 1.5→1.4',
+        flavorText: '초목처럼 유연하게 치고 빠지는 녹림 권법의 기초.',
+        requiredTier: 0,
+        pointCost: 0,
+        discovery: { type: 'artStar', starIndex: 3, unlockStarIndex: 5 },
+        effects: {
+          bonusCritRate: 0.10,
+          attackIntervalMultiplierReduction: 0.1,
+        },
+      },
+      {
+        stage: 4,
+        id: 'nokrim_fist_chokmokta_cap',
+        name: '초목타 배율 강화',
+        description: '초식 배율 상한 +0.5',
+        flavorText: '초목의 유연함이 초식에 담기며 일격의 무게가 깊어진다.',
+        requiredTier: 0,
+        pointCost: 2,
+        requires: ['nokrim_fist_chokmokta'],
+        effects: {},
+      },
+      {
+        stage: 5,
+        id: 'nokrim_fist_mokseok',
+        name: '목석격(木石擊)',
+        description: '절초 명중 시 적 기절 2초 (보스 면역)',
+        flavorText: '나무와 돌처럼 굳은 일격으로 상대의 동작을 완전히 멈춘다.',
+        requiredTier: 0,
+        pointCost: 0,
+        discovery: { type: 'artStar', starIndex: 7, unlockStarIndex: 9 },
+        effects: {
+          stunOnUlt: 2,
+        },
+      },
+      {
+        stage: 6,
+        id: 'nokrim_fist_mokseok_cap',
+        name: '목석격 배율 강화',
+        description: '초식 배율 상한 +0.5',
+        flavorText: '목석의 무게가 초식에 더해져 파괴력이 한층 높아진다.',
+        requiredTier: 0,
+        pointCost: 2,
+        requires: ['nokrim_fist_mokseok'],
+        effects: {},
+      },
+      {
+        stage: 7,
+        id: 'nokrim_fist_gomokpa',
+        name: '고목파(古木破)',
+        description: '보스/히든 몬스터 대상 피해 +10%, 공격 간격 배율 추가 1.4→1.3',
+        flavorText: '수백 년 고목을 쪼개는 힘. 강인한 적 앞에서 진가를 발휘한다.',
+        requiredTier: 0,
+        pointCost: 0,
+        discovery: { type: 'artStar', starIndex: 12, unlockStarIndex: 12 },
+        effects: {
+          bossHiddenDmgBonus: 0.10,
+          attackIntervalMultiplierReduction: 0.1,
+        },
+      },
+      {
+        stage: 8,
+        id: 'nokrim_fist_gomokpa_cap',
+        name: '고목파 배율 강화',
+        description: '초식 배율 상한 +0.5',
+        flavorText: '고목을 쪼개는 힘이 초식에 녹아들어 최고의 경지에 이른다.',
+        requiredTier: 0,
+        pointCost: 2,
+        requires: ['nokrim_fist_gomokpa'],
+        effects: {},
       },
     ],
   },

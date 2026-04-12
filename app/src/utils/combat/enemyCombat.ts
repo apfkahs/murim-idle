@@ -13,6 +13,12 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
   if (!ctx.currentEnemy) return;
   if (ctx.currentEnemy.attackPower <= 0 || ctx.currentEnemy.attackInterval <= 0) return;
 
+  // 적 기절 체크: 기절 중에는 공격 불가
+  if (ctx.currentEnemy.enemyStunTimer && ctx.currentEnemy.enemyStunTimer > 0) {
+    ctx.currentEnemy = { ...ctx.currentEnemy, enemyStunTimer: Math.max(0, ctx.currentEnemy.enemyStunTimer - ctx.dt) };
+    return;
+  }
+
   ctx.enemyAttackTimer -= ctx.dt;
   if (ctx.enemyAttackTimer > 0) return;
 

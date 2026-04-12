@@ -99,6 +99,7 @@ export interface GameState {
     rageModeHpCost?: number;            // 현재 광란 HP 소모량 (20→30→40...)
     bypassExternalGradeActive?: boolean; // 검기 발현 후 1등급 외공 무시
     potionConsumedRage?: boolean;       // 폭혈단 복용 여부 (처치 시 특수 드롭 조건)
+    enemyStunTimer?: number;            // 적 기절 남은 시간(초)
   } | null;
   exploreStep: number;
   exploreOrder: string[];
