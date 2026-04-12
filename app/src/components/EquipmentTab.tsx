@@ -29,6 +29,7 @@ const RARITY_COLORS: Record<EquipRarity, string> = {
 function formatStats(stats: EquipStats): string {
   const parts: string[] = [];
   if (stats.bonusAtk) parts.push(`공격 +${stats.bonusAtk}`);
+  if (stats.bonusFixedDmgReduction) parts.push(`고정피해감소 +${stats.bonusFixedDmgReduction}`);
   if (stats.bonusHp) parts.push(`체력 +${stats.bonusHp}`);
   if (stats.bonusCritRate) parts.push(`치명 +${(stats.bonusCritRate * 100).toFixed(1)}%`);
   if (stats.bonusDodge) parts.push(`회피 +${stats.bonusDodge}%`);
