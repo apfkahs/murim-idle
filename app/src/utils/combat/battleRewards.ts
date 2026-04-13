@@ -270,8 +270,8 @@ function processExploreMode(
     applyBattleReset(ctx);
     ctx.battleLog.push('괴이한 존재를 물리치고 답파에 성공했다!');
   } else {
-    // 일반 처치 후 HP 30% 회복
-    const exploreHeal = Math.floor(ctx.maxHp * 0.3);
+    // 일반 처치 후 HP 15% 회복
+    const exploreHeal = Math.floor(ctx.maxHp * 0.15);
     ctx.hp = Math.min(ctx.hp + exploreHeal, ctx.maxHp);
     ctx.battleLog.push(`적을 격파한 후 휴식을 취해 일부 체력을 회복했다! (+${exploreHeal})`);
 
