@@ -495,11 +495,11 @@ export const INN_MONSTERS: MonsterDef[] = [
 export const INN_HIDDEN_MONSTERS: MonsterDef[] = [
   {
     id: 'masked_swordsman', name: '가면 쓴 검객',
-    hp: 3000, attackPower: 110, attackInterval: 1.9, regen: 0, baseProficiency: 6,
+    hp: 3600, attackPower: 110, attackInterval: 1.9, regen: 0, baseProficiency: 6,
     drops: [{ artId: 'maryeong_simbeop', chance: 0.01 }],
     materialDrops: [{ materialId: 'demonic_note', chance: 0.10 }],
     equipDrops: [{ equipId: 'heugak_sword', chance: 0.01 }],
-    isHidden: true, grade: 7, imageKey: 'masked_swordsman',
+    isHidden: true, stunnable: true, grade: 7, imageKey: 'masked_swordsman',
     attackMessages: ['검객의 검이 섬광처럼 스쳤다!', '가면 뒤에서 살기가 뿜어져 나왔다!'],
     description: '객잔 한켠에 조용히 앉아 있다가 어느 순간 홀연히 나타난 자다. 가면 뒤의 얼굴은 물론 이름도 출신도 알 수 없다. 그러나 뽑아 드는 검에서 느껴지는 살기만은 거짓이 없다.',
   },
@@ -540,14 +540,14 @@ export const BANDIT_LEADER_DEF: MonsterDef = {
 // 객잔 보스
 export const INN_BOSS: MonsterDef = {
   id: 'innkeeper_true', name: '객잔 주인',
-  hp: 2000, attackPower: 70, attackInterval: 2.2, regen: 0, baseProficiency: 6,
+  hp: 2500, attackPower: 70, attackInterval: 2.2, regen: 0, baseProficiency: 6,
   drops: [{ artId: 'nokrim_fist', chance: 0.01 }],
   materialDrops: [
     { materialId: 'map_fragment', chance: 0.05 },
     { materialId: 'demonic_note', chance: 0.004 },
     { materialId: 'bijup_nokrim_geoksan', chance: 0.002 },
   ],
-  isBoss: true, grade: 6, imageKey: 'innkeeper_true',
+  isBoss: true, stunnable: true, grade: 6, imageKey: 'innkeeper_true',
   attackMessages: ['주인의 손가락이 번개처럼 혈도를 찔렀다!', '주인이 가볍게 손을 뻗었는데 엄청난 장력이!'],
   description: '오랫동안 객잔을 운영하며 평범한 노인처럼 보였으나, 그 뒤에 감춰진 경지가 드러나는 순간 모든 것이 달라진다. 손가락 하나로 혈도를 짚는 지법(指法)의 정수를 몸에 담고 있다.',
 };

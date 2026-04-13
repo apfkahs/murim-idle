@@ -469,7 +469,7 @@ export const ARTS: ArtDef[] = [
         stage: 2,
         id: 'nokrim_fist_mokseok',
         name: '목석격(木石擊)',
-        description: '절초 명중 시 적 기절 2초 (보스 면역)',
+        description: '절초 명중 시 적 기절 2초 (일부 보스 면역)',
         flavorText: '나무와 돌처럼 굳은 일격으로 상대의 동작을 완전히 멈춘다.',
         requiredTier: 0,
         pointCost: 0,
