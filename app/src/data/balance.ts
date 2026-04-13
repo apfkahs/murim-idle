@@ -23,8 +23,8 @@ export const BALANCE_PARAMS = {
   REGEN_BASE: 1,
 
   // ── 선형 스탯 계수 ──
-  STAT_K_GI: 0.05,   // 기 1당 내력 회복 +0.05/초
-  STAT_K_SIM: 0.5,   // 심 1당 최대 내력 +0.5
+  STAT_K_GI: 0.00625,   // 기 1당 내력 회복 +0.00625/초
+  STAT_K_SIM: 0.0833,   // 심 1당 최대 내력 +0.0833
   STAT_K_CHE: 2,     // 체 1당 최대 HP +2
 
   // ── COMBAT ──
