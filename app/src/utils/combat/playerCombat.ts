@@ -450,7 +450,8 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
             if ((ctx.bossPatternState.cheolbyeokStacks ?? 0) < maxStacks) {
               ctx.bossPatternState.cheolbyeokStacks = (ctx.bossPatternState.cheolbyeokStacks ?? 0) + 1;
               const cheolMsg = cheolSkill.logMessages[Math.floor(Math.random() * cheolSkill.logMessages.length)];
-              ctx.battleLog.push(`${monDef?.name ?? ctx.currentEnemy!.id}: ${cheolMsg}`);
+              const cheolEName = getMonsterDef(ctx.currentEnemy!.id)?.name ?? ctx.currentEnemy!.id;
+              ctx.battleLog.push(`${cheolEName}: ${cheolMsg}`);
             }
           }
         }
