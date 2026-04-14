@@ -55,7 +55,7 @@ export function processEnemyDeath(ctx: TickContext): void {
       if (pType in profGainMap) continue;
       const currentGrade = getProfStarInfo(ctx.proficiency[pType] ?? 0).starIndex;
       const diff = monsterGrade - currentGrade;
-      const multiplier = diff >= 0 ? Math.pow(3, diff) : Math.pow(1 / 9, -diff);
+      const multiplier = diff >= 0 ? Math.pow(3, diff) : Math.pow(1 / 4, -diff);
       const artProfMult = artDef.proficiencyGainMultiplier ?? 1.0;
       // 녹림의 전령 특수효과: 녹림권+녹림보법 동시 장착 시 숙련도 +30%
       let heraldBonus = 1;
