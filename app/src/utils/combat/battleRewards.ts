@@ -11,6 +11,7 @@ import { getEquipmentDef, type EquipmentInstance, type EquipSlot } from '../../d
 import {
   getMaxEquippedArtGrade, getArtGradeInfo, getProfStarInfo,
   PROF_TABLE, getGradeTableForArt, getArtGradeInfoFromTable,
+  getProficiencyGrade,
 } from '../artUtils';
 import { spawnEnemy } from '../combatCalc';
 import { PROF_LABEL } from './damageCalc';
@@ -114,10 +115,27 @@ export function processEnemyDeath(ctx: TickContext): void {
     }
   }
 
+  // 드랍률 보정: 장착 무공 숙련도 평균 vs 몬스터 등급
+  const profTypes = new Set<ProficiencyType>();
+  for (const aId of [...ctx.equippedArts, ...(ctx.equippedSimbeop ? [ctx.equippedSimbeop] : [])]) {
+    const aDef = getArtDef(aId);
+    if (aDef?.proficiencyType) profTypes.add(aDef.proficiencyType);
+  }
+  let dropRateMultiplier = 1;
+  if (profTypes.size > 0 && monDef.grade >= 1) {
+    let gradeSum = 0;
+    for (const pt of profTypes) gradeSum += getProficiencyGrade(ctx.proficiency[pt] ?? 0);
+    const avgGrade = gradeSum / profTypes.size;
+    const diff = monDef.grade - avgGrade;
+    if (diff >= 2) {
+      dropRateMultiplier = 1 + Math.min((diff - 1) * 0.5, 2.0);
+    }
+  }
+
   // 드롭
   const drops: string[] = [];
   for (const drop of monDef.drops) {
-    if (Math.random() < drop.chance) {
+    if (Math.random() < Math.min(drop.chance * dropRateMultiplier, 1)) {
       if (!ctx.ownedArts.some(a => a.id === drop.artId) && !ctx.inventory.some(i => i.artId === drop.artId)) {
         drops.push(drop.artId);
         ctx.inventory.push({
@@ -135,7 +153,7 @@ export function processEnemyDeath(ctx: TickContext): void {
   // 장비 드롭
   if (monDef.equipDrops) {
     for (const eqDrop of monDef.equipDrops) {
-      if (Math.random() < eqDrop.chance) {
+      if (Math.random() < Math.min(eqDrop.chance * dropRateMultiplier, 1)) {
         const alreadyOwned = Object.values(ctx.state.equipment).some(e => e?.defId === eqDrop.equipId)
           || ctx.equipmentInventory.some(e => e.defId === eqDrop.equipId);
         if (alreadyOwned) continue;
@@ -162,7 +180,7 @@ export function processEnemyDeath(ctx: TickContext): void {
     ctx.battleLog.push('나무 조각 1개를 주웠다. 무언가를 만드는 데 쓸 수 있을 것 같다...');
   } else if (monDef.materialDrops) {
     for (const mDrop of monDef.materialDrops) {
-      if (Math.random() < mDrop.chance) {
+      if (Math.random() < Math.min(mDrop.chance * dropRateMultiplier, 1)) {
         ctx.materials[mDrop.materialId] = (ctx.materials[mDrop.materialId] ?? 0) + 1;
         if (!ctx.obtainedMaterials.includes(mDrop.materialId)) {
           ctx.obtainedMaterials.push(mDrop.materialId);
