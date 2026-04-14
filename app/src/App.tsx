@@ -58,8 +58,8 @@ export default function App() {
             const result = useGameStore.getState().processOfflineProgress(elapsed);
             setOfflineResult(result);
           }
-        } catch {
-          // ignore
+        } catch (e) {
+          console.error('[오프라인 진행 오류]', e);
         }
       }
     }

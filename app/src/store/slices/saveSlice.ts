@@ -94,6 +94,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
       proficiency: state.proficiency,
       autoExploreFields: state.autoExploreFields,
       pendingAutoExplore: state.pendingAutoExplore,
+      pendingHuntRetry: state.pendingHuntRetry,
       currentSaveSlot: targetSlot,
       lastTickTime: Date.now(),
       savedAt: Date.now(),
@@ -254,6 +255,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         knownEquipment: data.knownEquipment ?? [],
         dodgeCounterActive: data.dodgeCounterActive ?? false,
         pendingAutoExplore: data.pendingAutoExplore ?? false,
+        pendingHuntRetry: data.pendingHuntRetry ?? false,
         currentSaveSlot: slot,
         battleResult: null,
         battleLog: [],
@@ -372,6 +374,8 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
     currentState.battleLog = [...currentState.battleLog];
     currentState.explorePendingRewards = {
       drops: [...currentState.explorePendingRewards.drops],
+      proficiencyGains: { ...(currentState.explorePendingRewards.proficiencyGains ?? {}) },
+      materialDrops: { ...(currentState.explorePendingRewards.materialDrops ?? {}) },
     };
     currentState.tutorialFlags = { ...currentState.tutorialFlags };
     currentState.activeMasteries = { ...currentState.activeMasteries };
@@ -520,6 +524,14 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
           ...currentState,
           battleResult: null,
           pendingAutoExplore: true,
+        } as GameState;
+      }
+      // hunt_end(사냥 중 사망) 후 사냥 재시작 예약
+      if (currentState.battleResult?.type === 'hunt_end') {
+        currentState = {
+          ...currentState,
+          battleResult: null,
+          pendingHuntRetry: true,
         } as GameState;
       }
     }
