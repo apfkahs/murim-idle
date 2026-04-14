@@ -572,7 +572,7 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
       {
         id: 'nokrim_final', displayName: '불완전한 녹림패왕격(綠林覇王擊)', type: 'charged_attack',
         triggerCondition: 'hp_threshold', hpThreshold: 0.15, oneTime: true, priority: 7,
-        chargeTime: 5, damageMultiplier: 15, undodgeable: true,
+        chargeTime: 5, damageMultiplier: 11, undodgeable: true,
         chargeDrainPerSec: 15, chargeDmgReduction: 0.30,
         chargeStunImmunity: true, postFireSelfStun: true,
         logMessages: [
@@ -907,7 +907,7 @@ export const BANDIT_LEADER_DEF: MonsterDef = {
 // 흑풍채 히든 보스 — 녹림맹 총순찰사자
 export const NOKRIM_PATROL_CHIEF: MonsterDef = {
   id: 'nokrim_patrol_chief', name: '녹림맹 총순찰사자',
-  hp: 8000, attackPower: 200, attackInterval: 2.2, regen: 0, baseProficiency: 4,
+  hp: 7500, attackPower: 200, attackInterval: 2.5, regen: 0, baseProficiency: 4,
   drops: [],
   materialDrops: [
     { materialId: 'bijup_nokrim_bobeop_3', chance: 0.015 },

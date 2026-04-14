@@ -245,6 +245,15 @@ export function handleDodge(ctx: TickContext, eName: string, customMsg?: string)
   if (ctx.masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) {
     ctx.dodgeCounterActive = true;
   }
+  const healPct = ctx.masteryEffects?.dodgeHealPercent;
+  if (healPct) {
+    const healAmt = Math.floor(ctx.maxHp * healPct / 100);
+    ctx.hp = Math.min(ctx.hp + healAmt, ctx.maxHp);
+    if (!ctx.isSimulating) {
+      ctx.floatingTexts = [...ctx.floatingTexts, { id: ctx.nextFloatingId++, text: `+${healAmt}`, type: 'heal' as const, timestamp: Date.now() }];
+      if (ctx.floatingTexts.length > 15) ctx.floatingTexts = ctx.floatingTexts.slice(-15);
+    }
+  }
 }
 
 // ── bossPatternState 팩토리 ──

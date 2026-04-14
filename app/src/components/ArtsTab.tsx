@@ -321,8 +321,11 @@ export default function ArtsTab() {
           const expanded = expandedArts[owned.id] ?? false;
           const toggle = () => setExpandedArts(v => ({ ...v, [owned.id]: !v[owned.id] }));
 
+          const stageDescIdx = def.growth.gradeMaxStars
+            ? getArtCurrentGrade(owned.id, artGradeExp) - 1
+            : unlockedCount;
           const stageDesc = def.descriptionByStage
-            ? def.descriptionByStage[Math.min(unlockedCount, def.descriptionByStage.length - 1)]
+            ? def.descriptionByStage[Math.min(stageDescIdx, def.descriptionByStage.length - 1)]
             : undefined;
 
           // active 무공 데미지
@@ -331,12 +334,21 @@ export default function ArtsTab() {
           const normalDmg = Math.floor(((def.baseDamage ?? 0) + Math.floor(def.proficiencyCoefficient * getProfDamageValue(prof))) * artGradeMult);
           const normalCrit = Math.floor(normalDmg * 1.5);
 
+          // passive 성급 배율
+          let passiveStarMult = 1;
+          if (def.growth.proficiencyCoefficientByGrade) {
+            const table = getGradeTableForArt(def);
+            const { stageIndex } = getArtGradeInfoFromTable(artGradeExp[owned.id] ?? 0, table);
+            const byGrade = def.growth.proficiencyCoefficientByGrade;
+            passiveStarMult = byGrade[Math.min(stageIndex, byGrade.length - 1)];
+          }
+
           // 접힌 요약
           let collapsedSummary: string;
           if (def.artType === 'active') {
             collapsedSummary = `피해 ${normalDmg}`;
           } else if (def.artType === 'passive') {
-            collapsedSummary = formatPassiveEffectSummary(def, activeMasteries[owned.id] ?? []);
+            collapsedSummary = formatPassiveEffectSummary(def, activeMasteries[owned.id] ?? [], passiveStarMult);
           } else if (def.artType === 'simbeop') {
             collapsedSummary = `기운 +${calcQiForArt(owned.id).toFixed(1)}/초`;
           } else {
@@ -399,7 +411,7 @@ export default function ArtsTab() {
                   )}
 
                   {def.artType === 'passive' && (() => {
-                    const summary = formatPassiveEffectSummary(def, activeMasteries[owned.id] ?? []);
+                    const summary = formatPassiveEffectSummary(def, activeMasteries[owned.id] ?? [], passiveStarMult);
                     return summary ? (
                       <div style={{ marginTop: 10, padding: '7px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
                         <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>패시브 효과</div>

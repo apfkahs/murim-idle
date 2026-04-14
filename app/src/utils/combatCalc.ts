@@ -152,6 +152,7 @@ export function gatherMasteryEffects(state: GameState): MasteryEffects {
       if (eff.dodgeCounterMultiplier) result.dodgeCounterMultiplier = Math.max(result.dodgeCounterMultiplier ?? 1.2, eff.dodgeCounterMultiplier);
       if (eff.bonusHpPercent) result.bonusHpPercent = (result.bonusHpPercent ?? 0) + eff.bonusHpPercent;
       if (eff.bonusCombatQiRatioFlat) result.bonusCombatQiRatioFlat = (result.bonusCombatQiRatioFlat ?? 0) + eff.bonusCombatQiRatioFlat;
+      if (eff.dodgeHealPercent) result.dodgeHealPercent = (result.dodgeHealPercent ?? 0) + eff.dodgeHealPercent;
       // simbeopQiMultiplier는 calcQiPerSec 내부에서 심법 기여분에 직접 적용 — 여기서 집계하지 않음
     }
   }

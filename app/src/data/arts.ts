@@ -45,6 +45,7 @@ export interface MasteryEffects {
   attackIntervalMultiplierReduction?: number;  // 무공 공속 감소 배율 감소량 (녹림권 1.5→1.4→1.3)
   stunOnUlt?: number;                          // 절초 명중 시 적 기절 시간(초)
   bossHiddenDmgBonus?: number;                 // 보스/히든 몬스터 대상 피해 보너스 비율
+  dodgeHealPercent?: number;                   // 회피 성공 시 최대HP 대비 % 회복
   // ── 야수보법 3초식 ──
   dodgeAtkBuffPercent?: number;                // 회피 성공 시 ATK 버프 %
   dodgeAtkBuffDuration?: number;               // 버프 지속 공격 횟수
@@ -430,14 +431,14 @@ export const ARTS: ArtDef[] = [
         stage: 2,
         id: 'nokrim_bobeop_move2',
         name: '야행풍보(夜行風步)',
-        description: '공격 속도 0.1초 추가 감소, 회피 +10%',
+        description: '공격 속도 0.1초 추가 감소, 적의 공격 회피 시 체력 4% 회복',
         flavorText: '밤바람처럼 소리 없이 스며들어, 닿기 전에 이미 빠져나가 있다.',
         requiredTier: 0,
         pointCost: 0,
         requires: ['nokrim_bobeop_move1'],
         discovery: { type: 'bijup' },
         requiredArtGrade: 8,
-        effects: { bonusAtkSpeed: 0.1, bonusDodge: 10 },
+        effects: { bonusAtkSpeed: 0.1, dodgeHealPercent: 4 },
       },
       {
         stage: 3,

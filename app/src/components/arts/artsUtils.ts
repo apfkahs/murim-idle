@@ -1,26 +1,28 @@
 import type { ArtDef } from '../../data/arts';
 
-export function formatPassiveEffectSummary(def: ArtDef, activeMasteryIds: string[]): string {
+export function formatPassiveEffectSummary(def: ArtDef, activeMasteryIds: string[], starMultiplier: number = 1): string {
   let atkSpeed = 0;
   let dodge = 0;
   let critRate = 0;
   let regenPerSec = 0;
   let dodgeCounter = false;
+  let dodgeHealPercent = 0;
   let dmgReductionPercent = 0;
   let hpPercent = 0;
 
-  const collect = (eff: ArtDef['baseEffects']) => {
+  const collect = (eff: ArtDef['baseEffects'], mult: number = 1) => {
     if (!eff) return;
-    if (eff.bonusAtkSpeed) atkSpeed += eff.bonusAtkSpeed;
-    if (eff.bonusDodge) dodge += eff.bonusDodge;
-    if (eff.bonusCritRate) critRate += eff.bonusCritRate;
-    if (eff.bonusRegenPerSec) regenPerSec += eff.bonusRegenPerSec;
+    if (eff.bonusAtkSpeed) atkSpeed += eff.bonusAtkSpeed * mult;
+    if (eff.bonusDodge) dodge += eff.bonusDodge * mult;
+    if (eff.bonusCritRate) critRate += eff.bonusCritRate * mult;
+    if (eff.bonusRegenPerSec) regenPerSec += eff.bonusRegenPerSec * mult;
     if (eff.dodgeCounterEnabled) dodgeCounter = true;
-    if (eff.bonusDmgReductionPercent) dmgReductionPercent += eff.bonusDmgReductionPercent;
-    if (eff.bonusHpPercent) hpPercent += eff.bonusHpPercent;
+    if (eff.dodgeHealPercent) dodgeHealPercent += eff.dodgeHealPercent;
+    if (eff.bonusDmgReductionPercent) dmgReductionPercent += eff.bonusDmgReductionPercent * mult;
+    if (eff.bonusHpPercent) hpPercent += eff.bonusHpPercent * mult;
   };
 
-  collect(def.baseEffects);
+  collect(def.baseEffects, starMultiplier);
   for (const mId of activeMasteryIds) {
     const mDef = def.masteries.find(m => m.id === mId);
     collect(mDef?.effects);
@@ -37,6 +39,7 @@ export function formatPassiveEffectSummary(def: ArtDef, activeMasteryIds: string
   if (critRate > 0) parts.push(`치명 +${critRate}%`);
   if (regenPerSec > 0) parts.push(`회복 +${fmt(regenPerSec)}/초`);
   if (dodgeCounter) parts.push('회피반격');
+  if (dodgeHealPercent > 0) parts.push(`회피회복 ${dodgeHealPercent}%`);
   if (dmgReductionPercent > 0) parts.push(`피감 -${dmgReductionPercent}%`);
   if (hpPercent > 0) parts.push(`HP +${(hpPercent * 100).toFixed(0)}%`);
   return parts.join(' · ');

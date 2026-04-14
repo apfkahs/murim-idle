@@ -156,7 +156,21 @@ export function MasteryPanel({ artId, artGradeExp, materials, tier, discoveredMa
             const bijupDef = getBijupDefByMastery(m.id);
             const hasBijup = bijupDef ? (materials[bijupDef.materialId] ?? 0) > 0 : false;
 
-            if (!hasBijup) return null;
+            if (!hasBijup) {
+              return (
+                <div key={m.id} className="mastery-item mastery-locked-grade">
+                  <div className="mastery-item-header">
+                    <div className="mastery-item-left">
+                      <span className="mastery-icon">?</span>
+                      <span className="mastery-name" style={{ color: 'var(--text-dim)', letterSpacing: 2 }}>???</span>
+                    </div>
+                  </div>
+                  <div className="mastery-desc" style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+                    이 초식을 알기 위해서는 비급이 필요할 것 같다.
+                  </div>
+                </div>
+              );
+            }
 
             const gradeMet = currentGrade >= m.requiredArtGrade!;
             return (
