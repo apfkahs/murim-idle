@@ -53,6 +53,7 @@ const ENEMY_EMOJI: Record<string, string> = {
   // 흑풍채 신규 몬스터
   heugpung_mokryeong: '🐕',
   sanbaram_gungsu: '🏹',
+  nokrim_patrol_chief: '👊',
   // 새외 몬스터
   hwahyulsa: '🐍',
   eunrang: '🐺',
