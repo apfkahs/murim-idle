@@ -10,24 +10,30 @@ export const ALL_MONSTERS = [
   ...HEUGPUNGCHAE_MONSTERS,
 ];
 
+const THRESHOLDS_NORMAL = [1, 10, 50, 100, 300, 1000];
+const THRESHOLDS_BOSS   = [1,  5, 25,  50, 100,  300];
+const THRESHOLDS_HIDDEN = [1,  3,  8,  15,  25,   50];
+
+function getThresholds(mon?: { isBoss?: boolean; isHidden?: boolean }): number[] {
+  if (mon?.isHidden) return THRESHOLDS_HIDDEN;
+  if (mon?.isBoss)   return THRESHOLDS_BOSS;
+  return THRESHOLDS_NORMAL;
+}
+
 /** 처치 수에 따른 도감 해금 단계 */
-export function getDocRevealLevel(killCount: number): number {
-  if (killCount >= 1000) return 6; // 드랍 확률 공개
-  if (killCount >= 300)  return 5; // 드랍 아이템명+종류 공개
-  if (killCount >= 100)  return 4; // 스탯 공개
-  if (killCount >= 50)   return 3; // 등급 공개
-  if (killCount >= 10)   return 2; // 설명 공개
-  if (killCount >= 1)    return 1; // 이름+이미지 공개
+export function getDocRevealLevel(killCount: number, mon?: { isBoss?: boolean; isHidden?: boolean }): number {
+  const t = getThresholds(mon);
+  for (let i = t.length - 1; i >= 0; i--) {
+    if (killCount >= t[i]) return i + 1;
+  }
   return 0;
 }
 
 /** 다음 해금까지 필요한 처치 수 */
-export function getNextThreshold(killCount: number): number | null {
-  if (killCount < 1)    return 1;
-  if (killCount < 10)   return 10;
-  if (killCount < 50)   return 50;
-  if (killCount < 100)  return 100;
-  if (killCount < 300)  return 300;
-  if (killCount < 1000) return 1000;
+export function getNextThreshold(killCount: number, mon?: { isBoss?: boolean; isHidden?: boolean }): number | null {
+  const t = getThresholds(mon);
+  for (const threshold of t) {
+    if (killCount < threshold) return threshold;
+  }
   return null;
 }

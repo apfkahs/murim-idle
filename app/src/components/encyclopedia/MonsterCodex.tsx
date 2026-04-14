@@ -97,7 +97,7 @@ export function MonsterListScreen({ fieldId, onBack, onSelect }: {
           // 히든 몬스터 미조우 시 미표시
           if (mon.isHidden && kc === 0) return null;
 
-          const reveal = getDocRevealLevel(kc);
+          const reveal = getDocRevealLevel(kc, mon);
           const isFirst = idx === 0;
 
           return (
@@ -230,8 +230,8 @@ export function MonsterDetailScreen({ monsterId, onBack }: {
   if (!mon) return null;
 
   const kc = mon.isBoss ? (bossKillCounts[monsterId] ?? 0) : (killCounts[monsterId] ?? 0);
-  const reveal = getDocRevealLevel(kc);
-  const nextThreshold = getNextThreshold(kc);
+  const reveal = getDocRevealLevel(kc, mon);
+  const nextThreshold = getNextThreshold(kc, mon);
 
   const imgUrl = getEnemyImage(mon.imageKey);
   const emoji = getEnemyEmoji(mon.imageKey);
