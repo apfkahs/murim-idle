@@ -35,6 +35,9 @@ export interface AchievementDef {
   // 비밀 업적 — 잠긴 상태에서 조건 숨김 (???)
   secret?: boolean;
   category: AchievementCategory;
+  // 반복 가능 업적 — 조건 충족 시 카운트 증가 & 보상 지급
+  repeatable?: boolean;
+  reward?: { artPoints?: number };
 }
 
 export interface AchievementContext {
@@ -48,6 +51,7 @@ export interface AchievementContext {
   hiddenRevealedInField: Record<string, string | null>;
   fieldUnlocks: Record<string, boolean>;
   totalKills: number; // 전체 몬스터 처치 누계
+  repeatableAchCounts?: Record<string, number>; // 반복 업적 달성 횟수
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -481,6 +485,24 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     check: ctx => getCheonsanKills(ctx) >= 1000,
     prerequisite: 'cheonsan_100',
     chainId: 'cheonsan_chain',
+    category: 'kills',
+  },
+
+  // ── 반복 업적 ──
+  // 살생의 업(業): 처치 누계마다 무공포인트 +1 (최대 10회)
+  // 1회: 1만, 2회: 3만, 3회: 6만 ... 10회: 55만 (threshold = 10000×(n+1)(n+2)/2)
+  {
+    id: 'mass_slayer',
+    name: '살생의 업(業)',
+    description: '수없이 많은 적을 처치하며 무공의 경지를 높이다',
+    check: ctx => {
+      const count = ctx.repeatableAchCounts?.['mass_slayer'] ?? 0;
+      if (count >= 10) return false;
+      const threshold = 10000 * (count + 1) * (count + 2) / 2;
+      return ctx.totalKills >= threshold;
+    },
+    repeatable: true,
+    reward: { artPoints: 1 },
     category: 'kills',
   },
 ];

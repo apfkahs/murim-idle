@@ -54,6 +54,7 @@ export function buildAchievementContext(
     hiddenRevealedInField: state.hiddenRevealedInField,
     fieldUnlocks: state.fieldUnlocks,
     totalKills: state.totalKills ?? 0,
+    repeatableAchCounts: state.repeatableAchCounts ?? {},
   };
 }
 

@@ -77,6 +77,7 @@ export default function AchievementTab() {
   const stats = useGameStore(s => s.stats);
   const killCounts = useGameStore(s => s.killCounts);
   const proficiency = useGameStore(s => s.proficiency);
+  const repeatableAchCounts = useGameStore(s => s.repeatableAchCounts);
 
   const totalStats = stats.gi + stats.sim + stats.che;
   const tigerBossKills = bossKillCounts['tiger_boss'] ?? 0;
@@ -323,6 +324,65 @@ export default function AchievementTab() {
           </div>
         );
       })}
+
+      {/* 반복 업적 섹션 */}
+      {(() => {
+        const repAchs = ACHIEVEMENTS.filter(a => a.repeatable);
+        if (repAchs.length === 0) return null;
+        return (
+          <div style={{ marginTop: 10 }}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '5px 10px', background: 'var(--bg-card)', borderRadius: 6, marginBottom: 5,
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>반복 업적</span>
+            </div>
+            {repAchs.map(ach => {
+              const count = repeatableAchCounts?.[ach.id] ?? 0;
+              const maxCount = 10;
+              const isDone = count >= maxCount;
+              const nextThreshold = isDone ? null : Math.floor(10000 * (count + 1) * (count + 2) / 2);
+              const remaining = nextThreshold != null ? Math.max(0, nextThreshold - totalKills) : 0;
+              return (
+                <div key={ach.id} className="card" style={{ marginBottom: 5, padding: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 14, flexShrink: 0, color: isDone ? 'var(--gold)' : 'var(--text-dim)' }}>
+                      {isDone ? '✓' : '↻'}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontWeight: 500, fontSize: 13, color: isDone ? 'var(--gold)' : 'var(--text-primary)' }}>
+                          {ach.name}
+                        </span>
+                        <span style={{
+                          fontSize: 10, padding: '1px 5px', borderRadius: 4,
+                          background: isDone ? 'var(--gold)' : 'var(--bg-secondary)',
+                          color: isDone ? 'var(--bg-primary)' : 'var(--text-dim)',
+                        }}>
+                          {count}/{maxCount}회
+                        </span>
+                        {ach.reward?.artPoints && (
+                          <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+                            무공포인트 +{ach.reward.artPoints}/회
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                        {ach.description}
+                      </div>
+                    </div>
+                    {!isDone && (
+                      <span style={{ fontSize: 11, color: 'var(--text-secondary)', flexShrink: 0 }}>
+                        {remaining.toLocaleString()}마리 남음
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
     </div>
   );
 }

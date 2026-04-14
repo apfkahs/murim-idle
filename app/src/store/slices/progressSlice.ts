@@ -36,6 +36,7 @@ export type ProgressSlice = {
   hiddenRevealedInField: Record<string, string | null>;
   tutorialFlags: GameState['tutorialFlags'];
   fieldUnlocks: Record<string, boolean>;
+  repeatableAchCounts: Record<string, number>;
 
   // ── actions ──
   investStat: (stat: 'gi' | 'sim' | 'che', amount?: number) => void;
@@ -80,6 +81,7 @@ export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice>
     cheonsan_godo: false,
     cheonsan_simjang: false,
   },
+  repeatableAchCounts: {},
 
   // ── 액션 ──
   investStat: (stat, amount = 1) => {

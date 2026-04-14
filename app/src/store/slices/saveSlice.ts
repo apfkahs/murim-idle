@@ -60,6 +60,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
       bossKillCounts: state.bossKillCounts,
       totalYasanKills: state.totalYasanKills,
       totalKills: state.totalKills,
+      repeatableAchCounts: state.repeatableAchCounts,
       hiddenRevealedInField: state.hiddenRevealedInField,
       bossPatternState: state.bossPatternState,
       playerStunTimer: state.playerStunTimer,
@@ -256,6 +257,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         dodgeCounterActive: data.dodgeCounterActive ?? false,
         pendingAutoExplore: data.pendingAutoExplore ?? false,
         pendingHuntRetry: data.pendingHuntRetry ?? false,
+        repeatableAchCounts: data.repeatableAchCounts ?? {},
         currentSaveSlot: slot,
         battleResult: null,
         battleLog: [],
@@ -280,6 +282,26 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
       }
       if (achs.length !== loaded.achievements.length || achs.length !== loaded.achievementCount) {
         set({ achievements: achs, achievementCount: achs.length });
+      }
+
+      // 반복 업적 재계산: 로드된 repeatableAchCounts가 없거나 부족한 경우 소급 부여
+      const loadedAfter = get() as GameStore;
+      let repCounts = { ...loadedAfter.repeatableAchCounts };
+      let repArtPoints = loadedAfter.artPoints;
+      const repAchCtx = buildAchievementContext({ ...loadedAfter, repeatableAchCounts: repCounts });
+      for (const ach of ACHIEVEMENTS) {
+        if (!ach.repeatable) continue;
+        while (ach.check(repAchCtx)) {
+          repCounts[ach.id] = (repCounts[ach.id] ?? 0) + 1;
+          repAchCtx.repeatableAchCounts = repCounts;
+          if (ach.reward?.artPoints) repArtPoints += ach.reward.artPoints;
+        }
+      }
+      const repChanged = Object.keys(repCounts).some(
+        k => repCounts[k] !== loadedAfter.repeatableAchCounts[k]
+      );
+      if (repChanged) {
+        set({ repeatableAchCounts: repCounts, artPoints: repArtPoints });
       }
     } catch {
       // corrupt save

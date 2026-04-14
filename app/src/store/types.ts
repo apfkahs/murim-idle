@@ -255,4 +255,7 @@ export interface GameState {
   // 도감 해금
   obtainedMaterials: string[];
   knownEquipment: string[];
+
+  // 반복 업적 달성 횟수
+  repeatableAchCounts: Record<string, number>;
 }

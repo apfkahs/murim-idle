@@ -292,6 +292,7 @@ export function buildResult(ctx: TickContext, extras: {
   achievementCount: number;
   artPoints: number;
   tutorialFlags: GameState['tutorialFlags'];
+  repeatableAchCounts: Record<string, number>;
 }): Partial<GameState> {
   const result: Partial<GameState> = {
     qi: ctx.qi, hp: ctx.hp, maxHp: ctx.maxHp, battleMode: ctx.battleMode, currentEnemy: ctx.currentEnemy,
@@ -300,6 +301,7 @@ export function buildResult(ctx: TickContext, extras: {
     bossKillCounts: ctx.bossKillCounts, totalYasanKills: ctx.totalYasanKills, totalKills: ctx.totalKills,
     ownedArts: ctx.ownedArts, battleResult: ctx.battleResult,
     achievements: extras.achievements, achievementCount: extras.achievementCount, artPoints: extras.artPoints,
+    repeatableAchCounts: extras.repeatableAchCounts,
     hiddenRevealedInField: ctx.hiddenRevealedInField,
     tutorialFlags: extras.tutorialFlags, totalSpentQi: ctx.totalSpentQi,
     playerAttackTimer: ctx.playerAttackTimer, enemyAttackTimer: ctx.enemyAttackTimer,

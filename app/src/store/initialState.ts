@@ -89,5 +89,6 @@ export function createInitialState(): GameState {
     knownEquipment: [],
     dodgeCounterActive: false,
     autoExploreFields: {},
+    repeatableAchCounts: {},
   };
 }

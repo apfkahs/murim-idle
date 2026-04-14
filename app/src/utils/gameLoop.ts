@@ -252,21 +252,32 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   // 4) 업적 체크
   let achievements = [...state.achievements];
   let achievementCount = state.achievementCount ?? 0;
-  const artPoints = state.artPoints;
+  let artPoints = state.artPoints;
+  let repeatableAchCounts = { ...state.repeatableAchCounts };
 
   const achCtx = buildAchievementContext({
     ...state, killCounts: ctx.killCounts, bossKillCounts: ctx.bossKillCounts, ownedArts: ctx.ownedArts,
     achievements, hiddenRevealedInField: ctx.hiddenRevealedInField,
     totalYasanKills: ctx.totalYasanKills, fieldUnlocks: ctx.fieldUnlocks, totalKills: ctx.totalKills,
+    repeatableAchCounts,
   });
 
   for (const ach of ACHIEVEMENTS) {
-    if (achievements.includes(ach.id)) continue;
-    if (ach.prerequisite && !achievements.includes(ach.prerequisite)) continue;
-    if (ach.check(achCtx)) {
-      achievements.push(ach.id);
-      achievementCount += 1;
-      ctx.battleLog.push(`업적 달성: ${ach.name}!`);
+    if (ach.repeatable) {
+      if (ach.check(achCtx)) {
+        repeatableAchCounts[ach.id] = (repeatableAchCounts[ach.id] ?? 0) + 1;
+        achCtx.repeatableAchCounts = repeatableAchCounts;
+        if (ach.reward?.artPoints) artPoints += ach.reward.artPoints;
+        ctx.battleLog.push(`업적 달성: ${ach.name}! (${repeatableAchCounts[ach.id]}회)`);
+      }
+    } else {
+      if (achievements.includes(ach.id)) continue;
+      if (ach.prerequisite && !achievements.includes(ach.prerequisite)) continue;
+      if (ach.check(achCtx)) {
+        achievements.push(ach.id);
+        achievementCount += 1;
+        ctx.battleLog.push(`업적 달성: ${ach.name}!`);
+      }
     }
   }
 
@@ -280,5 +291,5 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     ctx.fieldUnlocks.yasan = true;
   }
 
-  return buildResult(ctx, { achievements, achievementCount, artPoints, tutorialFlags });
+  return buildResult(ctx, { achievements, achievementCount, artPoints, tutorialFlags, repeatableAchCounts });
 }
