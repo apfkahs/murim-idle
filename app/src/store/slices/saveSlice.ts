@@ -9,7 +9,8 @@ import { buildAchievementContext } from '../../utils/combat/damageCalc';
 import { ACHIEVEMENTS, CODEX_MONSTERS } from '../../data/achievements';
 import { createInitialState } from '../initialState';
 import { FIELDS, getFieldDef, generateExploreOrder } from '../../data/fields';
-import { getMonsterDef, BOSS_PATTERNS } from '../../data/monsters';
+import { getMonsterDef } from '../../data/monsters';
+import { createBossPatternState } from '../../utils/combat/tickContext';
 import { BALANCE_PARAMS } from '../../data/balance';
 
 export type SaveSlice = {
@@ -244,6 +245,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         currentBattleDamageDealt: data.currentBattleDamageDealt ?? 0,
         equipment: data.equipment ?? { weapon: null, armor: null, gloves: null, boots: null },
         equipmentInventory: data.equipmentInventory ?? [],
+        equipmentDotOnEnemy: [],
         materials: data.materials ?? {},
         craftedRecipes: data.craftedRecipes ?? [],
         unlockedRecipes: data.unlockedRecipes ?? [],
@@ -453,9 +455,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
               ...CLEAR_BATTLE_STATE,
               battleMode: 'explore',
               currentEnemy: spawnEnemy(firstMon),
-              bossPatternState: BOSS_PATTERNS[order[0]]
-                ? { bossStamina: BOSS_PATTERNS[order[0]].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
-                : null,
+              bossPatternState: createBossPatternState(order[0]),
               currentField: fieldId,
               exploreOrder: order,
               exploreStep: 0,

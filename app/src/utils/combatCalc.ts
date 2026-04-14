@@ -27,6 +27,7 @@ export const CLEAR_BATTLE_STATE = {
   lastEnemyAttack: null,
   dodgeCounterActive: false,
   playerFinisherCharge: null,
+  equipmentDotOnEnemy: [] as import('../store/types').EquipmentDotEntry[],
 };
 
 // ============================================================
@@ -63,7 +64,7 @@ export function calcStaminaRegen(gi: number, tierMult: number = 1): number {
 // 장비 & 심득 효과 집계
 // ============================================================
 
-/** 장착 장비의 스탯 합산 */
+/** 장착 장비의 스탯 합산 (enhanceLevel이 있으면 해당 단계 스탯으로 교체) */
 export function gatherEquipmentStats(state: GameState): EquipStats {
   const result: EquipStats = {};
   for (const slot of ['weapon', 'armor', 'gloves', 'boots'] as EquipSlot[]) {
@@ -71,7 +72,12 @@ export function gatherEquipmentStats(state: GameState): EquipStats {
     if (!inst) continue;
     const def = getEquipmentDef(inst.defId);
     if (!def) continue;
-    for (const [key, val] of Object.entries(def.stats)) {
+    // enhanceLevel > 0이고 enhanceSteps가 정의되어 있으면 해당 단계 스탯으로 교체
+    const level = inst.enhanceLevel ?? 0;
+    const stats = (level > 0 && def.enhanceSteps && def.enhanceSteps[level - 1])
+      ? def.enhanceSteps[level - 1].stats
+      : def.stats;
+    for (const [key, val] of Object.entries(stats)) {
       if (typeof val === 'number') {
         (result as any)[key] = ((result as any)[key] ?? 0) + val;
       }
@@ -90,11 +96,23 @@ export function gatherMasteryEffects(state: GameState): MasteryEffects {
     const artDef = getArtDef(artId);
     if (!artDef?.baseEffects) continue;
     const eff = artDef.baseEffects;
-    const profBonus = artDef.proficiencyCoefficient > 0
+
+    // 패시브 무공 성급 스케일링: proficiencyCoefficientByGrade를 성급 배율 배열로 사용
+    let starMultiplier = 1;
+    if (artDef.artType === 'passive' && artDef.growth.proficiencyCoefficientByGrade) {
+      const gradeExp = state.artGradeExp?.[artId] ?? 0;
+      const table = getGradeTableForArt(artDef);
+      const { stageIndex } = getArtGradeInfoFromTable(gradeExp, table);
+      const byGrade = artDef.growth.proficiencyCoefficientByGrade;
+      starMultiplier = byGrade[Math.min(stageIndex, byGrade.length - 1)];
+    }
+
+    const profBonus = !artDef.growth.proficiencyCoefficientByGrade && artDef.proficiencyCoefficient > 0
       ? getProfDamageValue(state.proficiency?.[artDef.proficiencyType] ?? 0) * artDef.proficiencyCoefficient
       : 0;
-    if (eff.bonusAtkSpeed) result.bonusAtkSpeed = (result.bonusAtkSpeed ?? 0) + eff.bonusAtkSpeed + profBonus;
-    if (eff.bonusDodge) result.bonusDodge = (result.bonusDodge ?? 0) + eff.bonusDodge + profBonus;
+    if (eff.bonusAtkSpeed) result.bonusAtkSpeed = (result.bonusAtkSpeed ?? 0) + eff.bonusAtkSpeed * starMultiplier + profBonus;
+    if (eff.bonusDodge) result.bonusDodge = (result.bonusDodge ?? 0) + eff.bonusDodge * starMultiplier + profBonus;
+    if (eff.bonusCritDmg) result.bonusCritDmg = (result.bonusCritDmg ?? 0) + eff.bonusCritDmg * starMultiplier;
     if (eff.bonusHpPercent) result.bonusHpPercent = (result.bonusHpPercent ?? 0) + eff.bonusHpPercent;
   }
 
@@ -131,6 +149,7 @@ export function gatherMasteryEffects(state: GameState): MasteryEffects {
       if (eff.bonusCritDmg) result.bonusCritDmg = (result.bonusCritDmg ?? 0) + eff.bonusCritDmg;
       if (eff.killBonusEnabled) result.killBonusEnabled = true;
       if (eff.dodgeCounterEnabled) result.dodgeCounterEnabled = true;
+      if (eff.dodgeCounterMultiplier) result.dodgeCounterMultiplier = Math.max(result.dodgeCounterMultiplier ?? 1.2, eff.dodgeCounterMultiplier);
       if (eff.bonusHpPercent) result.bonusHpPercent = (result.bonusHpPercent ?? 0) + eff.bonusHpPercent;
       if (eff.bonusCombatQiRatioFlat) result.bonusCombatQiRatioFlat = (result.bonusCombatQiRatioFlat ?? 0) + eff.bonusCombatQiRatioFlat;
       // simbeopQiMultiplier는 calcQiPerSec 내부에서 심법 기여분에 직접 적용 — 여기서 집계하지 않음

@@ -141,6 +141,29 @@ export default function BattleScreen() {
                   </div>
                 </div>
               )}
+              {/* DoT 상태이상 표시 */}
+              {bossPatternState?.playerDotStacks && bossPatternState.playerDotStacks.length > 0 && (
+                <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+                  {bossPatternState.playerDotStacks.map(dot => {
+                    const dotColors: Record<string, string> = {
+                      bleed: '#ff4444', poison: '#88dd44', stamina_drain: '#cc88ff', slow: '#88ccff',
+                    };
+                    const dotLabels: Record<string, string> = {
+                      bleed: '출혈', poison: '독', stamina_drain: '산공', slow: '둔화',
+                    };
+                    return (
+                      <span key={dot.id} style={{
+                        fontSize: 10, color: dotColors[dot.type] ?? '#ccc',
+                        fontWeight: 600, padding: '1px 4px',
+                        border: `1px solid ${dotColors[dot.type] ?? '#666'}`,
+                        borderRadius: 3,
+                      }}>
+                        {dotLabels[dot.type] ?? dot.type} x{dot.stacks} ({Math.ceil(dot.remainingSec)}s)
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2, textAlign: 'right' }}>{enemyName}</div>
@@ -156,6 +179,17 @@ export default function BattleScreen() {
                   : '???/???'
                 }
               </div>
+              {/* 철벽 스택 표시 */}
+              {bossPatternState != null && (bossPatternState.cheolbyeokStacks ?? 0) > 0 && (() => {
+                const cheolPattern = BOSS_PATTERNS[currentEnemy.id];
+                const cheolSkill = cheolPattern?.skills.find(s => s.type === 'cheolbyeok');
+                const reductionPct = Math.round((bossPatternState.cheolbyeokStacks ?? 0) * (cheolSkill?.cheolbyeokReductionPerStack ?? 0.08) * 100);
+                return (
+                  <div style={{ fontSize: 10, color: '#88ccff', fontWeight: 600, marginTop: 2, textAlign: 'right' }}>
+                    철벽 {'■'.repeat(bossPatternState.cheolbyeokStacks ?? 0)}{'□'.repeat(Math.max(0, (cheolSkill?.cheolbyeokMaxStacks ?? 5) - (bossPatternState.cheolbyeokStacks ?? 0)))} (-{reductionPct}%)
+                  </div>
+                );
+              })()}
               {/* 보스 내력 바 */}
               {bossPatternState != null && BOSS_PATTERNS[currentEnemy.id] && BOSS_PATTERNS[currentEnemy.id].stamina.max > 0 && (
                 <div style={{ marginTop: 4 }}>

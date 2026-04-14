@@ -4,7 +4,8 @@
  */
 import { BALANCE_PARAMS } from '../../data/balance';
 import { getArtDef } from '../../data/arts';
-import { getMonsterDef, BOSS_PATTERNS } from '../../data/monsters';
+import { getMonsterDef, BOSS_PATTERNS, type BossSkillDef } from '../../data/monsters';
+import { getEquipmentDef, type EquipSlot } from '../../data/equipment';
 import {
   getArtDamageMultiplier, getEffectiveUltMultiplier, getProfDamageValue,
 } from '../artUtils';
@@ -19,7 +20,9 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
     return;
   }
 
-  ctx.stamina = Math.min(ctx.stamina + ctx.effectiveRegen * ctx.dt, ctx.maxStamina);
+  // chargeRegenPenalty: 보스 차지 중 내력 회복속도 감소
+  const regenPenalty = ctx.bossPatternState?.chargeRegenPenalty ?? 0;
+  ctx.stamina = Math.min(ctx.stamina + Math.max(0, ctx.effectiveRegen - regenPenalty) * ctx.dt, ctx.maxStamina);
 
   for (const artId of Object.keys(ctx.ultCooldowns)) {
     ctx.ultCooldowns[artId] -= ctx.dt;
@@ -36,7 +39,13 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
     }
     const atkSpeedBonus = (ctx.masteryEffects?.bonusAtkSpeed ?? 0) + (ctx.equipStats.bonusAtkSpeed ?? 0);
     const atkSpeedDebuffMult = ctx.bossPatternState?.playerAtkSpeedDebuffMult ?? 1;
-    const attackInterval = Math.max((B.BASE_ATTACK_INTERVAL - atkSpeedBonus) * atkSpeedDebuffMult, B.ATK_SPEED_MIN);
+    // slow DoT 공속 반영
+    let slowPenalty = 0;
+    const slowDot = ctx.bossPatternState?.playerDotStacks?.find(d => d.type === 'slow');
+    if (slowDot) {
+      slowPenalty = (slowDot.slowAmount ?? 0) + (slowDot.slowPerStack ?? 0) * (slowDot.stacks - 1);
+    }
+    const attackInterval = Math.max((B.BASE_ATTACK_INTERVAL - atkSpeedBonus + slowPenalty) * atkSpeedDebuffMult, B.ATK_SPEED_MIN);
     ctx.playerAttackTimer += attackInterval;
 
     // playerFinisherCharge 처리
@@ -68,6 +77,17 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           let fcCrit = false;
           if (Math.random() < ctx.critRate) { fcDmg *= ctx.critDmg / 100; fcCrit = true; }
           fcDmg = Math.floor(fcDmg * (ctx.bossPatternState?.playerAtkDebuffMult ?? 1));
+          // 6-D: 철벽 감소 (finisher 경로)
+          if (ctx.bossPatternState && (ctx.bossPatternState.cheolbyeokStacks ?? 0) > 0) {
+            const fcMonPattern = BOSS_PATTERNS[ctx.currentEnemy!.id] ?? null;
+            const fcCheolSkill = fcMonPattern?.skills.find((s: BossSkillDef) => s.type === 'cheolbyeok');
+            const fcReduction = (ctx.bossPatternState.cheolbyeokStacks ?? 0) * (fcCheolSkill?.cheolbyeokReductionPerStack ?? 0.08);
+            fcDmg = Math.floor(fcDmg * (1 - fcReduction));
+          }
+          // bossChargeDmgReduction (finisher 경로)
+          if (ctx.bossPatternState?.bossChargeDmgReduction && ctx.bossPatternState.bossChargeDmgReduction > 0) {
+            fcDmg = Math.floor(fcDmg * (1 - ctx.bossPatternState.bossChargeDmgReduction));
+          }
           ctx.currentEnemy = { ...ctx.currentEnemy! };
           ctx.currentEnemy!.hp -= fcDmg;
           ctx.currentBattleDamageDealt += fcDmg;
@@ -80,9 +100,32 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
               }
             }
             const fcEnemyDefStun = getMonsterDef(ctx.currentEnemy!.id);
-            if (fcStunDur > 0 && (!fcEnemyDefStun?.isBoss || fcEnemyDefStun?.stunnable)) {
+            const fcChargeStunImmune = ctx.bossPatternState?.bossChargeStunImmune ?? false;
+            if (fcStunDur > 0 && !fcChargeStunImmune && (!fcEnemyDefStun?.isBoss || fcEnemyDefStun?.stunnable)) {
               ctx.currentEnemy!.enemyStunTimer = fcStunDur;
               ctx.battleLog.push(`적이 ${fcStunDur}초간 기절했다!`);
+              // 6-E: 스턴 시 연동 (finisher 경로)
+              if (ctx.bossPatternState) {
+                const fcMonPattern2 = BOSS_PATTERNS[ctx.currentEnemy!.id] ?? null;
+                const fcCheolSkill2 = fcMonPattern2?.skills.find((s: BossSkillDef) => s.type === 'cheolbyeok');
+                if (fcCheolSkill2?.cheolbyeokResetOnStun && !ctx.bossPatternState.phaseFlags?.['final_phase_active']) {
+                  ctx.bossPatternState.cheolbyeokStacks = 0;
+                }
+                if (ctx.bossPatternState.enemyBuffs && ctx.bossPatternState.enemyBuffs.length > 0) {
+                  const removedBuffs = ctx.bossPatternState.enemyBuffs.filter(b => b.removableByStun);
+                  if (removedBuffs.length > 0 && ctx.bossPatternState.baseAttackPower != null) {
+                    ctx.currentEnemy!.attackPower = ctx.bossPatternState.baseAttackPower;
+                  }
+                  ctx.bossPatternState.enemyBuffs = ctx.bossPatternState.enemyBuffs.filter(b => !b.removableByStun);
+                }
+              }
+            }
+          }
+          // 6-D: revenge (finisher = 절초)
+          if (ctx.bossPatternState) {
+            const fcMonPattern3 = BOSS_PATTERNS[ctx.currentEnemy!.id] ?? null;
+            if (fcMonPattern3?.skills.find((s: BossSkillDef) => s.type === 'revenge')) {
+              ctx.bossPatternState.revengeActive = true;
             }
           }
           const fcUltChangeName = artMasteryIds2.map(id => fcDef!.masteries.find(m => m.id === id)?.effects?.ultChange?.name).find(Boolean);
@@ -248,9 +291,16 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
       // 회피 카운터 배율
       let isCounterHit = false;
       if (ctx.dodgeCounterActive) {
-        damage *= 1.2;
+        damage *= ctx.masteryEffects?.dodgeCounterMultiplier ?? 1.2;
         ctx.dodgeCounterActive = false;
         isCounterHit = true;
+      }
+
+      // 사자의 깃발 특수효과: 5% 확률 → 이번 공격 +15%
+      let sajaBuffTriggered = false;
+      if (ctx.equipment.weapon?.defId === 'saja_gitbal' && Math.random() < 0.05) {
+        damage *= 1.15;
+        sajaBuffTriggered = true;
       }
 
       damage = Math.floor(damage);
@@ -276,11 +326,42 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
         damage = Math.floor(damage * ctx.bossPatternState.playerAtkDebuffMult);
       }
 
-      // [A] 몬스터 passive_dodge 체크
+      // [A] 몬스터 passive_dodge 체크 (페이즈 게이팅 포함)
       const monPattern = BOSS_PATTERNS[ctx.currentEnemy!.id] ?? null;
-      const monDodgeSkill = monPattern?.skills.find(s => s.type === 'passive_dodge');
+      const monDodgeSkill = monPattern?.skills.find(s => {
+        if (s.type !== 'passive_dodge') return false;
+        if (s.deactivateAfterPhaseFlag && ctx.bossPatternState?.phaseFlags?.[s.deactivateAfterPhaseFlag]) return false;
+        if (s.activateAfterPhaseFlag && !ctx.bossPatternState?.phaseFlags?.[s.activateAfterPhaseFlag]) return false;
+        return true;
+      });
+      // dodge_buff_passive 체크 (야수보법 등)
+      const dodgeBuffPassiveSkill = monPattern?.skills.find(s => {
+        if (s.type !== 'dodge_buff_passive') return false;
+        if (s.deactivateAfterPhaseFlag && ctx.bossPatternState?.phaseFlags?.[s.deactivateAfterPhaseFlag]) return false;
+        if (s.activateAfterPhaseFlag && !ctx.bossPatternState?.phaseFlags?.[s.activateAfterPhaseFlag]) return false;
+        return true;
+      });
       let monsterDodged = false;
-      if (monDodgeSkill && Math.random() < (monDodgeSkill.dodgeChance ?? 0)) {
+      // dodge_buff_passive 우선 (dodge_buff_passive가 있으면 passive_dodge와 택일이 아닌 별개)
+      if (dodgeBuffPassiveSkill && Math.random() < (dodgeBuffPassiveSkill.dodgeChance ?? 0)) {
+        monsterDodged = true;
+        ctx.battleLog.push(dodgeBuffPassiveSkill.logMessages[0]);
+        if (!ctx.isSimulating) {
+          ctx.floatingTexts = [...ctx.floatingTexts, { id: ctx.nextFloatingId++, text: '회피!', type: 'evade' as const, timestamp: Date.now() }];
+          if (ctx.floatingTexts.length > 15) ctx.floatingTexts = ctx.floatingTexts.slice(-15);
+        }
+        // 회피 성공 시 ATK 버프 스택 추가
+        if (ctx.bossPatternState && dodgeBuffPassiveSkill.dodgeBuffAtkPercent) {
+          const buffs = ctx.bossPatternState.dodgeAtkBuffs ?? [];
+          const maxStacks = dodgeBuffPassiveSkill.dodgeBuffMaxStacks ?? 2;
+          if (buffs.length < maxStacks) {
+            ctx.bossPatternState.dodgeAtkBuffs = [...buffs, {
+              atkPercent: dodgeBuffPassiveSkill.dodgeBuffAtkPercent,
+              remainingAttacks: dodgeBuffPassiveSkill.dodgeBuffAttackCount ?? 3,
+            }];
+          }
+        }
+      } else if (monDodgeSkill && Math.random() < (monDodgeSkill.dodgeChance ?? 0)) {
         monsterDodged = true;
         ctx.battleLog.push(monDodgeSkill.logMessages[0]);
         if (!ctx.isSimulating) {
@@ -301,6 +382,29 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           ctx.battleLog.push(absorbSkill.logMessages[0]);
         }
 
+        // 6-D: 철벽 감소 (보스가 받는 피해 감소)
+        if (ctx.bossPatternState && (ctx.bossPatternState.cheolbyeokStacks ?? 0) > 0) {
+          const cheolSkill = monPattern?.skills.find(s => s.type === 'cheolbyeok');
+          const reductionRate = (ctx.bossPatternState.cheolbyeokStacks ?? 0) * (cheolSkill?.cheolbyeokReductionPerStack ?? 0.08);
+          damage = Math.floor(damage * (1 - reductionRate));
+        }
+
+        // 6-D: 목령견 dmgTakenIncrease (보스가 받는 피해 증가, 출혈 스택 기반)
+        if (ctx.bossPatternState?.playerDotStacks) {
+          const bleedEntry = ctx.bossPatternState.playerDotStacks.find(d => d.type === 'bleed' && d.id === 'passive_bleed');
+          if (bleedEntry) {
+            const passiveBleedSkill = monPattern?.skills.find(s => s.type === 'passive_bleed');
+            if (passiveBleedSkill?.bleedSelfBuffs?.dmgTakenIncrease) {
+              damage = Math.floor(damage * (1 + bleedEntry.stacks * passiveBleedSkill.bleedSelfBuffs.dmgTakenIncrease / 100));
+            }
+          }
+        }
+
+        // bossChargeDmgReduction: 차지 중 보스 피해 감소
+        if (ctx.bossPatternState?.bossChargeDmgReduction && ctx.bossPatternState.bossChargeDmgReduction > 0) {
+          damage = Math.floor(damage * (1 - ctx.bossPatternState.bossChargeDmgReduction));
+        }
+
         ctx.currentEnemy!.hp -= damage;
         ctx.currentBattleDamageDealt += damage;
 
@@ -313,10 +417,86 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
             }
           }
           const stunEnemyDef = getMonsterDef(ctx.currentEnemy.id);
-          if (stunDur > 0 && (!stunEnemyDef?.isBoss || stunEnemyDef?.stunnable)) {
+          // 차지 중 스턴면역 체크
+          const chargeStunImmune = ctx.bossPatternState?.bossChargeStunImmune ?? false;
+          if (stunDur > 0 && !chargeStunImmune && (!stunEnemyDef?.isBoss || stunEnemyDef?.stunnable)) {
             ctx.currentEnemy.enemyStunTimer = stunDur;
             ctx.battleLog.push(`적이 ${stunDur}초간 기절했다!`);
+
+            // 6-E: 스턴 시 연동 처리
+            if (ctx.bossPatternState) {
+              // 철벽 초기화 (최후의 발악 중에는 고정)
+              const cheolSkill = monPattern?.skills.find(s => s.type === 'cheolbyeok');
+              if (cheolSkill?.cheolbyeokResetOnStun && !ctx.bossPatternState.phaseFlags?.['final_phase_active']) {
+                ctx.bossPatternState.cheolbyeokStacks = 0;
+              }
+              // removableByStun 버프 제거
+              if (ctx.bossPatternState.enemyBuffs && ctx.bossPatternState.enemyBuffs.length > 0) {
+                const removedBuffs = ctx.bossPatternState.enemyBuffs.filter(b => b.removableByStun);
+                if (removedBuffs.length > 0 && ctx.bossPatternState.baseAttackPower != null) {
+                  ctx.currentEnemy.attackPower = ctx.bossPatternState.baseAttackPower;
+                }
+                ctx.bossPatternState.enemyBuffs = ctx.bossPatternState.enemyBuffs.filter(b => !b.removableByStun);
+              }
+            }
           }
+        }
+
+        // 6-D: cheolbyeok 적중 시 스택 증가
+        if (ctx.bossPatternState && monPattern) {
+          const cheolSkill = monPattern.skills.find(s => s.type === 'cheolbyeok');
+          if (cheolSkill && Math.random() < (cheolSkill.cheolbyeokChance ?? 0)) {
+            const maxStacks = cheolSkill.cheolbyeokMaxStacks ?? 5;
+            if ((ctx.bossPatternState.cheolbyeokStacks ?? 0) < maxStacks) {
+              ctx.bossPatternState.cheolbyeokStacks = (ctx.bossPatternState.cheolbyeokStacks ?? 0) + 1;
+              const cheolMsg = cheolSkill.logMessages[Math.floor(Math.random() * cheolSkill.logMessages.length)];
+              ctx.battleLog.push(`${monDef?.name ?? ctx.currentEnemy!.id}: ${cheolMsg}`);
+            }
+          }
+        }
+
+        // 6-D: revenge 절초 적중 시
+        if (isUlt && ctx.bossPatternState && monPattern) {
+          const revengeSkill = monPattern.skills.find(s => s.type === 'revenge');
+          if (revengeSkill) {
+            ctx.bossPatternState.revengeActive = true;
+          }
+        }
+
+        // 장비 DoT 적용 (혈독 장갑 등)
+        for (const slot of ['weapon', 'armor', 'gloves', 'boots'] as EquipSlot[]) {
+          const inst = ctx.equipment[slot];
+          if (!inst) continue;
+          const eqDef = getEquipmentDef(inst.defId);
+          if (!eqDef?.killCountGrowth) continue;
+          const g = eqDef.killCountGrowth;
+          if (Math.random() >= g.dotChance) continue;
+          const kc = inst.killCount ?? 0;
+          const bonusDmg = Math.floor(kc / g.damageGainPerKills);
+          const bonusStacks = Math.floor(kc / g.stackGainPerKills);
+          const currentDotDmg = g.baseDotDamage + bonusDmg;
+          const currentMaxStacks = g.maxDotStacks + bonusStacks;
+
+          const existing = ctx.equipmentDotOnEnemy.find(d => d.equipId === eqDef.id);
+          if (existing) {
+            if (existing.stacks < currentMaxStacks) {
+              existing.stacks += 1;
+            }
+            existing.remainingSec = existing.totalDuration; // 갱신 시 지속시간 리셋
+            existing.damagePerTick = currentDotDmg; // 킬카운트 증가 반영
+            existing.maxStacks = currentMaxStacks;
+          } else {
+            ctx.equipmentDotOnEnemy.push({
+              equipId: eqDef.id,
+              damagePerTick: currentDotDmg,
+              stacks: 1,
+              maxStacks: currentMaxStacks,
+              remainingSec: g.dotDuration,
+              totalDuration: g.dotDuration,
+            });
+          }
+          const eName2 = getMonsterDef(ctx.currentEnemy!.id)?.name ?? ctx.currentEnemy!.id;
+          ctx.battleLog.push(`${eqDef.name}의 독이 ${eName2}에게 스며들었다!`);
         }
 
         const monDef = getMonsterDef(ctx.currentEnemy!.id);
@@ -335,6 +515,9 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
         }
         if (isCounterHit) {
           ctx.battleLog.push('적의 공격을 간파하고 강력한 공격을 가했다!');
+        }
+        if (sajaBuffTriggered) {
+          ctx.battleLog.push('사자의 깃발이 전투의 고양을 불어넣었다!');
         }
 
         if (!ctx.isSimulating) {

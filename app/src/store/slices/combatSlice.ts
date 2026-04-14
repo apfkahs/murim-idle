@@ -3,9 +3,9 @@ import type { GameStore } from '../gameStore';
 import type { BattleResult, FloatingText, GameState } from '../types';
 import { BALANCE_PARAMS } from '../../data/balance';
 import { getMonsterDef } from '../../data/monsters';
-import { BOSS_PATTERNS } from '../../data/monsters';
 import { getFieldDef, generateExploreOrder } from '../../data/fields';
 import { spawnEnemy, CLEAR_BATTLE_STATE } from '../../utils/combatCalc';
+import { createBossPatternState } from '../../utils/combat/tickContext';
 
 const B = BALANCE_PARAMS;
 
@@ -98,9 +98,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
       ...CLEAR_BATTLE_STATE,
       battleMode: 'explore',
       currentEnemy: spawnEnemy(firstMon),
-      bossPatternState: BOSS_PATTERNS[order[0]]
-        ? { bossStamina: BOSS_PATTERNS[order[0]].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
-        : null,
+      bossPatternState: createBossPatternState(order[0]),
       currentField: fieldId,
       exploreOrder: order,
       exploreStep: 0,
@@ -126,9 +124,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
       ...CLEAR_BATTLE_STATE,
       battleMode: 'hunt',
       currentEnemy: spawnEnemy(monDef),
-      bossPatternState: BOSS_PATTERNS[monsterId]
-        ? { bossStamina: BOSS_PATTERNS[monsterId].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
-        : null,
+      bossPatternState: createBossPatternState(monsterId),
       currentField: fieldId,
       huntTarget: monsterId,
       exploreOrder: [],

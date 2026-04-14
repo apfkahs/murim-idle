@@ -147,6 +147,20 @@ const SKILL_TYPE_LABELS: Record<string, string> = {
   potion_heal: '자가 회복',
   atk_buff_bypass: '공격력 강화',
   stack_smash: '누적 강타',
+  passive_bleed: '출혈 패시브',
+  rapid_fire: '속사',
+  timed_buff: '시한 버프',
+  multi_dot: '다중 독',
+  condition_strike: '조건부 강타',
+  berserker_scale: '광전사',
+  last_stand: '최후의 발악',
+  cheolbyeok: '철벽 방어',
+  revenge: '복수심',
+  phase_sequence: '페이즈 전환',
+  conditional_passive: '조건부 패시브',
+  final_phase: '최종 페이즈',
+  variable_multi_hit: '가변 다연타',
+  dodge_buff_passive: '회피 반격',
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -175,6 +189,23 @@ function getSkillEffectDesc(skill: any): string {
     case 'atk_buff_bypass': return `공격력 +${Math.round((skill.atkBuffPercent ?? 0) * 100)}%`;
     case 'replace_normal': return '일반 공격 대체';
     case 'stack_smash': return `${skill.stackTriggerCount}회 누적 → ×${skill.stackSmashMultiplier}`;
+    case 'passive_bleed': return `${Math.round((skill.bleedChance ?? 0) * 100)}% 출혈`;
+    case 'rapid_fire': return `${skill.rapidFireHits}타 ×${skill.rapidFireMultiplier}`;
+    case 'timed_buff': return `공격력 +${Math.round((skill.buffAtkPercent ?? 0) * 100)}%`;
+    case 'multi_dot': return skill.dotType === 'slow' ? '감속' : (skill.dotType === 'stamina_drain' ? '내공 소모' : '독');
+    case 'condition_strike': return `고정 ${skill.baseFixedDamage}`;
+    case 'berserker_scale': return 'HP% 연동 강화';
+    case 'last_stand': return `피해 ×${skill.damageMultiplier}`;
+    case 'cheolbyeok': return `${Math.round((skill.cheolbyeokChance ?? 0) * 100)}% 방어`;
+    case 'revenge': return `피해 ×${skill.revengeMultiplier}`;
+    case 'phase_sequence': return '다단계 시퀀스';
+    case 'conditional_passive': return `피해 ×${skill.damageMultiplier}`;
+    case 'final_phase': return '최종 변환';
+    case 'variable_multi_hit': {
+      const tiers = skill.hitTiers ?? [];
+      return tiers.map((t: { chance: number; hitCount: number }) => `${Math.round(t.chance * 100)}%→${t.hitCount}타`).join(', ');
+    }
+    case 'dodge_buff_passive': return `${Math.round((skill.dodgeChance ?? 0) * 100)}% 회피 + ATK${skill.dodgeBuffAtkPercent ?? 0}%`;
     default: return '';
   }
 }

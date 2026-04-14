@@ -64,6 +64,45 @@ export interface SaveMeta {
 }
 
 // ============================================================
+// DoT (지속 피해) 스택 엔트리
+// ============================================================
+export interface DotStackEntry {
+  id: string;
+  type: 'bleed' | 'poison' | 'stamina_drain' | 'slow';
+  damagePerTick: number;       // 초당 데미지 (slow=0)
+  damagePerStack: number;      // 스택당 추가 초당 데미지
+  stacks: number;
+  maxStacks: number;
+  remainingSec: number;        // 남은 지속시간
+  totalDuration: number;       // 스택 갱신 시 remainingSec 리셋용
+  slowAmount?: number;         // slow: 기본 공속 증가량 (초)
+  slowPerStack?: number;       // slow: 스택당 추가 공속 증가량
+}
+
+// ============================================================
+// 장비 DoT (적에게 적용되는 독 등)
+// ============================================================
+export interface EquipmentDotEntry {
+  equipId: string;
+  damagePerTick: number;     // 초당 데미지
+  stacks: number;
+  maxStacks: number;
+  remainingSec: number;
+  totalDuration: number;
+}
+
+// ============================================================
+// 적 버프 엔트리
+// ============================================================
+export interface EnemyBuffEntry {
+  id: string;
+  type: 'timed_atk_buff';
+  value: number;
+  remainingSec?: number;
+  removableByStun?: boolean;
+}
+
+// ============================================================
 // 게임 스테이트
 // ============================================================
 export interface GameState {
@@ -139,7 +178,26 @@ export interface GameState {
     usedOneTimeSkills?: string[];
     playerAtkDebuffMult?: number;
     playerAtkSpeedDebuffMult?: number;
-    stackCount?: number;  // 흑영참 스택 (0~3)
+    stackCount?: number;          // 흑영참 스택 (0~3)
+    // === 흑풍채 신규 ===
+    playerDotStacks?: DotStackEntry[];
+    enemyBuffs?: EnemyBuffEntry[];
+    cheolbyeokStacks?: number;    // 철벽 스택 (0~5)
+    revengeActive?: boolean;      // 복수심 활성
+    sequenceState?: {             // 다단계 시퀀스 상태
+      skillId: string;
+      currentStep: number;
+      totalSteps: number;
+    } | null;
+    phaseFlags?: Record<string, boolean>;
+    lastStandActive?: boolean;
+    baseAttackPower?: number;     // 버서커/페이즈용 원본 공격력
+    baseAttackInterval?: number;  // 원본 공격 간격
+    // === 녹림맹 총순찰사자 신규 ===
+    dodgeAtkBuffs?: { atkPercent: number; remainingAttacks: number }[];
+    bossChargeDmgReduction?: number;
+    bossChargeStunImmune?: boolean;
+    chargeRegenPenalty?: number;       // 차지 중 내력 회복속도 감소량 (/초)
   } | null;
   playerFinisherCharge?: {
     artId: string;
@@ -184,6 +242,9 @@ export interface GameState {
 
   // 재료 보관함
   materials: Record<string, number>;
+
+  // 장비 DoT (적에게 적용)
+  equipmentDotOnEnemy: EquipmentDotEntry[];
 
   // 제작 이력
   craftedRecipes: string[];

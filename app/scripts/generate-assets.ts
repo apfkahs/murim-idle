@@ -159,6 +159,18 @@ const ASSETS: AssetEntry[] = [
   { file: 'backgrounds/cheonsan_daebaek.png', category: 'background', size: '1536x1024',
     prompt: 'Tianshan mountain range extreme altitude, endless sea of white snow, howling blizzard winds, towering jagged peaks piercing through clouds, desolate and majestic, no signs of life, eternal ice and snow, cold blue-white palette' },
 
+  // 흑풍채 무공 아이콘
+  { file: 'arts/nokrim_bobeop.png', category: 'icon', size: '1024x1024',
+    prompt: 'green forest bandit footwork art icon, swift foot movement trails, dodging silhouette, Chinese martial arts style' },
+
+  // 흑풍채 신규 몬스터
+  { file: 'enemies/heugpung_mokryeong.png', category: 'character', size: '1024x1024',
+    prompt: 'black wind spirit guardian dog, fierce wooden and metal puppet body with sharp claws, glowing red eyes, dark black energy emanating, terrifying supernatural beast' },
+  { file: 'enemies/sanbaram_gungsu.png', category: 'character', size: '1024x1024',
+    prompt: 'mountain wind archer bandit, rugged warrior with bow and quiver, wind-swept dark robes, sharp calculating eyes, rocky mountain backdrop' },
+  { file: 'enemies/nokrim_patrol_chief.png', category: 'character', size: '1024x1024',
+    prompt: 'green forest alliance chief patrol inspector, muscular martial artist with green and black robes, fierce fist fighter, commanding presence, mountain bandit stronghold backdrop, stern gaze' },
+
   // 새외 몬스터 (천산 대맥)
   { file: 'enemies/hwahyulsa.png', category: 'character', size: '1024x1024',
     prompt: 'giant serpent snake with glowing red blood veins visible through translucent scales, fire element, high altitude snowy mountain setting, fearsome predator' },

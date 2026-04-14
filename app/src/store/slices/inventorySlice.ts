@@ -29,6 +29,7 @@ export type InventorySlice = {
   equipItem: (instanceId: string) => void;
   unequipItem: (slot: EquipSlot) => void;
   discardEquipment: (instanceId: string) => void;
+  enhanceEquipment: (instanceId: string, materialCount: number, useChanranStone?: boolean) => boolean;
 };
 
 export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlice> = (set, get) => ({
@@ -290,5 +291,84 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
     const state = get() as GameStore;
     const newInventory = state.equipmentInventory.filter(e => e.instanceId !== instanceId);
     set({ equipmentInventory: newInventory });
+  },
+
+  enhanceEquipment: (instanceId, materialCount, useChanranStone) => {
+    const state = get() as GameStore;
+    // 장착 중인 장비 또는 인벤토리에서 찾기
+    let instance: EquipmentInstance | null = null;
+    let location: 'equipped' | 'inventory' = 'inventory';
+    let equippedSlot: EquipSlot | null = null;
+
+    for (const slot of ['weapon', 'armor', 'gloves', 'boots'] as EquipSlot[]) {
+      if (state.equipment[slot]?.instanceId === instanceId) {
+        instance = state.equipment[slot]!;
+        location = 'equipped';
+        equippedSlot = slot;
+        break;
+      }
+    }
+    if (!instance) {
+      const found = state.equipmentInventory.find(e => e.instanceId === instanceId);
+      if (found) { instance = found; location = 'inventory'; }
+    }
+    if (!instance) return false;
+
+    const def = getEquipmentDef(instance.defId);
+    if (!def?.enhanceable || !def.enhanceSteps || !def.enhanceMaterialId) return false;
+
+    const currentLevel = instance.enhanceLevel ?? 0;
+    if (currentLevel >= def.enhanceSteps.length) return false; // 최대 강화
+
+    // 찬란한 흑풍석 강화: enhanceMaterialId가 'heugpung_stone'인 장비에 대체 재료 사용
+    if (useChanranStone && def.enhanceMaterialId === 'heugpung_stone') {
+      const chanranCosts = [1, 2, 3]; // 0강→+1: 1개, +1→+2: 2개, +2→+3: 3개
+      const requiredChanran = chanranCosts[currentLevel] ?? 999;
+      if ((state.materials['chanran_heugpung_stone'] ?? 0) < requiredChanran) return false;
+
+      const newMaterials = { ...state.materials };
+      newMaterials['chanran_heugpung_stone'] = (newMaterials['chanran_heugpung_stone'] ?? 0) - requiredChanran;
+
+      // 100% 성공
+      const enhanced: EquipmentInstance = { ...instance, enhanceLevel: currentLevel + 1 };
+      if (location === 'equipped' && equippedSlot) {
+        const newEquipment = { ...state.equipment, [equippedSlot]: enhanced };
+        const eqStats = gatherEquipmentStats({ ...state, equipment: newEquipment } as GameState);
+        const newMaxHp = calcMaxHp(state.stats.che, eqStats.bonusHp ?? 0, calcTierMultiplier(state.tier));
+        set({ materials: newMaterials, equipment: newEquipment, maxHp: newMaxHp, hp: Math.min(state.hp, newMaxHp) });
+      } else {
+        const newInv = state.equipmentInventory.map(e => e.instanceId === instanceId ? enhanced : e);
+        set({ materials: newMaterials, equipmentInventory: newInv });
+      }
+      return true;
+    }
+
+    const step = def.enhanceSteps[currentLevel];
+    const count = Math.max(1, Math.min(materialCount, step.maxUnits));
+    if ((state.materials[def.enhanceMaterialId] ?? 0) < count) return false;
+
+    // 재료 차감
+    const newMaterials = { ...state.materials };
+    newMaterials[def.enhanceMaterialId] = (newMaterials[def.enhanceMaterialId] ?? 0) - count;
+
+    // 확률 계산
+    const chance = Math.min(count * step.probabilityPerUnit, step.maxChance);
+    const success = Math.random() < chance;
+
+    if (success) {
+      const enhanced: EquipmentInstance = { ...instance, enhanceLevel: currentLevel + 1 };
+      if (location === 'equipped' && equippedSlot) {
+        const newEquipment = { ...state.equipment, [equippedSlot]: enhanced };
+        const eqStats = gatherEquipmentStats({ ...state, equipment: newEquipment } as GameState);
+        const newMaxHp = calcMaxHp(state.stats.che, eqStats.bonusHp ?? 0, calcTierMultiplier(state.tier));
+        set({ materials: newMaterials, equipment: newEquipment, maxHp: newMaxHp, hp: Math.min(state.hp, newMaxHp) });
+      } else {
+        const newInv = state.equipmentInventory.map(e => e.instanceId === instanceId ? enhanced : e);
+        set({ materials: newMaterials, equipmentInventory: newInv });
+      }
+    } else {
+      set({ materials: newMaterials });
+    }
+    return success;
   },
 });

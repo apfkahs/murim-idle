@@ -4,13 +4,14 @@
  */
 import { BALANCE_PARAMS } from '../../data/balance';
 import { getArtDef } from '../../data/arts';
+import { BOSS_PATTERNS, getMonsterDef } from '../../data/monsters';
 import {
   calcCritDamageMultiplier, calcCritRate, calcDodge, calcDmgReduction, calcTierMultiplier,
   calcStamina, calcEffectiveRegen, calcQiPerSec, calcCombatQiRatio,
   gatherEquipmentStats, gatherMasteryEffects,
 } from '../combatCalc';
-import type { GameState, FloatingText, BattleResult, InventoryItem } from '../../store/types';
-import type { EquipmentInstance } from '../../data/equipment';
+import type { GameState, FloatingText, BattleResult, InventoryItem, EquipmentDotEntry } from '../../store/types';
+import type { EquipSlot, EquipmentInstance } from '../../data/equipment';
 import type { ProficiencyType } from '../../data/arts';
 
 const B = BALANCE_PARAMS;
@@ -69,7 +70,9 @@ export interface TickContext {
   playerFinisherCharge: GameState['playerFinisherCharge'];
   totalKills: number;
   hiddenRevealedInField: Record<string, string | null>;
+  equipment: Record<EquipSlot, EquipmentInstance | null>;
   equipmentInventory: EquipmentInstance[];
+  equipmentDotOnEnemy: EquipmentDotEntry[];
   materials: Record<string, number>;
   artGradeExp: Record<string, number>;
   activeMasteries: Record<string, string[]>;
@@ -122,7 +125,9 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
   let playerFinisherCharge = state.playerFinisherCharge ?? null;
   let totalKills = state.totalKills ?? 0;
   const hiddenRevealedInField = { ...state.hiddenRevealedInField };
+  const equipment = { ...state.equipment };
   const equipmentInventory = [...state.equipmentInventory];
+  const equipmentDotOnEnemy = [...(state.equipmentDotOnEnemy ?? [])];
   const materials = { ...state.materials };
   const artGradeExp = { ...state.artGradeExp };
   const activeMasteries = { ...state.activeMasteries };
@@ -194,7 +199,7 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
     bossPatternState, playerStunTimer, lastEnemyAttack,
     pendingHuntRetry, pendingAutoExplore, dodgeCounterActive, playerFinisherCharge,
     totalKills, hiddenRevealedInField,
-    equipmentInventory, materials, artGradeExp, activeMasteries,
+    equipment, equipmentInventory, equipmentDotOnEnemy, materials, artGradeExp, activeMasteries,
     obtainedMaterials, knownEquipment, ultCooldowns,
     stats, proficiency,
 
@@ -216,6 +221,7 @@ export function applyBattleReset(ctx: TickContext): void {
   ctx.dodgeCounterActive = false;
   ctx.lastEnemyAttack = null;
   ctx.playerFinisherCharge = null;
+  ctx.equipmentDotOnEnemy = [];
 }
 
 export function applyUltCooldownReset(ctx: TickContext): void {
@@ -241,6 +247,33 @@ export function handleDodge(ctx: TickContext, eName: string, customMsg?: string)
   }
 }
 
+// ── bossPatternState 팩토리 ──
+export function createBossPatternState(monsterId: string): NonNullable<GameState['bossPatternState']> | null {
+  const pattern = BOSS_PATTERNS[monsterId];
+  if (!pattern) return null;
+  const monDef = getMonsterDef(monsterId);
+  return {
+    bossStamina: pattern.stamina.initial,
+    rageUsed: false,
+    playerFreezeLeft: 0,
+    usedOneTimeSkills: [],
+    bossChargeState: null,
+    playerDotStacks: [],
+    enemyBuffs: [],
+    cheolbyeokStacks: 0,
+    revengeActive: false,
+    sequenceState: null,
+    phaseFlags: {},
+    lastStandActive: false,
+    baseAttackPower: monDef?.attackPower,
+    baseAttackInterval: monDef?.attackInterval,
+    dodgeAtkBuffs: [],
+    bossChargeDmgReduction: 0,
+    bossChargeStunImmune: false,
+    chargeRegenPenalty: 0,
+  };
+}
+
 // ── 결과 빌드 ──
 export function buildResult(ctx: TickContext, extras: {
   achievements: string[];
@@ -262,7 +295,8 @@ export function buildResult(ctx: TickContext, extras: {
     discoveredMasteries: ctx.discoveredMasteries, pendingEnlightenments: ctx.pendingEnlightenments,
     stamina: ctx.stamina, ultCooldowns: ctx.ultCooldowns,
     currentBattleDuration: ctx.currentBattleDuration, currentBattleDamageDealt: ctx.currentBattleDamageDealt,
-    equipmentInventory: ctx.equipmentInventory, materials: ctx.materials,
+    equipment: ctx.equipment, equipmentInventory: ctx.equipmentInventory,
+    equipmentDotOnEnemy: ctx.equipmentDotOnEnemy, materials: ctx.materials,
     obtainedMaterials: ctx.obtainedMaterials, knownEquipment: ctx.knownEquipment,
     bossPatternState: ctx.bossPatternState, playerStunTimer: ctx.playerStunTimer, lastEnemyAttack: ctx.lastEnemyAttack,
     proficiency: ctx.proficiency, artGradeExp: ctx.artGradeExp, activeMasteries: ctx.activeMasteries,

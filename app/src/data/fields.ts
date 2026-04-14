@@ -102,8 +102,10 @@ export const FIELDS: FieldDef[] = [
   {
     id: 'heugpungchae',
     name: '흑풍채',
-    monsters: ['bounty_hunter', 'ronin'],
-    hiddenMonsters: [],
+    monsters: ['heugpung_mokryeong', 'sanbaram_gungsu', 'bounty_hunter', 'ronin'],
+    boss: 'bandit_leader',
+    bossTimer: 90,
+    hiddenMonsters: ['nokrim_patrol_chief'],
     canExplore: true,
     unlockCondition: { materialOwned: 'heugpungchae_map' },
   },

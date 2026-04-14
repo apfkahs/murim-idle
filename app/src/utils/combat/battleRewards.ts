@@ -4,10 +4,10 @@
  */
 import { BALANCE_PARAMS } from '../../data/balance';
 import { getArtDef, type ProficiencyType } from '../../data/arts';
-import { getMonsterDef, BOSS_PATTERNS } from '../../data/monsters';
+import { getMonsterDef } from '../../data/monsters';
 import { FIELDS, getFieldDef } from '../../data/fields';
 import { MATERIALS } from '../../data/materials';
-import { getEquipmentDef, type EquipmentInstance } from '../../data/equipment';
+import { getEquipmentDef, type EquipmentInstance, type EquipSlot } from '../../data/equipment';
 import {
   getMaxEquippedArtGrade, getArtGradeInfo, getProfStarInfo,
   PROF_TABLE, getGradeTableForArt, getArtGradeInfoFromTable,
@@ -15,7 +15,7 @@ import {
 import { spawnEnemy } from '../combatCalc';
 import { PROF_LABEL } from './damageCalc';
 import type { TickContext } from './tickContext';
-import { applyBattleReset, applyUltCooldownReset } from './tickContext';
+import { applyBattleReset, applyUltCooldownReset, createBossPatternState } from './tickContext';
 
 const B = BALANCE_PARAMS;
 
@@ -57,7 +57,16 @@ export function processEnemyDeath(ctx: TickContext): void {
       const diff = monsterGrade - currentGrade;
       const multiplier = diff >= 0 ? Math.pow(3, diff) : Math.pow(1 / 9, -diff);
       const artProfMult = artDef.proficiencyGainMultiplier ?? 1.0;
-      profGainMap[pType] = baseProfGain * multiplier * artProfMult;
+      // 녹림의 전령 특수효과: 녹림권+녹림보법 동시 장착 시 숙련도 +30%
+      let heraldBonus = 1;
+      const hasHeraldBoots = Object.values(ctx.equipment).some(e => e?.defId === 'nokrim_herald_boots');
+      if (hasHeraldBoots) {
+        const allArts = [...ctx.equippedArts, ...(ctx.equippedSimbeop ? [ctx.equippedSimbeop] : [])];
+        if (allArts.includes('nokrim_fist') && allArts.includes('nokrim_bobeop')) {
+          heraldBonus = 1.3;
+        }
+      }
+      profGainMap[pType] = baseProfGain * multiplier * artProfMult * heraldBonus;
     }
     for (const [pType, gain] of Object.entries(profGainMap) as [ProficiencyType, number][]) {
       ctx.proficiency[pType] = Math.min((ctx.proficiency[pType] ?? 0) + gain, PROF_TABLE[PROF_TABLE.length - 1].cumExp);
@@ -167,6 +176,18 @@ export function processEnemyDeath(ctx: TickContext): void {
         }
       }
     }
+  }
+
+  // 장비 킬카운트 증가 (장착 장비 중 killCountGrowth가 있는 것)
+  for (const slot of ['weapon', 'armor', 'gloves', 'boots'] as EquipSlot[]) {
+    const inst = ctx.equipment[slot];
+    if (!inst) continue;
+    const eqDef = getEquipmentDef(inst.defId);
+    if (!eqDef?.killCountGrowth) continue;
+    const currentKC = inst.killCount ?? 0;
+    if (currentKC >= eqDef.killCountGrowth.maxKillCount) continue;
+    const newKC = Math.min(currentKC + 1, eqDef.killCountGrowth.maxKillCount);
+    ctx.equipment[slot] = { ...inst, killCount: newKC };
   }
 
   // 폭혈단 복용 후 처치 시 demonic_note +5%
@@ -280,6 +301,7 @@ function processExploreMode(
       const nextMon = getMonsterDef(ctx.exploreOrder[nextStep]);
       if (nextMon) {
         ctx.currentEnemy = spawnEnemy(nextMon);
+        ctx.equipmentDotOnEnemy = [];
         ctx.exploreStep = nextStep;
         ctx.currentBattleDuration = 0;
         ctx.currentBattleDamageDealt = 0;
@@ -290,14 +312,23 @@ function processExploreMode(
           if (!ctx.hiddenRevealedInField[ctx.currentField]) {
             ctx.battleLog.push('산군이 쓰러진 틈에 괴이한 존재가 침입한 것 같다..');
           }
+          // 히든 조우 연출
+          if (nextMon.hiddenEncounterLogs && nextMon.hiddenEncounterLogs.length > 0) {
+            for (const line of nextMon.hiddenEncounterLogs) {
+              ctx.battleLog.push(line);
+            }
+          }
           ctx.hiddenRevealedInField[ctx.currentField] = nextMon.id;
         }
-        ctx.bossPatternState = BOSS_PATTERNS[nextMon.id]
-          ? { bossStamina: BOSS_PATTERNS[nextMon.id].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
-          : null;
+        ctx.bossPatternState = createBossPatternState(nextMon.id);
         ctx.playerStunTimer = 0;
         ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
         ctx.enemyAttackTimer = nextMon.attackInterval;
+        // 히든 조우 시 공격 타이머 지연
+        if (nextMon.isHidden && nextMon.hiddenEncounterLogs && nextMon.hiddenEncounterLogs.length > 0) {
+          ctx.playerAttackTimer += 3;
+          ctx.enemyAttackTimer += 3;
+        }
       }
     } else if (!ctx.isBossPhase) {
       const field = getFieldDef(ctx.currentField!);
@@ -314,19 +345,26 @@ function processExploreMode(
           ctx.isBossPhase = true;
           ctx.bossTimer = field.bossTimer ?? 60;
           ctx.currentEnemy = spawnEnemy(nextMon);
+          ctx.equipmentDotOnEnemy = [];
           ctx.currentBattleDuration = 0;
           ctx.currentBattleDamageDealt = 0;
           ctx.stamina = 0;
           applyUltCooldownReset(ctx);
           if (spawnHiddenAtBoss) {
+            // 히든 조우 연출: 대사 로그 출력 + 공격 타이머 지연
+            if (nextMon.hiddenEncounterLogs && nextMon.hiddenEncounterLogs.length > 0) {
+              for (const line of nextMon.hiddenEncounterLogs) {
+                ctx.battleLog.push(line);
+              }
+              ctx.playerAttackTimer += 3;
+              ctx.enemyAttackTimer += 3;
+            }
             ctx.battleLog.push(`— 보스방에 괴이한 존재가 나타났다! ${nextMon.name}이(가) 등장! —`);
             if (ctx.currentField) ctx.hiddenRevealedInField[ctx.currentField] = nextMon.id;
           } else {
             ctx.battleLog.push(`— 보스 등장! ${nextMon.name}이(가) 나타났다! —`);
           }
-          ctx.bossPatternState = BOSS_PATTERNS[nextMon.id]
-            ? { bossStamina: BOSS_PATTERNS[nextMon.id].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
-            : null;
+          ctx.bossPatternState = createBossPatternState(nextMon.id);
           ctx.playerStunTimer = 0;
           ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
           ctx.enemyAttackTimer = nextMon.attackInterval;
@@ -373,13 +411,12 @@ function processHuntMode(
     const nextMon = getMonsterDef(ctx.huntTarget);
     if (nextMon) {
       ctx.currentEnemy = spawnEnemy(nextMon);
+      ctx.equipmentDotOnEnemy = [];
       ctx.currentBattleDuration = 0;
       ctx.currentBattleDamageDealt = 0;
       ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
       ctx.enemyAttackTimer = nextMon.attackInterval;
-      if (BOSS_PATTERNS[ctx.huntTarget]) {
-        ctx.bossPatternState = { bossStamina: BOSS_PATTERNS[ctx.huntTarget].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null };
-      }
+      ctx.bossPatternState = createBossPatternState(ctx.huntTarget) ?? ctx.bossPatternState;
       ctx.playerStunTimer = 0;
     }
   }

@@ -37,6 +37,7 @@ export interface MasteryEffects {
   killBonusEnabled?: boolean;
   synergyArtId?: string;
   dodgeCounterEnabled?: boolean;  // 회피 성공 시 50% 확률 카운터 공격 활성화
+  dodgeCounterMultiplier?: number; // 회피 카운터 공격 배율 (기본 1.2, 녹림보법 1.3)
   bonusDmgReductionPercent?: number;   // % 피해 감소 (철포삼 기본 15%, 비전서 +10%)
   bonusHpPercent?: number;             // 최대 HP % 증가 (철포삼 비전서 +10%)
   bonusCombatQiRatioFlat?: number;     // 전투 기운 비율 절대 덧셈 (삼재심법 오의 +0.10)
@@ -44,6 +45,10 @@ export interface MasteryEffects {
   attackIntervalMultiplierReduction?: number;  // 무공 공속 감소 배율 감소량 (녹림권 1.5→1.4→1.3)
   stunOnUlt?: number;                          // 절초 명중 시 적 기절 시간(초)
   bossHiddenDmgBonus?: number;                 // 보스/히든 몬스터 대상 피해 보너스 비율
+  // ── 야수보법 3초식 ──
+  dodgeAtkBuffPercent?: number;                // 회피 성공 시 ATK 버프 %
+  dodgeAtkBuffDuration?: number;               // 버프 지속 공격 횟수
+  dodgeAtkBuffMaxStacks?: number;              // 최대 스택
 }
 
 // ── 초(招) 정의 ──
@@ -371,6 +376,81 @@ export const ARTS: ArtDef[] = [
         requires: ['crude_bobeop_2'],
         discovery: { type: 'recipe' },
         effects: { bonusAtkSpeed: 0.1, dodgeCounterEnabled: true },
+      },
+    ],
+  },
+
+  // ── 녹림보법 (보법, passive) ──
+  {
+    id: 'nokrim_bobeop',
+    name: '녹림보법(綠林步法)',
+    faction: 'neutral',
+    artType: 'passive',
+    cost: 0,
+    baseGrade: 8,
+    imageKey: 'nokrim_bobeop',
+    autoActivateMastery: true,
+
+    proficiencyType: 'footwork',
+    proficiencyCoefficient: 0,  // 0이면 숙련도 스케일링 비활성 (성급 배율로 대체)
+    baseEffects: { bonusAtkSpeed: 0.06, bonusDodge: 1, bonusCritDmg: 1.2 },
+    descriptionByStage: [
+      '녹림도 사이에 전해지는 발법(足法)의 기초. 몸을 낮추고 중심을 허리에 모아 빠르게 움직이는 법이 담겨 있다.',
+      '중심 이동이 빨라졌다. 상대의 공격을 비켜 나가는 데 익숙해지기 시작했다.',
+      '보법의 리듬이 몸에 배었다. 적의 칼날이 스치는 순간, 반격의 기회가 보인다.',
+      '발이 바람처럼 가벼워졌다. 흘리고 치는 타이밍이 맞아 들기 시작했다.',
+      '보법이 본격적으로 무르익었다. 상대는 내가 어디서 공격해올지 알 수 없다.',
+      '허를 찌르는 움직임이 자연스럽게 흘러 나온다. 녹림의 진수가 손에 잡힌다.',
+      '반걸음 선행(先行)으로 적의 칼날을 무력화한다. 아는 자라면 손에 땀을 쥐게 하는 보법이다.',
+      '이제 발은 생각보다 앞선다. 몸이 스스로 적의 빈틈을 찾는다.',
+      '발자국 하나도 허투루 내딛지 않는다. 상대의 공격 궤적이 투명하게 읽힌다.',
+      '걸음이 곧 검이다. 몸이 움직이는 순간 이미 승부는 기울어져 있다.',
+      '흑풍채의 어느 고수도 이 발법의 진의를 꿰뚫지 못했다 한다. 이제 그 경지에 발을 들였다.',
+      '녹림보법의 완성. 바람 속에 사라졌다 나타나는 발길이 닿는 자리마다 반격이 꽃핀다.',
+    ],
+    growth: {
+      gradeMaxStars: 12,
+      // 성급 배율 배열 [1성=1배 ~ 12성=12배] — baseEffects와 곱하여 성급당 누적 적용
+      proficiencyCoefficientByGrade: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    },
+    masteries: [
+      {
+        stage: 1,
+        id: 'nokrim_bobeop_move1',
+        name: '취보환혼(醉步幻魂)',
+        description: '공격 속도 0.1초 감소, 회피 성공 시 50% 확률로 카운터 공격 (피해 1.3배)',
+        flavorText: '술 취한 듯 흔들리는 발걸음 사이로 허를 찌르는 일격이 숨어든다.',
+        requiredTier: 0,
+        pointCost: 0,
+        discovery: { type: 'bijup' },
+        requiredArtGrade: 8,
+        effects: { bonusAtkSpeed: 0.1, dodgeCounterEnabled: true, dodgeCounterMultiplier: 1.3 },
+      },
+      {
+        stage: 2,
+        id: 'nokrim_bobeop_move2',
+        name: '야행풍보(夜行風步)',
+        description: '공격 속도 0.1초 추가 감소, 회피 +10%',
+        flavorText: '밤바람처럼 소리 없이 스며들어, 닿기 전에 이미 빠져나가 있다.',
+        requiredTier: 0,
+        pointCost: 0,
+        requires: ['nokrim_bobeop_move1'],
+        discovery: { type: 'bijup' },
+        requiredArtGrade: 8,
+        effects: { bonusAtkSpeed: 0.1, bonusDodge: 10 },
+      },
+      {
+        stage: 3,
+        id: 'nokrim_bobeop_move3',
+        name: '야수보법(野獸步法)',
+        description: '회피 성공 시 공격력 +10% 버프 획득 (3공격 지속, 최대 2스택)',
+        flavorText: '인간의 발법을 넘어선 야수의 본능. 회피 직후 반격의 기세가 폭발한다.',
+        requiredTier: 0,
+        pointCost: 0,
+        requires: ['nokrim_bobeop_move2'],
+        discovery: { type: 'bijup' },
+        requiredArtGrade: 10,
+        effects: { dodgeAtkBuffPercent: 10, dodgeAtkBuffDuration: 3, dodgeAtkBuffMaxStacks: 2 },
       },
     ],
   },

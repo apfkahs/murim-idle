@@ -82,6 +82,7 @@ export function createInitialState(): GameState {
     equipment: { weapon: null, armor: null, gloves: null, boots: null },
     equipmentInventory: [],
     materials: {},
+    equipmentDotOnEnemy: [],
     craftedRecipes: [],
     unlockedRecipes: [],
     obtainedMaterials: [],

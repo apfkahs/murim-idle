@@ -112,6 +112,43 @@ export const MATERIALS: MaterialDef[] = [
     name: '비밀 지령서',
     description: '마기에 물든 쪽지들을 해독하여 완성한 비밀 지령서. 어딘가 음험한 조직의 냄새가 난다.',
   },
+  // ── 흑풍채 재료 ──
+  {
+    id: 'tough_leather',
+    name: '질긴 가죽',
+    description: '흑풍 목령견에게서 뜯어낸 단단하고 질긴 가죽. 보통 가죽보다 훨씬 내구성이 뛰어나 방어구 재료로 쓸 수 있을 것 같다.',
+  },
+  {
+    id: 'heugpung_stone',
+    name: '흑풍석',
+    description: '흑풍채 일대에서만 채취되는 검은 기운이 서린 돌. 흑풍채 도적들이 기를 불어넣어 단련한 흔적이 있다.',
+  },
+  {
+    id: 'heugpung_sword_fragment',
+    name: '흑풍도 파편',
+    description: '흑도 낭인이 사용하던 도(刀)에서 부러진 파편. 사파의 기운이 짙게 배어 있어 그냥 버리기도 찜찜하다.',
+  },
+  {
+    id: 'bijup_nokrim_move1',
+    name: '녹림보법 비급서 전편',
+    description: '녹림의 발법(足法) 전반부가 담긴 비급서. 후편과 합쳐야 온전한 녹림보법을 익힐 수 있다.',
+  },
+  {
+    id: 'bijup_nokrim_move2',
+    name: '녹림보법 비급서 후편',
+    description: '녹림의 발법(足法) 후반부가 담긴 비급서. 전편과 합쳐야 진정한 녹림의 신법을 완성할 수 있다.',
+  },
+  // ── 녹림맹 총순찰사자 재료 ──
+  {
+    id: 'bijup_nokrim_bobeop_3',
+    name: '녹림보법 비급: 야수보법',
+    description: '녹림보법의 최종 오의가 담긴 비급서. 야수의 본능으로 회피하고 반격하는 극의(極意)가 기록되어 있다. 10등급 이상의 녹림보법 수련자만 이해할 수 있다.',
+  },
+  {
+    id: 'chanran_heugpung_stone',
+    name: '찬란한 흑풍석',
+    description: '총순찰사자가 남긴 특별한 흑풍석. 일반 흑풍석보다 훨씬 밀도 높은 기운이 깃들어 있어 장비를 확실하게 강화할 수 있다.',
+  },
 ];
 
 export const RECIPES: RecipeDef[] = [
@@ -168,6 +205,25 @@ export const RECIPES: RecipeDef[] = [
     probabilityPerUnit: 0.01,
     maxUnits: 100,
     resultEquipId: 'steel_hwando',
+  },
+  // ── 흑풍채 장비 레시피 ──
+  {
+    id: 'recipe_tough_armor',
+    name: '질긴 갑옷',
+    description: '흑풍 목령견의 질긴 가죽을 엮어 만든 갑옷. 받는 피해를 줄이고 체력을 크게 늘려준다.',
+    materialId: 'tough_leather',
+    probabilityPerUnit: 0.01,
+    maxUnits: 100,
+    resultEquipId: 'tough_armor',
+  },
+  {
+    id: 'recipe_heugpung_sword',
+    name: '흑풍검',
+    description: '흑풍도 파편을 녹여 다시 벼린 검. 치명적인 일격이 더욱 날카로워진다.',
+    materialId: 'heugpung_sword_fragment',
+    probabilityPerUnit: 0.01,
+    maxUnits: 100,
+    resultEquipId: 'heugpung_sword',
   },
 ];
 
@@ -230,6 +286,25 @@ export const BIJUP_DEFS: BijupDef[] = [
     artId: 'jeoposaem',
     masteryId: 'jeoposaem_secret',
     requiredArtGrade: 1,
+  },
+  // ── 녹림보법 비급 ──
+  {
+    materialId: 'bijup_nokrim_move1',
+    artId: 'nokrim_bobeop',
+    masteryId: 'nokrim_bobeop_move1',
+    requiredArtGrade: 8,
+  },
+  {
+    materialId: 'bijup_nokrim_move2',
+    artId: 'nokrim_bobeop',
+    masteryId: 'nokrim_bobeop_move2',
+    requiredArtGrade: 8,
+  },
+  {
+    materialId: 'bijup_nokrim_bobeop_3',
+    artId: 'nokrim_bobeop',
+    masteryId: 'nokrim_bobeop_move3',
+    requiredArtGrade: 10,
   },
 ];
 

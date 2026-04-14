@@ -50,6 +50,9 @@ const ENEMY_EMOJI: Record<string, string> = {
   masked_swordsman: '🎭',
   innkeeper_true: '👤',
   bandit_leader: '⚔️',
+  // 흑풍채 신규 몬스터
+  heugpung_mokryeong: '🐕',
+  sanbaram_gungsu: '🏹',
   // 새외 몬스터
   hwahyulsa: '🐍',
   eunrang: '🐺',

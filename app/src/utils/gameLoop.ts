@@ -13,7 +13,7 @@ import { BALANCE_PARAMS } from '../data/balance';
 import { getMonsterDef, BOSS_PATTERNS } from '../data/monsters';
 import { getFieldDef, generateExploreOrder } from '../data/fields';
 import { calcMaxHp, spawnEnemy } from './combatCalc';
-import { createTickContext, applyBattleReset, buildResult } from './combat/tickContext';
+import { createTickContext, applyBattleReset, buildResult, createBossPatternState } from './combat/tickContext';
 import { buildAchievementContext, ACHIEVEMENTS } from './combat/damageCalc';
 import { executePlayerAttackPhase } from './combat/playerCombat';
 import { executeEnemyAttackPhase } from './combat/enemyCombat';
@@ -46,13 +46,12 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         ctx.pendingHuntRetry = false;
         ctx.battleMode = 'hunt';
         ctx.currentEnemy = spawnEnemy(retryMon);
+        ctx.equipmentDotOnEnemy = [];
         ctx.battleResult = null;
         ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
         ctx.enemyAttackTimer = retryMon.attackInterval;
         applyBattleReset(ctx);
-        ctx.bossPatternState = BOSS_PATTERNS[ctx.huntTarget]
-          ? { bossStamina: BOSS_PATTERNS[ctx.huntTarget].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
-          : null;
+        ctx.bossPatternState = createBossPatternState(ctx.huntTarget);
         if (!isSimulating) ctx.battleLog = [...ctx.battleLog, `— ${retryMon.name} 자동 재도전 —`];
       }
     }
@@ -67,6 +66,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           ctx.pendingAutoExplore = false;
           ctx.battleMode = 'explore';
           ctx.currentEnemy = spawnEnemy(firstMon);
+          ctx.equipmentDotOnEnemy = [];
           ctx.exploreOrder = order;
           ctx.exploreStep = 0;
           ctx.isBossPhase = false;
@@ -75,9 +75,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           ctx.battleResult = null;
           ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
           ctx.enemyAttackTimer = firstMon.attackInterval;
-          ctx.bossPatternState = BOSS_PATTERNS[order[0]]
-            ? { bossStamina: BOSS_PATTERNS[order[0]].stamina.initial, rageUsed: false, playerFreezeLeft: 0, usedOneTimeSkills: [], bossChargeState: null }
-            : null;
+          ctx.bossPatternState = createBossPatternState(order[0]);
           ctx.playerStunTimer = 0;
           if (!ctx.isSimulating) ctx.battleLog = [`— ${firstMon.name} 등장 —`];
         } else {
@@ -113,13 +111,91 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       }
     }
 
-    // pre-combat: DoT 데미지
+    // pre-combat: DoT 데미지 (기존 스태미나 기반)
     if (ctx.bossPatternState && ctx.currentEnemy) {
       const dotPattern = BOSS_PATTERNS[ctx.currentEnemy.id];
       if (dotPattern?.dotDamagePerStack && ctx.bossPatternState.bossStamina > 0) {
         const dotDmg = dotPattern.dotDamagePerStack * ctx.bossPatternState.bossStamina * dt * (1 - ctx.dmgReduction / 100);
         ctx.hp -= dotDmg;
       }
+    }
+
+    // pre-combat: playerDotStacks 틱 데미지
+    if (ctx.bossPatternState?.playerDotStacks && ctx.bossPatternState.playerDotStacks.length > 0 && ctx.currentEnemy) {
+      const pattern = BOSS_PATTERNS[ctx.currentEnemy.id];
+      const expiredDots: Array<{ dot: typeof ctx.bossPatternState.playerDotStacks[0] }> = [];
+      const remaining: typeof ctx.bossPatternState.playerDotStacks = [];
+
+      for (const dot of ctx.bossPatternState.playerDotStacks) {
+        const newRemaining = dot.remainingSec - dt;
+        if (newRemaining <= 0) {
+          expiredDots.push({ dot });
+        } else {
+          const updatedDot = { ...dot, remainingSec: newRemaining };
+          if (dot.type === 'bleed' || dot.type === 'poison') {
+            const tickDmg = (dot.damagePerTick + dot.damagePerStack * (dot.stacks - 1)) * dt * (1 - ctx.dmgReduction / 100);
+            ctx.hp -= tickDmg;
+          } else if (dot.type === 'stamina_drain') {
+            const drainAmt = (dot.damagePerTick + dot.damagePerStack * (dot.stacks - 1)) * dt;
+            ctx.stamina = Math.max(0, ctx.stamina - drainAmt);
+          }
+          // slow: 데미지 없음, playerCombat에서 공속 반영
+          remaining.push(updatedDot);
+        }
+      }
+
+      // 출혈 만료 시 자기 버프 롤백
+      for (const { dot } of expiredDots) {
+        if (dot.type === 'bleed' && pattern) {
+          const passiveBleedSkill = pattern.skills.find(s => s.type === 'passive_bleed');
+          if (passiveBleedSkill?.bleedSelfBuffs) {
+            ctx.currentEnemy = { ...ctx.currentEnemy };
+            ctx.currentEnemy.attackPower -= passiveBleedSkill.bleedSelfBuffs.atkBonus * dot.stacks;
+            ctx.currentEnemy.attackInterval += passiveBleedSkill.bleedSelfBuffs.atkSpeedBonus * dot.stacks;
+          }
+        }
+      }
+
+      ctx.bossPatternState.playerDotStacks = remaining;
+    }
+
+    // pre-combat: enemyBuffs 타이머 감소
+    if (ctx.bossPatternState?.enemyBuffs && ctx.bossPatternState.enemyBuffs.length > 0 && ctx.currentEnemy) {
+      const remainingBuffs: typeof ctx.bossPatternState.enemyBuffs = [];
+      for (const buff of ctx.bossPatternState.enemyBuffs) {
+        if (buff.remainingSec != null) {
+          const newRemaining = buff.remainingSec - dt;
+          if (newRemaining <= 0) {
+            // timed_atk_buff 만료: 공격력 원래 값으로 복원
+            if (buff.type === 'timed_atk_buff' && ctx.bossPatternState.baseAttackPower != null) {
+              ctx.currentEnemy = { ...ctx.currentEnemy };
+              ctx.currentEnemy.attackPower = ctx.bossPatternState.baseAttackPower;
+            }
+          } else {
+            remainingBuffs.push({ ...buff, remainingSec: newRemaining });
+          }
+        } else {
+          remainingBuffs.push(buff);
+        }
+      }
+      ctx.bossPatternState.enemyBuffs = remainingBuffs;
+    }
+
+    // pre-combat: 장비 DoT (적에게 적용된 독)
+    if (ctx.equipmentDotOnEnemy.length > 0 && ctx.currentEnemy) {
+      const remaining: typeof ctx.equipmentDotOnEnemy = [];
+      for (const dot of ctx.equipmentDotOnEnemy) {
+        const newRemaining = dot.remainingSec - dt;
+        if (newRemaining <= 0) {
+          // 만료
+        } else {
+          const tickDmg = dot.damagePerTick * dot.stacks * dt;
+          ctx.currentEnemy = { ...ctx.currentEnemy };
+          ctx.currentEnemy.hp -= tickDmg;
+          remaining.push({ ...dot, remainingSec: newRemaining });
+        }
+      }
+      ctx.equipmentDotOnEnemy = remaining;
     }
 
     // 플레이어 공격 페이즈

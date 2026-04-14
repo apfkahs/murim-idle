@@ -13,7 +13,23 @@ export interface BossSkillDef {
      | 'freeze_attack'
      | 'multi_hit'
      | 'passive_dodge' | 'passive_crit' | 'passive_dmg_absorb'
-     | 'potion_heal' | 'atk_buff_bypass' | 'stack_smash';
+     | 'potion_heal' | 'atk_buff_bypass' | 'stack_smash'
+     // ── 흑풍채 신규 ──
+     | 'passive_bleed'      // 출혈 DoT + 자기 버프 (목령견)
+     | 'rapid_fire'         // N타 감소배율 속사 (궁수)
+     | 'timed_buff'         // 시한부 공격 버프 (흑풍장전)
+     | 'multi_dot'          // 다중 DoT 종류 (사냥꾼 3독)
+     | 'condition_strike'   // 상태이상 기반 데미지 (비열한 일격)
+     | 'berserker_scale'    // HP% 연동 스케일링 (낭인 살의)
+     | 'last_stand'         // 조건부 영구 증폭 (낭인/채주 최후의 발악)
+     | 'cheolbyeok'         // 피격 반응 방어 스택 (채주 철벽)
+     | 'revenge'            // 절초 피격 반응 (채주 복수심)
+     | 'phase_sequence'     // 다단계 시퀀스 (채주 낭아대도)
+     | 'conditional_passive'// 조건부 활성 패시브 (채주 낭아일격)
+     | 'final_phase'        // 최종 페이즈 진입 (채주 최후의 발악)
+     // ── 녹림맹 총순찰사자 신규 ──
+     | 'variable_multi_hit' // 타격별 개별 배율 다연타
+     | 'dodge_buff_passive'; // 회피 시 공격 버프
   triggerCondition: 'stamina_full' | 'hp_threshold' | 'default';
   staminaCost?: number;
   staminaGain?: number;
@@ -54,6 +70,93 @@ export interface BossSkillDef {
   debuffAtkPercent?: number;            // 살기: 플레이어 공격력 감소율 (0.2 = 20%)
   debuffAtkSpeedPercent?: number;       // 살기: 공격속도 감소율 (0.2 = 20% 느려짐)
   conditionMinSimbeopGrade?: number;    // 살기: 이 심법 등급 이상이면 무시 (4)
+  conditionGradeEffects?: {             // 살기 등급별 차등 (bandit_leader)
+    minGrade: number;
+    debuffAtkPercent: number;
+    debuffAtkSpeedPercent: number;
+    logMessage: string;
+  }[];
+  // ── passive_bleed ──
+  bleedChance?: number;
+  bleedDamagePerTick?: number;          // 초당 출혈 데미지 (1스택)
+  bleedMaxStacks?: number;
+  bleedDuration?: number;              // 출혈 지속시간 (totalDuration)
+  bleedSelfBuffs?: {
+    atkSpeedBonus: number;              // 공속 증가 (attackInterval 감소)
+    atkBonus: number;                   // 공격력 증가
+    dmgTakenIncrease: number;          // 플레이어 → 적 데미지 증가율 (%)
+  };
+  // ── rapid_fire ──
+  rapidFireHits?: number;
+  rapidFireMultiplier?: number;
+  singleLineLog?: boolean;
+  // ── timed_buff ──
+  buffDuration?: number;
+  buffAtkPercent?: number;
+  removableByStun?: boolean;
+  noDuplicate?: boolean;
+  // ── multi_dot ──
+  dotType?: 'poison' | 'stamina_drain' | 'slow';
+  dotDamage?: number;
+  dotDamagePerStack?: number;           // 스킬 레벨의 스택당 추가 데미지
+  dotMaxStacks?: number;
+  dotDuration?: number;
+  slowAmount?: number;
+  slowPerStack?: number;
+  // ── condition_strike ──
+  baseFixedDamage?: number;
+  perDebuffBonus?: number;
+  debuffCountThreshold?: number;
+  bypassJeoposaemOnThreshold?: boolean;
+  undodgeableOnThreshold?: boolean;
+  // ── berserker_scale ──
+  berserkAtkPerPercent?: number;        // HP 손실 1%당 공격력 증가
+  berserkSpdPerPercent?: number;        // HP 손실 1%당 공속 증가
+  // ── last_stand ──
+  disableCrit?: boolean;
+  // ── cheolbyeok ──
+  cheolbyeokChance?: number;
+  cheolbyeokReductionPerStack?: number;
+  cheolbyeokMaxStacks?: number;
+  cheolbyeokResetOnStun?: boolean;
+  // ── revenge ──
+  revengeMultiplier?: number;
+  // ── phase_sequence ──
+  sequenceSteps?: {
+    logMessage: string;
+    healPercent?: number;
+    atkSpeedChange?: number;
+    atkPercentChange?: number;
+    permanent?: boolean;
+  }[];
+  // ── conditional_passive ──
+  activateAfterSkillId?: string;
+  conditionalBleed?: { damage: number; stacks: number; duration: number };
+  conditionalCheolbyeokGain?: number;
+  // ── final_phase ──
+  finalCheolbyeokFixed?: number;
+  finalDmgBonus?: number;
+  finalConditionalMultiplierChange?: { targetSkillId: string; newMultiplier: number };
+  finalSelfDmgPercent?: number;
+  // ── 영역선포: 장착 무공 조건 ──
+  conditionRequiredArts?: string[];       // 이 무공들 모두 장착 안하면 디버프
+  ignoreByEquipId?: string;              // 이 장비 착용 시 조건 무시
+  // ── variable_multi_hit ──
+  hitTiers?: { chance: number; hitCount: number; hitMultipliers: number[] }[];
+  // ── phase_sequence 확장 ──
+  stunOnTrigger?: number;                // 시퀀스 발동 시 플레이어 스턴(초)
+  // ── 페이즈 게이팅 ──
+  activateAfterPhaseFlag?: string;       // phaseFlags[X]===true일 때 활성
+  deactivateAfterPhaseFlag?: string;     // phaseFlags[X]===true이면 비활성
+  // ── dodge_buff_passive ──
+  dodgeBuffAtkPercent?: number;          // 회피 성공 시 ATK 버프 %
+  dodgeBuffAttackCount?: number;         // 공격 횟수 기반 지속 (연타=1회)
+  dodgeBuffMaxStacks?: number;           // 최대 스택
+  // ── charged_attack 확장 ──
+  chargeDrainPerSec?: number;            // 차지 중 플레이어 내력 회복속도 감소량 (/초)
+  chargeDmgReduction?: number;           // 차지 중 보스 데미지 감소 (0.30=30%)
+  chargeStunImmunity?: boolean;          // 차지 중 스턴 면역
+  postFireSelfStun?: boolean;            // 발사 후 영구 자기 스턴
 }
 
 export interface BossPatternDef {
@@ -252,6 +355,233 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
       },
     ],
   },
+  // ── 흑풍채 패턴 ──
+  heugpung_mokryeong: {
+    stamina: { initial: 0, max: 0, regenPerSec: 0 },
+    skills: [
+      {
+        id: 'mokryeong_bleed', displayName: '목령견 — 출혈', type: 'passive_bleed',
+        triggerCondition: 'default',
+        bleedChance: 0.20, bleedDamagePerTick: 25, bleedMaxStacks: 3,
+        bleedDuration: 15,
+        bleedSelfBuffs: { atkSpeedBonus: 0.3, atkBonus: 7, dmgTakenIncrease: 5 },
+        logMessages: ['목령견의 이빨에서 피가 흐른다!', '날카로운 발톱이 살을 파고들었다!'],
+      },
+    ],
+  },
+  sanbaram_gungsu: {
+    stamina: { initial: 0, max: 0, regenPerSec: 0 },
+    skills: [
+      {
+        id: 'rapid_arrow', displayName: '속사(速射)', type: 'rapid_fire',
+        triggerCondition: 'default',
+        chance: 0.15, rapidFireHits: 5, rapidFireMultiplier: 0.6, singleLineLog: true,
+        logMessages: ['속사!'],
+      },
+      {
+        id: 'heugpung_janjeon', displayName: '흑풍장전(黑風裝箭)', type: 'timed_buff',
+        triggerCondition: 'default',
+        chance: 0.20, buffDuration: 15, buffAtkPercent: 0.35,
+        removableByStun: true, noDuplicate: true,
+        logMessages: ['궁수가 활시위를 팽팽히 당기며 집중한다...'],
+      },
+    ],
+  },
+  bounty_hunter: {
+    stamina: { initial: 0, max: 0, regenPerSec: 0 },
+    skills: [
+      {
+        id: 'busidok', displayName: '부시독 칼날', type: 'multi_dot',
+        triggerCondition: 'default',
+        chance: 0.15, dotType: 'poison', dotDamage: 40, dotDamagePerStack: 8,
+        dotMaxStacks: 3, dotDuration: 10,
+        logMessages: ['부시독 칼날! 독이 퍼진다!'],
+      },
+      {
+        id: 'sangongdok', displayName: '산공독 칼날', type: 'multi_dot',
+        triggerCondition: 'default',
+        chance: 0.15, dotType: 'stamina_drain', dotDamage: 3, dotDamagePerStack: 0.7,
+        dotMaxStacks: 3, dotDuration: 10,
+        logMessages: ['산공독 칼날! 내공이 흐트러진다!'],
+      },
+      {
+        id: 'mahyeoldok', displayName: '마혈독 칼날', type: 'multi_dot',
+        triggerCondition: 'default',
+        chance: 0.15, dotType: 'slow', slowAmount: 0.25, slowPerStack: 0.05,
+        dotMaxStacks: 3, dotDuration: 10,
+        logMessages: ['마혈독 칼날! 몸이 둔해진다!'],
+      },
+      {
+        id: 'byeolhan_ilgyeok', displayName: '비열한 일격', type: 'condition_strike',
+        triggerCondition: 'default',
+        chance: 0.15, baseFixedDamage: 150, perDebuffBonus: 0.25,
+        debuffCountThreshold: 2, bypassJeoposaemOnThreshold: true, undodgeableOnThreshold: true,
+        logMessages: ['비열한 일격!'],
+      },
+    ],
+  },
+  ronin: {
+    stamina: { initial: 0, max: 0, regenPerSec: 0 },
+    skills: [
+      {
+        id: 'ronin_berserker', displayName: '살의(殺意)', type: 'berserker_scale',
+        triggerCondition: 'default',
+        berserkAtkPerPercent: 1.5, berserkSpdPerPercent: 1,
+        logMessages: ['살의가 넘실거린다...'],
+      },
+      {
+        id: 'ronin_crit', displayName: '흑도 치명타', type: 'passive_crit',
+        triggerCondition: 'default',
+        critChance: 0.15, critMultiplier: 3,
+        logMessages: ['치명적인 일격!'],
+      },
+      {
+        id: 'ronin_last_stand', displayName: '최후의 발악', type: 'last_stand',
+        triggerCondition: 'default',
+        hpThreshold: 0.15, damageMultiplier: 2, disableCrit: true,
+        logMessages: ['최후의 발악! 낭인의 눈빛이 광기로 물들었다!'],
+      },
+    ],
+  },
+  bandit_leader: {
+    stamina: { initial: 0, max: 0, regenPerSec: 0 },
+    skills: [
+      {
+        id: 'boss_kill_intent', displayName: '살기(殺氣)', type: 'replace_normal',
+        triggerCondition: 'default', oneTime: true, priority: 10,
+        conditionGradeEffects: [
+          { minGrade: 10, debuffAtkPercent: 0, debuffAtkSpeedPercent: 0, logMessage: '살기를 꿰뚫어 보았다!' },
+          { minGrade: 9, debuffAtkPercent: 0.15, debuffAtkSpeedPercent: 0.15, logMessage: '살기에 약간 흔들렸다...' },
+        ],
+        debuffAtkPercent: 0.40, debuffAtkSpeedPercent: 0.40,
+        logMessages: ['채주의 살기가 몰아친다!'],
+      },
+      {
+        id: 'cheolbyeok', displayName: '철벽(鐵壁)', type: 'cheolbyeok',
+        triggerCondition: 'default',
+        cheolbyeokChance: 0.35, cheolbyeokReductionPerStack: 0.08,
+        cheolbyeokMaxStacks: 5, cheolbyeokResetOnStun: true,
+        logMessages: ['철벽! 채주가 기를 끌어올려 방어를 굳혔다!'],
+      },
+      {
+        id: 'revenge', displayName: '복수심(復讐心)', type: 'revenge',
+        triggerCondition: 'default',
+        revengeMultiplier: 2,
+        logMessages: ['복수심! 채주의 눈에 분노가 타오른다!'],
+      },
+      {
+        id: 'nangadaedo', displayName: '낭아대도(狼牙大刀)', type: 'phase_sequence',
+        triggerCondition: 'hp_threshold', hpThreshold: 0.60, oneTime: true,
+        sequenceSteps: [
+          { logMessage: '내 칼을 가져오너라!!' },
+          { logMessage: '술을 마시며 상처를 치유한다...', healPercent: 0.25 },
+          { logMessage: '도를 손에 들며 — 제대로 놀아보자!', atkSpeedChange: 2.0, atkPercentChange: 0.50, permanent: true },
+        ],
+        logMessages: ['낭아대도!'],
+      },
+      {
+        id: 'nangadaedo_passive', displayName: '낭아일격(狼牙一擊)', type: 'conditional_passive',
+        triggerCondition: 'default',
+        activateAfterSkillId: 'nangadaedo', chance: 0.15, damageMultiplier: 2,
+        conditionalBleed: { damage: 50, stacks: 1, duration: 10 },
+        conditionalCheolbyeokGain: 1,
+        logMessages: ['낭아일격!'],
+      },
+      {
+        id: 'boss_last_stand', displayName: '최후의 발악(最後-)', type: 'final_phase',
+        triggerCondition: 'hp_threshold', hpThreshold: 0.20, oneTime: true,
+        finalCheolbyeokFixed: 5, finalDmgBonus: 0.20,
+        finalConditionalMultiplierChange: { targetSkillId: 'nangadaedo_passive', newMultiplier: 2.5 },
+        finalSelfDmgPercent: 0.02,
+        logMessages: ['최후의 발악! 채주가 남은 모든 내력을 끌어올린다!'],
+      },
+    ],
+  },
+  nokrim_patrol_chief: {
+    stamina: { initial: 0, max: 0, regenPerSec: 0 },
+    skills: [
+      // Phase 1
+      {
+        id: 'nokrim_kill_intent', displayName: '살기(殺氣)', type: 'replace_normal',
+        triggerCondition: 'default', oneTime: true, priority: 10,
+        conditionGradeEffects: [
+          { minGrade: 11, debuffAtkPercent: 0, debuffAtkSpeedPercent: 0, logMessage: '심법의 깊은 내공이 살기를 막아냈다.' },
+          { minGrade: 10, debuffAtkPercent: 0.15, debuffAtkSpeedPercent: 0.15, logMessage: '살기에 약간 흔들렸다...' },
+        ],
+        debuffAtkPercent: 0.40, debuffAtkSpeedPercent: 0.40,
+        logMessages: ['총순찰사자의 살기가 사방을 뒤덮는다!'],
+      },
+      {
+        id: 'nokrim_territory', displayName: '영역 선포(領域宣布)', type: 'replace_normal',
+        triggerCondition: 'default', oneTime: true, priority: 9,
+        conditionRequiredArts: ['nokrim_fist', 'nokrim_bobeop'],
+        ignoreByEquipId: 'nokrim_herald_boots',
+        debuffAtkPercent: 0.20, debuffAtkSpeedPercent: 0.20,
+        logMessages: [
+          '이 산은 녹림의 땅이다! 녹림의 법도를 모르는 자에게는 자비란 없다!',
+        ],
+      },
+      {
+        id: 'nokrim_fist_attack', displayName: '녹림권(綠林拳)', type: 'variable_multi_hit',
+        triggerCondition: 'default',
+        hitTiers: [
+          { chance: 0.05, hitCount: 3, hitMultipliers: [0.6, 0.8, 1.0] },
+          { chance: 0.15, hitCount: 2, hitMultipliers: [0.6, 0.8] },
+        ],
+        deactivateAfterPhaseFlag: 'nokrim_wiise',
+        logMessages: ['녹림권!'],
+      },
+      {
+        id: 'nokrim_bobeop_dodge', displayName: '녹림보법(綠林步法)', type: 'passive_dodge',
+        triggerCondition: 'default',
+        dodgeChance: 0.10,
+        deactivateAfterPhaseFlag: 'nokrim_wiise',
+        logMessages: ['총순찰사자가 녹림보법으로 공격을 흘려냈다!'],
+      },
+      // Phase 전환 (50% HP)
+      {
+        id: 'nokrim_wiise', displayName: '녹림의 위세(綠林-威勢)', type: 'phase_sequence',
+        triggerCondition: 'hp_threshold', hpThreshold: 0.50, oneTime: true, priority: 8,
+        stunOnTrigger: 4,
+        sequenceSteps: [
+          { logMessage: '...감히 이 몸에게 상처를 내다니. 진심으로 상대해 주마.' },
+          { logMessage: '녹림십팔절예(綠林十八絶藝)! 녹림 무공의 진수를 보여주지!' },
+        ],
+        logMessages: ['녹림의 위세!'],
+      },
+      // Phase 2
+      {
+        id: 'nokrim_tiger_strike', displayName: '녹림맹호격(綠林猛虎擊)', type: 'variable_multi_hit',
+        triggerCondition: 'default',
+        hitTiers: [
+          { chance: 0.10, hitCount: 2, hitMultipliers: [1.2, 1.4] },
+          { chance: 0.20, hitCount: 3, hitMultipliers: [0.6, 0.7, 0.8] },
+        ],
+        activateAfterPhaseFlag: 'nokrim_wiise',
+        logMessages: ['녹림맹호격!'],
+      },
+      {
+        id: 'beast_bobeop', displayName: '야수보법(野獸步法)', type: 'dodge_buff_passive',
+        triggerCondition: 'default',
+        dodgeChance: 0.12,
+        dodgeBuffAtkPercent: 15, dodgeBuffAttackCount: 3, dodgeBuffMaxStacks: 2,
+        activateAfterPhaseFlag: 'nokrim_wiise',
+        logMessages: ['총순찰사자가 야수처럼 움직여 공격을 흘려냈다!'],
+      },
+      // 최종기 (15% HP)
+      {
+        id: 'nokrim_final', displayName: '불완전한 녹림패왕격(綠林覇王擊)', type: 'charged_attack',
+        triggerCondition: 'hp_threshold', hpThreshold: 0.15, oneTime: true, priority: 7,
+        chargeTime: 5, damageMultiplier: 15, undodgeable: true,
+        chargeDrainPerSec: 15, chargeDmgReduction: 0.30,
+        chargeStunImmunity: true, postFireSelfStun: true,
+        logMessages: [
+          '불완전한 녹림패왕격...! 총순찰사자가 남은 모든 내력을 끌어올린다!',
+          '녹림패왕격! 불완전하지만 그 위력은 충분히 치명적이다!',
+        ],
+      },
+    ],
+  },
   masked_swordsman: {
     stamina: { initial: 0, max: 0, regenPerSec: 0 },
     skills: [
@@ -312,6 +642,7 @@ export interface MonsterDef {
   equipDrops?: { equipId: string; chance: number }[];
   materialDrops?: { materialId: string; chance: number }[];
   description?: string;      // 도감 설명 (10마리 처치 시 해금)
+  hiddenEncounterLogs?: string[];  // 히든 스폰 시 대사 로그
 }
 
 const GRADE_NAMES = ['등급외', '1등급', '2등급', '3등급', '4등급'];
@@ -508,33 +839,92 @@ export const INN_HIDDEN_MONSTERS: MonsterDef[] = [
 // 흑풍채 일반 몬스터
 export const HEUGPUNGCHAE_MONSTERS: MonsterDef[] = [
   {
+    id: 'heugpung_mokryeong', name: '흑풍 목령견',
+    hp: 1550, attackPower: 75, attackInterval: 2.5, regen: 0, baseProficiency: 2.5,
+    drops: [],
+    materialDrops: [
+      { materialId: 'tough_leather', chance: 0.02 },
+      { materialId: 'heugpung_stone', chance: 0.001 },
+    ],
+    grade: 8, imageKey: 'heugpung_mokryeong',
+    attackMessages: ['목령견이 날카로운 이빨로 물어뜯었다!', '목령견의 발톱이 공기를 가르며 내려쳤다!'],
+    description: '흑풍채 산세를 지키는 기이한 짐승이다. 나무와 금속으로 빚어진 몸에서 검은 기운이 흘러나오며, 한 번 물리면 상처가 쉽게 아물지 않는다. 흑풍채 도적들이 기를 불어넣어 만든 수호견이라는 소문이 있다.',
+  },
+  {
+    id: 'sanbaram_gungsu', name: '산바람 궁수',
+    hp: 1750, attackPower: 95, attackInterval: 2.2, regen: 0, baseProficiency: 3.3,
+    drops: [{ artId: 'nokrim_bobeop', chance: 0.01 }],
+    materialDrops: [
+      { materialId: 'heugpung_stone', chance: 0.001 },
+    ],
+    grade: 8, imageKey: 'sanbaram_gungsu',
+    attackMessages: ['산바람 궁수의 화살이 바람을 가르며 날아왔다!', '궁수가 연속으로 시위를 당겼다!'],
+    description: '흑풍채의 산세를 이용해 먼 거리에서 활을 쏘는 궁수 도적이다. 바람을 읽는 탁월한 눈썰미로 멀리서도 정확하게 급소를 노린다. 집중력이 높아질수록 공격이 더욱 강해진다 하니, 방심은 금물이다.',
+  },
+  {
     id: 'bounty_hunter', name: '현상금 사냥꾼',
-    hp: 150, attackPower: 18, attackInterval: 2.2, regen: 0, baseProficiency: 0,
-    drops: [], // TODO: 기획자 설계 후 반영
-    grade: 2, imageKey: 'bounty_hunter',
-    attackMessages: ['사냥꾼이 단검을 던졌다!', '사냥꾼의 정확한 급소 공격!'],
-    description: '돈이 되는 일이라면 가리지 않는 자다. 정확한 급소 공격과 단검 투척이 특기이며, 상대를 분석하는 눈썰미가 예사롭지 않다. 오늘 당신이 쫓기는 신세가 아니길 바랄 따름이다.',
+    hp: 2100, attackPower: 140, attackInterval: 2.0, regen: 0, baseProficiency: 2,
+    drops: [],
+    materialDrops: [
+      { materialId: 'heugpung_stone', chance: 0.001 },
+    ],
+    equipDrops: [{ equipId: 'hyeoldok_gloves', chance: 0.0005 }],
+    grade: 9, imageKey: 'bounty_hunter',
+    attackMessages: ['사냥꾼이 독 묻은 단검을 날렸다!', '사냥꾼의 독칼날이 섬광처럼 스쳤다!'],
+    description: '돈이 되는 목표라면 수단을 가리지 않는 독(毒)의 전문가다. 세 가지 독을 조합해 상대의 몸을 서서히 무너뜨리는 것이 특기이며, 독에 충분히 잠식된 상대에게는 치명적인 비열한 일격을 날린다. 정당한 싸움을 기대하지 마라.',
   },
 ];
 
 // 흑도 낭인 — 흑풍채
 export const RONIN_DEF: MonsterDef = {
   id: 'ronin', name: '흑도 낭인',
-  hp: 250, attackPower: 16, attackInterval: 2.0, regen: 0, baseProficiency: 0,
+  hp: 2100, attackPower: 105, attackInterval: 3.0, regen: 0, baseProficiency: 2.5,
   drops: [],
-  grade: 3, imageKey: 'ronin',
-  attackMessages: ['낭인이 묵직한 도를 내리쳤다!', '낭인이 어둠 속에서 베어냈다!'],
-  description: '어두운 무공을 익힌 떠도는 검사다. 명문 정파에서 쫓겨났다는 소문도 있고, 스스로 사파(邪派)에 몸을 던졌다는 말도 있다. 무겁고 불규칙한 도법(刀法)이 맞닥뜨리는 이를 당혹스럽게 만든다.',
+  materialDrops: [
+    { materialId: 'heugpung_sword_fragment', chance: 0.03 },
+    { materialId: 'heugpung_stone', chance: 0.001 },
+  ],
+  grade: 9, imageKey: 'ronin',
+  attackMessages: ['낭인이 묵직한 도를 내리쳤다!', '낭인의 눈에 광기가 번득이며 일격이 날아왔다!'],
+  description: '사파(邪派)의 길을 걷다 흑풍채에 흘러들어 온 떠돌이 검사다. 상처가 깊어질수록 더욱 흉포해지는 기이한 무공을 익혔으며, 벼랑 끝에 몰리면 아무것도 두려워하지 않는 광기가 깨어난다고 한다.',
 };
 
-// 흑풍채 채주 — 데이터 보존 (추후 흑풍채 전장 이관 시 재연결)
+// 흑풍채 채주 — 보스
 export const BANDIT_LEADER_DEF: MonsterDef = {
   id: 'bandit_leader', name: '흑풍채 채주',
-  hp: 800, attackPower: 32, attackInterval: 1.6, regen: 0, baseProficiency: 400,
+  hp: 4500, attackPower: 140, attackInterval: 2.5, regen: 0, baseProficiency: 4,
   drops: [],
-  isBoss: true, grade: 4, imageKey: 'bandit_leader',
-  attackMessages: ['채주의 대도가 바람을 가르며 내려왔다!', '채주가 포효하며 흑풍을 일으켰다!'],
-  description: '흑풍채를 이끄는 수장이다. 한때 강호에서 이름을 날리던 무인이 타락의 길을 걸어 이 자리에 이르렀다. 검은 바람을 일으키는 대도법(大刀法)으로 수하들에게 절대적인 공포를 심어놓고 있다.',
+  materialDrops: [
+    { materialId: 'heugpung_stone', chance: 0.02 },
+    { materialId: 'bijup_nokrim_move1', chance: 0.0015 },
+    { materialId: 'bijup_nokrim_move2', chance: 0.0015 },
+  ],
+  isBoss: true, stunnable: true, grade: 10, imageKey: 'bandit_leader',
+  attackMessages: ['채주의 대도가 흑풍을 일으키며 내리쳤다!', '채주가 포효하며 강렬한 일격을 날렸다!'],
+  description: '흑풍채를 이끄는 수장이다. 한때 강호에서 이름을 날리던 무인이 타락의 길을 걸어 이 자리에 이르렀다. 검은 바람을 일으키는 대도법(大刀法)으로 수하들에게 절대적인 공포를 심어놓고 있다. 벼랑에 내몰리면 모든 내력을 폭발시키는 최후의 발악을 펼친다 하니, 방심은 곧 죽음이다.',
+};
+
+// 흑풍채 히든 보스 — 녹림맹 총순찰사자
+export const NOKRIM_PATROL_CHIEF: MonsterDef = {
+  id: 'nokrim_patrol_chief', name: '녹림맹 총순찰사자',
+  hp: 8000, attackPower: 200, attackInterval: 2.2, regen: 0, baseProficiency: 4,
+  drops: [],
+  materialDrops: [
+    { materialId: 'bijup_nokrim_bobeop_3', chance: 0.015 },
+    { materialId: 'chanran_heugpung_stone', chance: 0.01 },
+  ],
+  equipDrops: [
+    { equipId: 'nokrim_herald_boots', chance: 0.01 },
+    { equipId: 'saja_gitbal', chance: 0.008 },
+  ],
+  isHidden: true, grade: 11, imageKey: 'nokrim_patrol_chief',
+  attackMessages: ['총순찰사자의 주먹이 바람을 가르며 날아왔다!', '총순찰사자가 기합과 함께 강타를 날렸다!'],
+  hiddenEncounterLogs: [
+    '...하필 내가 순찰 온 날 이런 난리가 나다니.',
+    '네놈이 우리 채를 어지럽힌 쥐새끼로구나.',
+    '좋다. 녹림맹 총순찰사자가 직접 상대해 주마.',
+  ],
+  description: '녹림맹(綠林盟)이 흑풍채에 파견한 감찰관이다. 평소에는 산세를 순찰하며 모습을 드러내지 않으나, 채가 크게 소란스러워지면 비로소 나타난다. 녹림십팔절예를 불완전하게나마 익힌 실력자로, 그 주먹 하나에 산채의 질서가 담겨 있다 한다.',
 };
 
 // 객잔 보스
@@ -594,7 +984,7 @@ export const SAEWOE_MONSTERS: MonsterDef[] = [
 export function getMonsterDef(id: string): MonsterDef | undefined {
   return [...TRAINING_MONSTERS, ...YASAN_MONSTERS, ...HIDDEN_MONSTERS, YASAN_BOSS,
           ...INN_MONSTERS, ...INN_HIDDEN_MONSTERS, INN_BOSS, ...SAEWOE_MONSTERS,
-          ...HEUGPUNGCHAE_MONSTERS, RONIN_DEF, BANDIT_LEADER_DEF]
+          ...HEUGPUNGCHAE_MONSTERS, RONIN_DEF, BANDIT_LEADER_DEF, NOKRIM_PATROL_CHIEF]
     .find(m => m.id === id);
 }
 
