@@ -3,7 +3,7 @@ import type { GameStore } from '../gameStore';
 import type { OfflineResult, SaveMeta, GameState } from '../types';
 import { getTierDef } from '../../data/tiers';
 import { getArtDef } from '../../data/arts';
-import { calcMaxHp, calcTierMultiplier, calcStamina, spawnEnemy, CLEAR_BATTLE_STATE } from '../../utils/combatCalc';
+import { calcMaxHp, calcTierMultiplier, calcStamina, spawnEnemy, CLEAR_BATTLE_STATE, gatherEquipmentStats } from '../../utils/combatCalc';
 import { simulateTick } from '../../utils/gameLoop';
 import { buildAchievementContext } from '../../utils/combat/damageCalc';
 import { ACHIEVEMENTS, CODEX_MONSTERS } from '../../data/achievements';
@@ -137,7 +137,8 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
 
       const tier = data.tier ?? 0;
       const tierMult = calcTierMultiplier(tier);
-      const maxHp = calcMaxHp(data.stats?.che ?? 0, 0, tierMult);
+      const loadEqStats = gatherEquipmentStats({ equipment: data.equipment ?? { weapon: null, armor: null, gloves: null, boots: null } } as GameState);
+      const maxHp = calcMaxHp(data.stats?.che ?? 0, loadEqStats.bonusHp ?? 0, tierMult);
       const maxStamina = calcStamina(data.stats?.sim ?? 0, tierMult);
       set({
         qi: data.qi ?? 0,

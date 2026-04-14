@@ -5,8 +5,8 @@ import { BALANCE_PARAMS } from '../../data/balance';
 import { TIERS } from '../../data/tiers';
 import { FIELDS } from '../../data/fields';
 import {
-  calcMaxHp, calcTierMultiplier, calcQiPerSec,
-  gatherEquipmentStats, gatherMasteryEffects,
+  calcFullMaxHp, calcQiPerSec,
+  gatherEquipmentStats,
 } from '../../utils/combatCalc';
 
 import { calcUsedPoints } from '../utils/sliceHelpers';
@@ -103,9 +103,7 @@ export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice>
     if (invested === 0) return;
 
     const newStats = { ...state.stats, [stat]: level };
-    const eqStats = gatherEquipmentStats(state);
-    const tierMult = calcTierMultiplier(state.tier);
-    const newMaxHp = calcMaxHp(newStats.che, eqStats.bonusHp ?? 0, tierMult);
+    const newMaxHp = calcFullMaxHp({ ...state, stats: newStats } as GameState);
 
     set({
       qi,

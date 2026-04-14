@@ -50,6 +50,15 @@ export function calcMaxHp(che: number, hpBonus: number = 0, tierMult: number = 1
   return Math.floor(B.HP_BASE + che * B.STAT_K_CHE * tierMult + hpBonus);
 }
 
+/** 장비·심득 bonusHpPercent까지 반영한 최종 maxHp */
+export function calcFullMaxHp(state: GameState): number {
+  const eqStats = gatherEquipmentStats(state);
+  const masteryEffects = gatherMasteryEffects(state);
+  const tierMult = calcTierMultiplier(state.tier);
+  const base = calcMaxHp(state.stats.che, eqStats.bonusHp ?? 0, tierMult);
+  return Math.floor(base * (1 + (eqStats.bonusHpPercent ?? 0) + (masteryEffects.bonusHpPercent ?? 0)));
+}
+
 /** STAMINA = STAM_BASE + 심 × K_SIM × tierMult */
 export function calcStamina(sim: number, tierMult: number = 1): number {
   return Math.floor(B.STAM_BASE + sim * B.STAT_K_SIM * tierMult);

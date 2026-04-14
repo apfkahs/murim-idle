@@ -177,7 +177,20 @@ export const createArtsSlice: StateCreator<GameStore, [], [], ArtsSlice> = (set,
   resetAllMasteries: () => {
     const state = get() as GameStore;
     if (state.battleMode !== 'none') return;
-    set({ activeMasteries: {} });
+
+    // pointCost === 0 심득(자동 해금)은 보존, pointCost > 0(수동 투자)만 초기화
+    const preserved: Record<string, string[]> = {};
+    for (const [artId, masteryIds] of Object.entries(state.activeMasteries)) {
+      const artDef = getArtDef(artId);
+      if (!artDef) continue;
+      const kept = masteryIds.filter(mid => {
+        const m = artDef.masteries.find(x => x.id === mid);
+        return m && m.pointCost === 0;
+      });
+      if (kept.length > 0) preserved[artId] = kept;
+    }
+
+    set({ activeMasteries: preserved });
   },
 
   dismissEnlightenment: () => {

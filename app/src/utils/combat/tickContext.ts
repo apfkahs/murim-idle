@@ -8,7 +8,7 @@ import { BOSS_PATTERNS, getMonsterDef } from '../../data/monsters';
 import {
   calcCritDamageMultiplier, calcCritRate, calcDodge, calcDmgReduction, calcTierMultiplier,
   calcStamina, calcEffectiveRegen, calcQiPerSec, calcCombatQiRatio,
-  gatherEquipmentStats, gatherMasteryEffects,
+  gatherEquipmentStats, gatherMasteryEffects, calcFullMaxHp,
 } from '../combatCalc';
 import type { GameState, FloatingText, BattleResult, InventoryItem, EquipmentDotEntry } from '../../store/types';
 import type { EquipSlot, EquipmentInstance } from '../../data/equipment';
@@ -183,6 +183,9 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
   const qiPerSec = calcQiPerSec(state);
   const combatQiRatio = calcCombatQiRatio(state);
   const qiMult = 1 + (equipStats.bonusQiMultiplier ?? 0);
+
+  // maxHp를 장비·심득 bonusHpPercent까지 반영하여 재계산
+  maxHp = calcFullMaxHp(state);
 
   return {
     qi, hp, maxHp, battleMode, currentEnemy,

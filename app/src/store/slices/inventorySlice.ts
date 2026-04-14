@@ -5,7 +5,7 @@ import { getArtDef } from '../../data/arts';
 import { getEquipmentDef, type EquipSlot, type EquipmentInstance } from '../../data/equipment';
 import { RECIPES, ART_RECIPES, BIJUP_DEFS, getBijupDef, COMPOUND_ART_RECIPES } from '../../data/materials';
 import { getArtGradeInfo, getGradeTableForArt, getArtGradeInfoFromTable } from '../../utils/artUtils';
-import { calcMaxHp, calcTierMultiplier, gatherEquipmentStats } from '../../utils/combatCalc';
+import { calcFullMaxHp } from '../../utils/combatCalc';
 
 export type InventorySlice = {
   // ── state ──
@@ -253,8 +253,7 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
     }
     newEquipment[slot] = instance;
 
-    const eqStats = gatherEquipmentStats({ ...state, equipment: newEquipment });
-    const newMaxHp = calcMaxHp(state.stats.che, eqStats.bonusHp ?? 0, calcTierMultiplier(state.tier));
+    const newMaxHp = calcFullMaxHp({ ...state, equipment: newEquipment } as GameState);
 
     set({
       equipment: newEquipment,
@@ -276,8 +275,7 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
 
     const newInventory = [...state.equipmentInventory, equipped];
 
-    const eqStats = gatherEquipmentStats({ ...state, equipment: newEquipment });
-    const newMaxHp = calcMaxHp(state.stats.che, eqStats.bonusHp ?? 0, calcTierMultiplier(state.tier));
+    const newMaxHp = calcFullMaxHp({ ...state, equipment: newEquipment } as GameState);
 
     set({
       equipment: newEquipment,
@@ -333,8 +331,7 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
       const enhanced: EquipmentInstance = { ...instance, enhanceLevel: currentLevel + 1 };
       if (location === 'equipped' && equippedSlot) {
         const newEquipment = { ...state.equipment, [equippedSlot]: enhanced };
-        const eqStats = gatherEquipmentStats({ ...state, equipment: newEquipment } as GameState);
-        const newMaxHp = calcMaxHp(state.stats.che, eqStats.bonusHp ?? 0, calcTierMultiplier(state.tier));
+        const newMaxHp = calcFullMaxHp({ ...state, equipment: newEquipment } as GameState);
         set({ materials: newMaterials, equipment: newEquipment, maxHp: newMaxHp, hp: Math.min(state.hp, newMaxHp) });
       } else {
         const newInv = state.equipmentInventory.map(e => e.instanceId === instanceId ? enhanced : e);
@@ -359,8 +356,7 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
       const enhanced: EquipmentInstance = { ...instance, enhanceLevel: currentLevel + 1 };
       if (location === 'equipped' && equippedSlot) {
         const newEquipment = { ...state.equipment, [equippedSlot]: enhanced };
-        const eqStats = gatherEquipmentStats({ ...state, equipment: newEquipment } as GameState);
-        const newMaxHp = calcMaxHp(state.stats.che, eqStats.bonusHp ?? 0, calcTierMultiplier(state.tier));
+        const newMaxHp = calcFullMaxHp({ ...state, equipment: newEquipment } as GameState);
         set({ materials: newMaterials, equipment: newEquipment, maxHp: newMaxHp, hp: Math.min(state.hp, newMaxHp) });
       } else {
         const newInv = state.equipmentInventory.map(e => e.instanceId === instanceId ? enhanced : e);

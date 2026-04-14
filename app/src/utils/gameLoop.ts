@@ -12,7 +12,7 @@
 import { BALANCE_PARAMS } from '../data/balance';
 import { getMonsterDef, BOSS_PATTERNS } from '../data/monsters';
 import { getFieldDef, generateExploreOrder } from '../data/fields';
-import { calcMaxHp, spawnEnemy } from './combatCalc';
+import { calcFullMaxHp, spawnEnemy } from './combatCalc';
 import { createTickContext, applyBattleReset, buildResult, createBossPatternState } from './combat/tickContext';
 import { buildAchievementContext, ACHIEVEMENTS } from './combat/damageCalc';
 import { executePlayerAttackPhase } from './combat/playerCombat';
@@ -37,7 +37,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
   // 2) HP 자동회복 (전투 외)
   if (!ctx.isBattling) {
-    ctx.maxHp = Math.floor(calcMaxHp(ctx.stats.che, ctx.equipStats.bonusHp ?? 0, ctx.tierMult) * (1 + (ctx.equipStats.bonusHpPercent ?? 0) + (ctx.masteryEffects.bonusHpPercent ?? 0)));
+    ctx.maxHp = calcFullMaxHp(ctx.state);
     ctx.hp = Math.min(ctx.hp + ctx.maxHp * 0.05 * dt, ctx.maxHp);
 
     if (ctx.pendingHuntRetry && ctx.hp >= ctx.maxHp && ctx.huntTarget && ctx.currentField) {
