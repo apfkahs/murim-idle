@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useGameStore, getMonsterRevealLevel, calcStamina } from '../../store/gameStore';
 import { getMonsterDef, BOSS_PATTERNS } from '../../data/monsters';
 import { getArtDef } from '../../data/arts';
 import { formatNumber } from '../../utils/format';
 import { getEnemyImage, getEnemyEmoji, getPlayerByTier, getFieldBackground } from '../../assets';
 import { getFieldDef } from '../../data/fields';
+import type { FloatingText } from '../../store/types';
 
 // ─────────────────────────────────────────────
 // 전투 화면 (v1.1: DPS 제거, 공격 간격 표시)
@@ -33,6 +34,8 @@ export default function BattleScreen() {
   const playerStunTimer = useGameStore(s => s.playerStunTimer);
   const currentBattleDuration = useGameStore(s => s.currentBattleDuration);
   const currentBattleDamageDealt = useGameStore(s => s.currentBattleDamageDealt);
+  const equipmentDotOnEnemy = useGameStore(s => s.equipmentDotOnEnemy);
+  const floatingTexts = useGameStore(s => s.floatingTexts);
 
   const logRef = useRef<HTMLDivElement>(null);
 
@@ -205,10 +208,27 @@ export default function BattleScreen() {
                   </div>
                 </div>
               )}
+              {/* 장비 DoT (독) 상태 표시 */}
+              {equipmentDotOnEnemy.length > 0 && (
+                <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {equipmentDotOnEnemy.map(dot => (
+                    <span key={dot.equipId} style={{
+                      fontSize: 10, color: '#88dd44', fontWeight: 600,
+                      padding: '1px 4px', border: '1px solid #88dd44',
+                      borderRadius: 3,
+                    }}>
+                      독 x{dot.stacks} ({Math.ceil(dot.remainingSec)}s)
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* 플로팅 텍스트 */}
+      <FloatingTexts texts={floatingTexts} />
 
       {/* 내 스탯 바 */}
       <div className="info-bar">
@@ -323,6 +343,65 @@ export default function BattleScreen() {
           );
         })()}
       </div>
+    </div>
+  );
+}
+
+// ── 플로팅 텍스트 컴포넌트 ──
+function FloatingTexts({ texts }: { texts: FloatingText[] }) {
+  const [visible, setVisible] = useState<(FloatingText & { key: number })[]>([]);
+  const seenRef = useRef(new Set<number>());
+
+  useEffect(() => {
+    const newOnes: typeof visible = [];
+    for (const t of texts) {
+      if (!seenRef.current.has(t.id)) {
+        seenRef.current.add(t.id);
+        newOnes.push({ ...t, key: t.id });
+      }
+    }
+    if (newOnes.length > 0) {
+      setVisible(prev => [...prev, ...newOnes].slice(-8));
+      // 자동 제거
+      const timer = setTimeout(() => {
+        setVisible(prev => prev.filter(v => !newOnes.some(n => n.key === v.key)));
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [texts]);
+
+  // seenRef 정리 (오래된 ID 제거)
+  useEffect(() => {
+    if (seenRef.current.size > 100) {
+      const ids = texts.map(t => t.id);
+      seenRef.current = new Set(ids);
+    }
+  }, [texts.length]);
+
+  if (visible.length === 0) return null;
+
+  const colorMap: Record<string, string> = {
+    damage: 'var(--text)', critical: '#ffcc00', dot: '#88dd44',
+    heal: '#44dd88', evade: '#88ccff', drop: '#d4a853',
+  };
+
+  return (
+    <div style={{ position: 'relative', height: 0, overflow: 'visible', pointerEvents: 'none' }}>
+      {visible.map((ft, i) => (
+        <div key={ft.key} className="floating-text-anim" style={{
+          position: 'absolute',
+          right: ft.type === 'dot' ? 8 : '50%',
+          transform: ft.type === 'dot' ? 'none' : 'translateX(50%)',
+          top: -(20 + i * 18),
+          fontSize: ft.type === 'critical' ? 14 : 12,
+          fontWeight: 600,
+          color: colorMap[ft.type] ?? 'var(--text)',
+          textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+          whiteSpace: 'nowrap',
+        }}>
+          {ft.text}
+        </div>
+      ))}
     </div>
   );
 }

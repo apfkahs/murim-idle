@@ -192,6 +192,15 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           const tickDmg = dot.damagePerTick * dot.stacks * dt;
           ctx.currentEnemy = { ...ctx.currentEnemy };
           ctx.currentEnemy.hp -= tickDmg;
+          // 1초 경계를 넘을 때 플로팅 텍스트 표시
+          if (!ctx.isSimulating && Math.floor(newRemaining) < Math.floor(dot.remainingSec)) {
+            const dmgPerSec = Math.floor(dot.damagePerTick * dot.stacks);
+            ctx.floatingTexts = [...ctx.floatingTexts, {
+              id: ctx.nextFloatingId++, text: `${dmgPerSec} 독`,
+              type: 'dot' as const, timestamp: Date.now(),
+            }];
+            if (ctx.floatingTexts.length > 15) ctx.floatingTexts = ctx.floatingTexts.slice(-15);
+          }
           remaining.push({ ...dot, remainingSec: newRemaining });
         }
       }

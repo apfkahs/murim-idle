@@ -169,7 +169,7 @@ export const ARTS: ArtDef[] = [
     normalMultiplierCap: 1.3,
     normalMessages: ['삼재검법의 검기가 빛난다!', '삼재의 이치를 담은 일격!'],
     ultCost: 20,
-    ultCooldown: 10,
+    ultCooldown: 20,
     ultMessages: ['강한 내려치기!', '묵직한 일격이 내리꽂힌다!'],
 
     growth: {
@@ -472,7 +472,7 @@ export const ARTS: ArtDef[] = [
     ultBaseDamage: 20,
     ultMultiplier: 4.5,
     ultCost: 30,
-    ultCooldown: 15,
+    ultCooldown: 30,
     ultChargeTime: 1.5,
     ultBypassWeakDefense: true,
     gradeDamageMultipliers: [1.50, 1.55, 1.61, 1.66, 1.72, 1.77, 1.83, 1.88, 1.94, 1.99, 2.05, 2.10],

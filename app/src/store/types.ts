@@ -35,7 +35,7 @@ export interface BattleResult {
 export interface FloatingText {
   id: number;
   text: string;
-  type: 'damage' | 'drop' | 'heal' | 'evade' | 'critical';
+  type: 'damage' | 'drop' | 'heal' | 'evade' | 'critical' | 'dot';
   timestamp: number;
 }
 

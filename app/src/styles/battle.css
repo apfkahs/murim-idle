@@ -264,6 +264,16 @@
 .anim-player-death { animation: playerDeath 0.5s forwards; }
 .anim-breakthrough { animation: breakthrough 1s; }
 
+/* ── 플로팅 텍스트 ── */
+@keyframes floatUp {
+  0% { opacity: 1; transform: translateY(0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-24px); }
+}
+.floating-text-anim {
+  animation: floatUp 1.2s ease-out forwards;
+}
+
 /* 보스 어두워짐 */
 .boss-darken .battle-scene-bg {
   filter: brightness(0.5);
