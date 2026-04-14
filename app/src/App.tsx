@@ -87,6 +87,13 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
+  // 브라우저/탭 닫을 때 마지막 저장
+  useEffect(() => {
+    const handleBeforeUnload = () => saveGame();
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [saveGame]);
+
   // 자동 답파 결과 자동 처리 (탭 전환 무관)
   useEffect(() => {
     const isAutoOn = currentField && autoExploreFields[currentField];

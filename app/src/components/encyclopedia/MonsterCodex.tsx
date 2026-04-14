@@ -167,7 +167,7 @@ const SKILL_TYPE_LABELS: Record<string, string> = {
 function getTriggerLabel(skill: any): string {
   if (skill.triggerCondition === 'stamina_full') return '내력 만충 시';
   if (skill.triggerCondition === 'hp_threshold')
-    return `HP ${Math.round((skill.hpThreshold ?? 0) * 100)}% 이하`;
+    return `체력 ${Math.round((skill.hpThreshold ?? 0) * 100)}% 이하`;
   if (skill.chance) return `${Math.round(skill.chance * 100)}% 확률`;
   return '항시';
 }
@@ -185,7 +185,7 @@ function getSkillEffectDesc(skill: any): string {
     case 'passive_dodge': return `${Math.round((skill.dodgeChance ?? 0) * 100)}% 회피`;
     case 'passive_crit': return `${Math.round((skill.critChance ?? 0) * 100)}% 치명 ×${skill.critMultiplier}`;
     case 'passive_dmg_absorb': return `${Math.round((skill.absorbChance ?? 0) * 100)}% 흡수 ×${skill.absorbMultiplier}`;
-    case 'potion_heal': return 'HP 회복';
+    case 'potion_heal': return '체력 회복';
     case 'atk_buff_bypass': return `공격력 +${Math.round((skill.atkBuffPercent ?? 0) * 100)}%`;
     case 'replace_normal': return '일반 공격 대체';
     case 'stack_smash': return `${skill.stackTriggerCount}회 누적 → ×${skill.stackSmashMultiplier}`;
@@ -194,7 +194,7 @@ function getSkillEffectDesc(skill: any): string {
     case 'timed_buff': return `공격력 +${Math.round((skill.buffAtkPercent ?? 0) * 100)}%`;
     case 'multi_dot': return skill.dotType === 'slow' ? '감속' : (skill.dotType === 'stamina_drain' ? '내공 소모' : '독');
     case 'condition_strike': return `고정 ${skill.baseFixedDamage}`;
-    case 'berserker_scale': return 'HP% 연동 강화';
+    case 'berserker_scale': return '체력% 연동 강화';
     case 'last_stand': return `피해 ×${skill.damageMultiplier}`;
     case 'cheolbyeok': return `${Math.round((skill.cheolbyeokChance ?? 0) * 100)}% 방어`;
     case 'revenge': return `피해 ×${skill.revengeMultiplier}`;

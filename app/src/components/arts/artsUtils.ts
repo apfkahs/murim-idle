@@ -41,7 +41,7 @@ export function formatPassiveEffectSummary(def: ArtDef, activeMasteryIds: string
   if (dodgeCounter) parts.push('회피반격');
   if (dodgeHealPercent > 0) parts.push(`회피회복 ${dodgeHealPercent}%`);
   if (dmgReductionPercent > 0) parts.push(`피감 -${dmgReductionPercent}%`);
-  if (hpPercent > 0) parts.push(`HP +${(hpPercent * 100).toFixed(0)}%`);
+  if (hpPercent > 0) parts.push(`체력 +${(hpPercent * 100).toFixed(0)}%`);
   return parts.join(' · ');
 }
 

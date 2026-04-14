@@ -113,7 +113,7 @@ export default function BattleScreen() {
           {/* HP 바 오버레이 */}
           <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2 }}>HP {Math.floor(hp)}/{maxHp}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-dim)', marginBottom: 2 }}>체력 {Math.floor(hp)}/{maxHp}</div>
               <div className="hp-bar-container">
                 <div className="hp-bar-fill" style={{ width: `${(hp / maxHp) * 100}%` }} />
               </div>
@@ -214,11 +214,11 @@ export default function BattleScreen() {
       <div className="info-bar">
         <div className="info-bar-item">
           <div className="info-bar-value">{formatNumber(maxHp)}</div>
-          <div className="info-bar-label">최대HP</div>
+          <div className="info-bar-label">최대 체력</div>
         </div>
         <div className="info-bar-item">
           <div className="info-bar-value">{formatNumber(playerDps)}</div>
-          <div className="info-bar-label">DPS</div>
+          <div className="info-bar-label">초당 피해</div>
         </div>
         <div className="info-bar-item">
           <div className="info-bar-value">{maxStamina > 0 ? formatNumber(maxStamina) : '-'}</div>
@@ -236,7 +236,7 @@ export default function BattleScreen() {
           <div className="info-bar-value">
             {reveal >= 2 ? formatNumber(currentEnemy.maxHp) : '???'}
           </div>
-          <div className="info-bar-label">적 최대HP</div>
+          <div className="info-bar-label">적 최대 체력</div>
         </div>
         <div className="info-bar-item">
           <div className="info-bar-value">
@@ -246,7 +246,7 @@ export default function BattleScreen() {
                   : '-')
               : '???'}
           </div>
-          <div className="info-bar-label">적 DPS</div>
+          <div className="info-bar-label">적 초당 피해</div>
         </div>
         <div className="info-bar-item">
           <div className="info-bar-value">

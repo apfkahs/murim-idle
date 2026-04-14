@@ -112,7 +112,7 @@ export default function NeigongTab() {
       {/* HP 카드 */}
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>HP</span>
+          <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>체력</span>
           <span style={{ fontSize: 13 }}>{Math.floor(hp)}/{maxHp}</span>
         </div>
         <div className="hp-bar-container">

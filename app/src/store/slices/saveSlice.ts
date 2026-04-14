@@ -392,6 +392,45 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
 
     let tickCounter = 0;
 
+    // 자동 답파 복구 (loadGame이 battleResult를 null로 초기화하므로,
+    // idle + 자동사냥 ON이면 시뮬레이션 전에 답파를 재시작)
+    if (
+      currentState.battleMode === 'none' &&
+      !currentState.currentEnemy &&
+      currentState.currentField &&
+      currentState.autoExploreFields[currentState.currentField]
+    ) {
+      const fieldId = currentState.currentField;
+      const field = getFieldDef(fieldId);
+      if (field?.canExplore) {
+        const order = generateExploreOrder(field);
+        const firstMon = getMonsterDef(order[0]);
+        if (firstMon) {
+          const hiddenRevealedInField = { ...currentState.hiddenRevealedInField };
+          if (firstMon.isHidden) {
+            hiddenRevealedInField[fieldId] = order[0];
+          }
+          currentState = {
+            ...currentState,
+            ...CLEAR_BATTLE_STATE,
+            battleMode: 'explore',
+            currentEnemy: spawnEnemy(firstMon),
+            bossPatternState: createBossPatternState(order[0]),
+            currentField: fieldId,
+            exploreOrder: order,
+            exploreStep: 0,
+            isBossPhase: false,
+            bossTimer: 0,
+            explorePendingRewards: { drops: [] },
+            battleResult: null,
+            hiddenRevealedInField,
+            playerAttackTimer: BALANCE_PARAMS.BASE_ATTACK_INTERVAL,
+            enemyAttackTimer: firstMon.attackInterval,
+          } as GameState;
+        }
+      }
+    }
+
     for (let i = 0; i < maxSeconds; i++) {
       tickCounter++;
 

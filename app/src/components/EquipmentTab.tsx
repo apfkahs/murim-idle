@@ -42,7 +42,7 @@ function formatStats(stats: EquipStats): string {
   if (stats.bonusQiMultiplier) parts.push(`기운 +${(stats.bonusQiMultiplier * 100).toFixed(0)}%`);
   if (stats.bonusCritDmgPercent) parts.push(`치명피해 +${(stats.bonusCritDmgPercent * 100).toFixed(0)}%`);
   if (stats.bonusDmgTakenPercent) parts.push(`받는피해 +${(stats.bonusDmgTakenPercent * 100).toFixed(0)}%`);
-  if (stats.bonusHpPercent) parts.push(`최대HP +${(stats.bonusHpPercent * 100).toFixed(0)}%`);
+  if (stats.bonusHpPercent) parts.push(`최대 체력 +${(stats.bonusHpPercent * 100).toFixed(0)}%`);
   return parts.join(' / ') || '효과 없음';
 }
 

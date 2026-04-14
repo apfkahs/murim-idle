@@ -92,14 +92,14 @@ export default function BattleResultScreen() {
       {hp < maxHp && (
         <div style={{ marginTop: 16, marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 4 }}>
-            HP {Math.floor(hp)}/{maxHp}
+            체력 {Math.floor(hp)}/{maxHp}
           </div>
           <button
             className="btn btn-small"
             onClick={healWithQi}
             disabled={qi < 1}
           >
-            기운으로 HP 회복
+            기운으로 체력 회복
           </button>
         </div>
       )}

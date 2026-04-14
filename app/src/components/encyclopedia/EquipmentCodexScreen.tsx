@@ -85,7 +85,7 @@ export default function EquipmentCodexScreen({ onBack }: { onBack: () => void })
                   if (eq.stats.bonusQiMultiplier) statParts.push(`기운 +${(eq.stats.bonusQiMultiplier * 100).toFixed(0)}%`);
                   if (eq.stats.bonusCritDmgPercent) statParts.push(`치명피해 +${(eq.stats.bonusCritDmgPercent * 100).toFixed(0)}%`);
                   if (eq.stats.bonusDmgTakenPercent) statParts.push(`받는피해 +${(eq.stats.bonusDmgTakenPercent * 100).toFixed(0)}%`);
-                  if (eq.stats.bonusHpPercent) statParts.push(`최대HP +${(eq.stats.bonusHpPercent * 100).toFixed(0)}%`);
+                  if (eq.stats.bonusHpPercent) statParts.push(`최대 체력 +${(eq.stats.bonusHpPercent * 100).toFixed(0)}%`);
 
                   return (
                     <div key={eq.id} className="card" style={{ marginBottom: 6 }}>
