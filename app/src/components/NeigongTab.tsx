@@ -3,7 +3,7 @@
  * 기(氣)/심(心)/체(體) 스탯. 내력 게이지 추가.
  */
 import { useState } from 'react';
-import { useGameStore, calcMaxHp, calcStamina, calcStaminaRegen, calcEffectiveRegen } from '../store/gameStore';
+import { useGameStore, calcMaxHp, calcStamina, calcStaminaRegen, calcEffectiveRegen, calcTierMultiplier } from '../store/gameStore';
 import { getTierDef, TIERS } from '../data/tiers';
 import { getArtDef } from '../data/arts';
 import { getPlayerByTier } from '../assets';
@@ -62,7 +62,7 @@ export default function NeigongTab() {
   const atkInterval = getAttackInterval();
 
   // 파생 수치
-  const maxStamina = calcStamina(stats.sim);
+  const maxStamina = calcStamina(stats.sim, calcTierMultiplier(tier));
   const effRegen = calcEffectiveRegen(useGameStore.getState());
 
   const nextTier = TIERS[tier + 1];

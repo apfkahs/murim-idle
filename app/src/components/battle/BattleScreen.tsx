@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useGameStore, getMonsterRevealLevel, calcStamina } from '../../store/gameStore';
+import { useGameStore, getMonsterRevealLevel, calcStamina, calcTierMultiplier } from '../../store/gameStore';
 import { getMonsterDef, BOSS_PATTERNS } from '../../data/monsters';
 import { getArtDef } from '../../data/arts';
 import { formatNumber } from '../../utils/format';
@@ -56,7 +56,7 @@ export default function BattleScreen() {
   const playerDps = currentBattleDuration >= 1
     ? Math.floor(currentBattleDamageDealt / currentBattleDuration)
     : 0;
-  const maxStamina = calcStamina(stats.sim);
+  const maxStamina = calcStamina(stats.sim, calcTierMultiplier(tier));
   const enemyImg = getEnemyImage(currentEnemy.id);
   const player = getPlayerByTier(tier);
   const bgUrl = currentField ? getFieldBackground(currentField) : null;
