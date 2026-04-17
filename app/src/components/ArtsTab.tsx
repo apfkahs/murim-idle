@@ -3,6 +3,7 @@
  * 삼재검법 + 삼재심법. 초식/절초/초(招) 패널.
  */
 import { useState } from 'react';
+import BahwagyoTab from './BahwagyoTab';
 import { useGameStore, calcQiPerSec, calcCombatQiRatio, calcEffectiveRegen, calcStaminaRegen, gatherMasteryEffects, getArtCurrentGrade, getProfStarInfo, getProfDamageValue, getArtGradeInfo, getArtDamageMultiplier, getGradeTableForArt, getArtGradeInfoFromTable } from '../store/gameStore';
 import { getArtDef, type ProficiencyType } from '../data/arts';
 import { BALANCE_PARAMS } from '../data/balance';
@@ -70,6 +71,7 @@ export default function ArtsTab() {
   const [swordExpanded, setSwordExpanded] = useState(false);
   const [simbeopExpanded, setSimbeopExpanded] = useState(false);
   const [expandedArts, setExpandedArts] = useState<Record<string, boolean>>({});
+  const [showBahwagyo, setShowBahwagyo] = useState(false);
 
 
   function handleResetAllMasteries() {
@@ -474,6 +476,18 @@ export default function ArtsTab() {
           전투 중에는 교체할 수 없습니다
         </div>
       )}
+
+      {/* 배화교 백지 무공서 */}
+      <div className="fire-arts-entry" onClick={() => setShowBahwagyo(true)}>
+        <div className="fire-arts-entry-icon">📜</div>
+        <div className="fire-arts-entry-info">
+          <div className="fire-arts-entry-name">배화교 백지 무공서</div>
+          <div className="fire-arts-entry-desc">배화교에서 입수한 비전 무공서. 내용이 아직 채워지지 않았다.</div>
+        </div>
+        <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>›</span>
+      </div>
+
+      {showBahwagyo && <BahwagyoTab onClose={() => setShowBahwagyo(false)} />}
     </div>
   );
 }
