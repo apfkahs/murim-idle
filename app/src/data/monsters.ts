@@ -168,8 +168,6 @@ export interface BossSkillDef {
   firstHitLogMessagesNoArt?: string[];                  // 조건 불충족 플레이어 첫 공격 시 로그(A/B/C)
   firstHitLogMessagesWithArt?: string[];                // 조건 충족 플레이어 첫 공격 시 로그
   emberApplyChance?: number;                            // 성화 송가: 불씨 부여 확률 (0.8)
-  emberAttackDamageBonusPerStack?: number;              // 평타 시 스택당 추가 피해 배율 (0.5)
-  emberAttackLogs?: string[];                            // 불씨 1+ 스택 평타 로그 (4종)
   emberSongSuccessLogs?: string[];                      // 송가 불씨 부여 성공 로그 (4종)
   emberSongFailLogs?: string[];                         // 송가 불씨 부여 실패 로그 (4종)
   sacrificeDurationTurns?: number;                      // 귀의 지속 턴수 (3)
@@ -644,13 +642,6 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
         priority: 5,
         selfHealPercent: 8,
         emberApplyChance: 0.80,
-        emberAttackDamageBonusPerStack: 0.5,
-        emberAttackLogs: [
-          '*행자의 손끝이 당신의 몸에 남은 불씨를 건드린다. 불꽃이 되살아난다.*',
-          '*행자가 당신을 가볍게 밀친다. 몸에 붙은 불씨가 그 자리에서 피어오른다.*',
-          '*행자의 기도 소리에 맞춰, 당신의 살갗 위 불씨가 다시 타오른다.*',
-          '*꺼져가던 불씨가 행자의 숨결에 살아난다. 당신의 몸을 조금씩 갉아먹는다.*',
-        ],
         emberSongSuccessLogs: [
           '*행자가 두 손을 모아 성화를 찬미한다. 목소리 끝에서 흰 불씨 하나가 당신에게 옮겨간다.*',
           '*「성화여, 이 미천한 자의 목소리를 들으소서.」*\n*행자의 기도 끝에서 불꽃이 피어나 당신의 옷자락에 옮겨 붙는다.*',
@@ -757,6 +748,7 @@ export interface MonsterDef {
   grade: number;             // 0=등급외, 1~∞ (시뮬레이션 기반 수동 부여)
   imageKey: string;
   attackMessages?: string[];
+  emberAttackLogs?: string[];      // 불씨 스택 보유 시 평타 로그 (미지정 시 DEFAULT_EMBER_ATTACK_LOGS)
   equipDrops?: { equipId: string; chance: number }[];
   materialDrops?: { materialId: string; chance: number }[];
   description?: string;      // 도감 설명 (10마리 처치 시 해금)
@@ -1035,6 +1027,12 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
     attackMessages: [
       '행자가 성화를 향해 두 손을 모은다. 그 기도 끝에서 불꽃이 튀어올랐다!',
       '행자의 손끝에서 불씨가 튀어 당신의 살갗에 닿았다!',
+    ],
+    emberAttackLogs: [
+      '*행자의 손끝이 당신의 몸에 남은 불씨를 건드린다. 불꽃이 되살아난다.*',
+      '*행자가 당신을 가볍게 밀친다. 몸에 붙은 불씨가 그 자리에서 피어오른다.*',
+      '*행자의 기도 소리에 맞춰, 당신의 살갗 위 불씨가 다시 타오른다.*',
+      '*꺼져가던 불씨가 행자의 숨결에 살아난다. 당신의 몸을 조금씩 갉아먹는다.*',
     ],
     description: '배화교의 가장 낮은 자리에 있는 잡일꾼. 무공은 익히지 못했으나, 매일 성화 앞에서 기도하며 광기의 첫 불씨를 품게 된 자들이다. 무력으로는 위협적이지 않지만, 그 몸에 옮겨 붙은 불씨는 생각보다 오래 타오른다.',
   },

@@ -12,6 +12,20 @@ import type { DotStackEntry } from '../../store/types';
 
 const EMBER_ID = 'ember';
 
+export const EMBER_DEFAULTS = {
+  outDamageReductionPerStack: 0.05,
+  atkSpeedReductionPerStack: 0.05,
+  maxOutDamageReduction: 1.0,
+  maxAtkSpeedReduction: 0.8,
+  attackDamageBonusPerStack: 0.5,
+};
+
+export const DEFAULT_EMBER_ATTACK_LOGS: string[] = [
+  '*상대의 손끝이 당신의 몸에 남은 불씨를 건드린다. 불꽃이 되살아난다.*',
+  '*당신의 살갗 위 불씨가 다시 타오른다.*',
+  '*꺼져가던 불씨가 상대의 숨결에 살아난다. 당신의 몸을 조금씩 갉아먹는다.*',
+];
+
 /** bossPatternState.playerDotStacks에서 ember 스택 수 조회 (없으면 0) */
 export function getEmberStacks(
   dots: DotStackEntry[] | undefined | null,
@@ -40,12 +54,21 @@ function createEmberEntry(stacks: number): DotStackEntry {
     maxStacks: 999,
     remainingSec: Number.MAX_SAFE_INTEGER,
     totalDuration: Number.MAX_SAFE_INTEGER,
-    outDamageReductionPerStack: 0.05,
-    atkSpeedReductionPerStack: 0.05,
-    maxOutDamageReduction: 1.0,
-    maxAtkSpeedReduction: 0.8,
+    outDamageReductionPerStack: EMBER_DEFAULTS.outDamageReductionPerStack,
+    atkSpeedReductionPerStack: EMBER_DEFAULTS.atkSpeedReductionPerStack,
+    maxOutDamageReduction: EMBER_DEFAULTS.maxOutDamageReduction,
+    maxAtkSpeedReduction: EMBER_DEFAULTS.maxAtkSpeedReduction,
     noDecay: true,
   };
+}
+
+/** 평타 보너스 배율 계산 (몬스터 무관) */
+export function getEmberAttackBonusMult(
+  dots: DotStackEntry[] | undefined | null,
+): number {
+  const stacks = getEmberStacks(dots);
+  if (stacks <= 0) return 1;
+  return 1 + stacks * EMBER_DEFAULTS.attackDamageBonusPerStack;
 }
 
 /**

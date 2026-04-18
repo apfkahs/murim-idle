@@ -5,12 +5,12 @@
 import { getMonsterDef, getMonsterAttackMsg, BOSS_PATTERNS } from '../../data/monsters';
 import { calcExternalDmgReduction } from '../combatCalc';
 import { getProfStarInfo } from '../artUtils';
-import { calcEnemyDamage, applyVariance } from './damageCalc';
+import { calcEnemyDamage, calcEnemyDamageWithBonus, applyVariance } from './damageCalc';
 import type { TickContext } from './tickContext';
 import { handleDodge } from './tickContext';
 import type { DotStackEntry } from '../../store/types';
 import {
-  applyEmberStack, getEmberStacks,
+  applyEmberStack, getEmberStacks, getEmberAttackBonusMult, DEFAULT_EMBER_ATTACK_LOGS,
 } from './emberUtils';
 
 export function executeEnemyAttackPhase(ctx: TickContext): void {
@@ -149,7 +149,19 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, preEmberN);
       const curStacks = getEmberStacks(ctx.bossPatternState.playerDotStacks);
       const dmgMult = sacSkill?.sacrificeDamageMultiplier ?? 1.5;
-      const selfDmg = Math.floor(curStacks * dmgMult * ctx.currentEnemy.attackPower);
+
+      const bypassActive = ctx.currentEnemy?.bypassExternalGradeActive ?? false;
+      const externalDmgRed = calcExternalDmgReduction(ctx.state);
+      const effectiveExternalDmgRed = bypassActive ? 0 : externalDmgRed;
+
+      const selfDmg = calcEnemyDamage(
+        ctx.currentEnemy.attackPower,
+        curStacks * dmgMult,
+        ctx.dmgReduction,
+        undefined,
+        ctx.equipStats.bonusFixedDmgReduction ?? 0,
+        effectiveExternalDmgRed,
+      );
       ctx.hp -= selfDmg;
       // 플레이어 사망 시 처치 실패 플래그
       if (ctx.hp <= 0 && sacSkill?.sacrificeKillFailureOnDeath) {
@@ -731,13 +743,31 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         handleDodge(ctx, eName);
       } else {
         // 배화교 행자 — 불씨 평타 추가 피해 배율 (기본 공격 대비)
-        const emberSongSkill = pattern?.skills.find(s => s.type === 'baehwa_ember_song');
-        const emberStk = emberSongSkill ? getEmberStacks(ctx.bossPatternState?.playerDotStacks) : 0;
-        const emberBonusPerStack = emberSongSkill?.emberAttackDamageBonusPerStack ?? 0;
-        const emberBonusMult = emberStk > 0 ? (1 + emberStk * emberBonusPerStack) : 1;
-        const effectiveAtkMult = monAttackMult * emberBonusMult;
-        let incomingDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, effectiveAtkMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
-        incomingDmg = Math.floor(incomingDmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
+        const emberStk = getEmberStacks(ctx.bossPatternState?.playerDotStacks);
+        const emberBonusMult = getEmberAttackBonusMult(ctx.bossPatternState?.playerDotStacks);
+
+        // 불씨가 있을 때만 분리 계산 (bonusPortion 얻기 위함), 그 외는 기존 calcEnemyDamage 경로 유지
+        let incomingDmg: number;
+        let emberExtra = 0;
+        if (emberStk > 0 && emberBonusMult > 1) {
+          const r = calcEnemyDamageWithBonus(
+            ctx.currentEnemy.attackPower, monAttackMult, emberBonusMult,
+            ctx.dmgReduction,
+            ctx.equipStats.bonusFixedDmgReduction ?? 0,
+            effectiveExternalDmgRed,
+          );
+          incomingDmg = r.total;
+          emberExtra = r.bonusPortion;
+        } else {
+          incomingDmg = calcEnemyDamage(
+            ctx.currentEnemy.attackPower, monAttackMult, ctx.dmgReduction,
+            undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed,
+          );
+        }
+        // 장비 특수효과: 받는 피해 증가 배율 후처리 — total과 bonusPortion에 동일 배율로 곱해 비율 유지
+        const takenMult = 1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0);
+        incomingDmg = Math.floor(incomingDmg * takenMult);
+        emberExtra = Math.floor(emberExtra * takenMult);
         ctx.hp -= incomingDmg;
         if (incomingDmg > 0 && monDef) {
           if (monCritLog) ctx.battleLog.push(`${eName}: ${monCritLog}`);
@@ -746,11 +776,10 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
             ctx.battleLog.push(`${eName}: ${cpMsg}`);
           }
           // 불씨 평타: ember 로그 사용 + 추가 피해 표기
-          if (emberSongSkill && emberStk > 0 && emberSongSkill.emberAttackLogs && emberSongSkill.emberAttackLogs.length > 0) {
-            const baseDmg = Math.floor(incomingDmg / emberBonusMult);
-            const extra = Math.max(0, incomingDmg - baseDmg);
-            const msgBase = emberSongSkill.emberAttackLogs[Math.floor(Math.random() * emberSongSkill.emberAttackLogs.length)];
-            const attackMsg = `${msgBase} ${incomingDmg} 피해. (+${extra})`;
+          if (emberStk > 0) {
+            const emberLogs = monDef.emberAttackLogs ?? DEFAULT_EMBER_ATTACK_LOGS;
+            const msgBase = emberLogs[Math.floor(Math.random() * emberLogs.length)];
+            const attackMsg = `${msgBase} ${incomingDmg} 피해. (+${emberExtra})`;
             ctx.battleLog.push(attackMsg);
             ctx.lastEnemyAttack = { enemyName: eName, attackMessage: attackMsg };
           } else {

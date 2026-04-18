@@ -39,6 +39,28 @@ export function calcEnemyDamage(
   return Math.max(0, raw - (fixedDmgReduction ?? 0));
 }
 
+/**
+ * 동일 variance 샘플로 base/total을 동시 계산하여
+ * 보너스 기여분(bonusPortion)을 정확히 산출한다.
+ * - base:  baseMult × varied 피해
+ * - total: baseMult × bonusMult × varied 피해
+ * - bonusPortion = total - base
+ */
+export function calcEnemyDamageWithBonus(
+  atkPower: number, baseMult: number, bonusMult: number,
+  dmgReduction: number,
+  fixedDmgReduction: number,
+  externalDmgReduction: number,
+): { total: number; bonusPortion: number } {
+  const varied = atkPower * (0.9 + Math.random() * 0.2);
+  const reducer = (1 - dmgReduction / 100) * (1 - externalDmgReduction);
+  const baseRaw = Math.floor(varied * baseMult * reducer);
+  const totalRaw = Math.floor(varied * baseMult * bonusMult * reducer);
+  const base = Math.max(0, baseRaw - fixedDmgReduction);
+  const total = Math.max(0, totalRaw - fixedDmgReduction);
+  return { total, bonusPortion: total - base };
+}
+
 // ── 전투 보조 ──
 export function buildAchievementContext(
   state: GameState & { totalKills?: number },
