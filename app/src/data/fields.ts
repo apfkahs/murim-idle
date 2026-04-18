@@ -120,9 +120,9 @@ export const FIELDS: FieldDef[] = [
   {
     id: 'baehwagyo',
     name: '배화교',
-    monsters: [],
+    monsters: ['baehwa_haengja'],
     hiddenMonsters: [],
-    canExplore: false,
+    canExplore: true,
     unlockCondition: { materialOwned: 'secret_order' },
   },
 ];

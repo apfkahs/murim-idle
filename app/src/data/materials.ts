@@ -149,6 +149,12 @@ export const MATERIALS: MaterialDef[] = [
     name: '찬란한 흑풍석',
     description: '총순찰사자가 남긴 특별한 흑풍석. 일반 흑풍석보다 훨씬 밀도 높은 기운이 깃들어 있어 장비를 확실하게 강화할 수 있다.',
   },
+  // ── 배화교 재료 ──
+  {
+    id: 'huimihan_janbul',
+    name: '희미한 잔불',
+    description: '행자의 옷깃에서 떨어진 미세한 불씨. 아직 꺼지지 않은 성화의 숨결이 깃들어 있다.',
+  },
 ];
 
 export const RECIPES: RecipeDef[] = [

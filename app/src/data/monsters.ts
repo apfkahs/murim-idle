@@ -29,8 +29,12 @@ export interface BossSkillDef {
      | 'final_phase'        // 최종 페이즈 진입 (채주 최후의 발악)
      // ── 녹림맹 총순찰사자 신규 ──
      | 'variable_multi_hit' // 타격별 개별 배율 다연타
-     | 'dodge_buff_passive'; // 회피 시 공격 버프
-  triggerCondition: 'stamina_full' | 'hp_threshold' | 'default';
+     | 'dodge_buff_passive' // 회피 시 공격 버프
+     // ── 배화교 행자 신규 ──
+     | 'baehwa_guard'          // 삼행의 율법 (전투 시작, 조건부 피해 감소)
+     | 'baehwa_ember_song'     // 성화 송가 (70% 평타 / 30% 자가회복 + 불씨 부여)
+     | 'baehwa_atar_sacrifice';// 아타르로의 귀의 (HP%, 3턴 반사 후 자폭)
+  triggerCondition: 'stamina_full' | 'hp_threshold' | 'default' | 'battle_start';
   staminaCost?: number;
   staminaGain?: number;
   hpThreshold?: number;
@@ -157,6 +161,28 @@ export interface BossSkillDef {
   chargeDmgReduction?: number;           // 차지 중 보스 데미지 감소 (0.30=30%)
   chargeStunImmunity?: boolean;          // 차지 중 스턴 면역
   postFireSelfStun?: boolean;            // 발사 후 영구 자기 스턴
+  // ── 배화교 행자 신규 ──
+  conditionRequiredFaction?: import('./arts').Faction;  // 이 faction 무공 하나라도 장착 시 조건 충족
+  damageTakenMultiplierIfCondition?: number;            // 조건 불충족 시 적이 받는 피해 배율 (0.5)
+  battleStartLogs?: string[];                            // 전투 시작 즉시 출력될 로그
+  firstHitLogMessagesNoArt?: string[];                  // 조건 불충족 플레이어 첫 공격 시 로그(A/B/C)
+  firstHitLogMessagesWithArt?: string[];                // 조건 충족 플레이어 첫 공격 시 로그
+  emberApplyChance?: number;                            // 성화 송가: 불씨 부여 확률 (0.8)
+  emberAttackDamageBonusPerStack?: number;              // 평타 시 스택당 추가 피해 배율 (0.5)
+  emberAttackLogs?: string[];                            // 불씨 1+ 스택 평타 로그 (4종)
+  emberSongSuccessLogs?: string[];                      // 송가 불씨 부여 성공 로그 (4종)
+  emberSongFailLogs?: string[];                         // 송가 불씨 부여 실패 로그 (4종)
+  sacrificeDurationTurns?: number;                      // 귀의 지속 턴수 (3)
+  sacrificeHealPercentPerTurn?: number;                 // 귀의 매 턴 자가 회복 비율 (0.08)
+  sacrificeReflectEmberOnHit?: number;                  // 귀의 중 플레이어 공격 시 반사 불씨 (1)
+  sacrificeEndPreEmber?: number;                        // 자폭 전 선 부여 불씨 (3)
+  sacrificeDamageMultiplier?: number;                   // 자폭 피해: 스택 × 이 값 × 공격력 (1.5)
+  sacrificeKillFailureOnDeath?: boolean;                // 자폭으로 사망 시 처치 실패 판정
+  sacrificeOnTriggerLogs?: string[];                    // 귀의 발동 로그
+  sacrificeHealLogs?: string[];                          // 귀의 매 턴 회복 로그
+  sacrificeReflectLogs?: string[];                      // 귀의 중 반사 불씨 로그 (A/B/C)
+  sacrificeSelfDestructLogs?: string[];                 // 자폭 로그
+  sacrificeEarlyKillLogs?: string[];                    // 3턴 내 처치 시 로그
 }
 
 export interface BossPatternDef {
@@ -582,6 +608,98 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
       },
     ],
   },
+  // ── 배화교 패턴 ──
+  baehwa_haengja: {
+    stamina: { initial: 0, max: 0, regenPerSec: 0 },
+    skills: [
+      {
+        id: 'baehwa_guard',
+        displayName: '삼행의 율법(三行律法)',
+        type: 'baehwa_guard',
+        triggerCondition: 'battle_start',
+        oneTime: true,
+        priority: 10,
+        conditionRequiredFaction: 'baehwagyo',
+        damageTakenMultiplierIfCondition: 0.5,
+        battleStartLogs: [
+          '*행자가 성화를 향해 두 손을 모은다.*',
+          '*「삼행(三行)이 흐르지 않는 손은 우리의 살갗을 스치지 못하리라.」*',
+        ],
+        firstHitLogMessagesNoArt: [
+          '*당신의 일격이 행자의 살갗 앞에서 흩어진다.*\n*「생각도, 말도, 행동도 — 아직 성화의 결을 따르지 못하는군요.」*',
+          '*행자가 미소짓는다. 당신의 칼끝이 허공을 긋는다.*\n*「당신의 길은 아직 세 갈래로 갈라져 있습니다. 하나로 모으세요.」*',
+          '*당신의 공격이 성화의 결 앞에서 무뎌진다.*\n*「길을 아직 걷지 않은 자의 것이군요.」*',
+        ],
+        firstHitLogMessagesWithArt: [
+          '*당신의 일격이 행자의 방호를 찢는다. 행자의 눈빛이 흔들린다.*\n*「...당신도, 길을 걷고 있었군요.」*',
+        ],
+        logMessages: [],
+      },
+      {
+        id: 'baehwa_ember_song',
+        displayName: '성화 송가(聖火頌歌)',
+        type: 'baehwa_ember_song',
+        triggerCondition: 'default',
+        chance: 0.30,
+        priority: 5,
+        selfHealPercent: 8,
+        emberApplyChance: 0.80,
+        emberAttackDamageBonusPerStack: 0.5,
+        emberAttackLogs: [
+          '*행자의 손끝이 당신의 몸에 남은 불씨를 건드린다. 불꽃이 되살아난다.*',
+          '*행자가 당신을 가볍게 밀친다. 몸에 붙은 불씨가 그 자리에서 피어오른다.*',
+          '*행자의 기도 소리에 맞춰, 당신의 살갗 위 불씨가 다시 타오른다.*',
+          '*꺼져가던 불씨가 행자의 숨결에 살아난다. 당신의 몸을 조금씩 갉아먹는다.*',
+        ],
+        emberSongSuccessLogs: [
+          '*행자가 두 손을 모아 성화를 찬미한다. 목소리 끝에서 흰 불씨 하나가 당신에게 옮겨간다.*',
+          '*「성화여, 이 미천한 자의 목소리를 들으소서.」*\n*행자의 기도 끝에서 불꽃이 피어나 당신의 옷자락에 옮겨 붙는다.*',
+          '*행자가 눈을 감고 송가를 읊는다. 그 숨결이 당신의 몸을 스치며 미세한 불티를 남긴다.*',
+          '*「... 타오르소서, 영원히 타오르소서.」*\n*행자의 기도가 그의 상처를 아물게 하고, 당신에게는 불씨 한 점을 건넨다.*',
+        ],
+        emberSongFailLogs: [
+          '*행자가 성화를 향해 두 손을 모으고 송가를 읊는다. 상처가 아물어간다.*',
+          '*「성화여, 당신의 종에게 빛을 내려주소서.」*\n*행자의 숨결이 고르게 돌아온다.*',
+          '*행자가 무릎을 꿇고 기도한다. 그의 몸에서 희미한 온기가 감돈다.*',
+          '*「이 미천한 자에게 성화의 숨을 허락하소서.」*\n*행자의 입가에 미소가 번진다.*',
+        ],
+        logMessages: [],
+      },
+      {
+        id: 'baehwa_atar_sacrifice',
+        displayName: '아타르로의 귀의(歸依) [Ātar]',
+        type: 'baehwa_atar_sacrifice',
+        triggerCondition: 'hp_threshold',
+        hpThreshold: 0.30,
+        oneTime: true,
+        priority: 8,
+        sacrificeDurationTurns: 3,
+        sacrificeHealPercentPerTurn: 0.08,
+        sacrificeReflectEmberOnHit: 1,
+        sacrificeEndPreEmber: 3,
+        sacrificeDamageMultiplier: 1.5,
+        sacrificeKillFailureOnDeath: true,
+        sacrificeOnTriggerLogs: [
+          '*행자가 피 묻은 입가로 미소짓는다. 두 팔을 벌리고 성화를 향해 몸을 내민다.*\n*「아타르여, 이 미천한 몸을 받으소서.」*',
+        ],
+        sacrificeHealLogs: [
+          '*행자의 상처가 흰 재로 덮이며 아물어간다.*',
+        ],
+        sacrificeReflectLogs: [
+          '*당신의 칼이 행자의 살갗을 가른다. 그 자리에서 흰 불꽃이 튀어 당신에게 옮겨 붙는다.*',
+          '*행자는 피하지 않는다. 상처에서 새어나온 불티가 당신의 손등에 내려앉는다.*',
+          '*행자가 눈을 감은 채 흔들린다. 그의 몸에서 번진 불꽃이 당신의 옷자락을 물들인다.*',
+        ],
+        sacrificeSelfDestructLogs: [
+          '*행자가 두 눈을 크게 뜬다. 그의 몸이 안에서부터 하얗게 타오른다.*\n*「아타르······ 아타르에게로······!」*\n*행자의 몸이 흰 불기둥이 되어 폭발한다.*',
+        ],
+        sacrificeEarlyKillLogs: [
+          '*행자의 눈빛이 흐려진다. 그의 몸이 흰 재로 바스러져 흩어진다.*\n*「아타르에게······ 닿지······ 못······」*',
+        ],
+        logMessages: [],
+      },
+    ],
+  },
   masked_swordsman: {
     stamina: { initial: 0, max: 0, regenPerSec: 0 },
     skills: [
@@ -904,6 +1022,24 @@ export const BANDIT_LEADER_DEF: MonsterDef = {
   description: '흑풍채를 이끄는 수장이다. 한때 강호에서 이름을 날리던 무인이 타락의 길을 걸어 이 자리에 이르렀다. 검은 바람을 일으키는 대도법(大刀法)으로 수하들에게 절대적인 공포를 심어놓고 있다. 벼랑에 내몰리면 모든 내력을 폭발시키는 최후의 발악을 펼친다 하니, 방심은 곧 죽음이다.',
 };
 
+// 배화교 일반 몬스터
+export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
+  {
+    id: 'baehwa_haengja', name: '배화교 행자',
+    hp: 3800, attackPower: 160, attackInterval: 2.5, regen: 0, baseProficiency: 7,
+    drops: [],
+    materialDrops: [
+      { materialId: 'huimihan_janbul', chance: 0.025 },
+    ],
+    grade: 10, imageKey: 'baehwa_haengja',
+    attackMessages: [
+      '행자가 성화를 향해 두 손을 모은다. 그 기도 끝에서 불꽃이 튀어올랐다!',
+      '행자의 손끝에서 불씨가 튀어 당신의 살갗에 닿았다!',
+    ],
+    description: '배화교의 가장 낮은 자리에 있는 잡일꾼. 무공은 익히지 못했으나, 매일 성화 앞에서 기도하며 광기의 첫 불씨를 품게 된 자들이다. 무력으로는 위협적이지 않지만, 그 몸에 옮겨 붙은 불씨는 생각보다 오래 타오른다.',
+  },
+];
+
 // 흑풍채 히든 보스 — 녹림맹 총순찰사자
 export const NOKRIM_PATROL_CHIEF: MonsterDef = {
   id: 'nokrim_patrol_chief', name: '녹림맹 총순찰사자',
@@ -984,7 +1120,8 @@ export const SAEWOE_MONSTERS: MonsterDef[] = [
 export function getMonsterDef(id: string): MonsterDef | undefined {
   return [...TRAINING_MONSTERS, ...YASAN_MONSTERS, ...HIDDEN_MONSTERS, YASAN_BOSS,
           ...INN_MONSTERS, ...INN_HIDDEN_MONSTERS, INN_BOSS, ...SAEWOE_MONSTERS,
-          ...HEUGPUNGCHAE_MONSTERS, RONIN_DEF, BANDIT_LEADER_DEF, NOKRIM_PATROL_CHIEF]
+          ...HEUGPUNGCHAE_MONSTERS, RONIN_DEF, BANDIT_LEADER_DEF, NOKRIM_PATROL_CHIEF,
+          ...BAEHWAGYO_MONSTERS]
     .find(m => m.id === id);
 }
 

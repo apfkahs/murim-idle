@@ -68,7 +68,7 @@ export interface SaveMeta {
 // ============================================================
 export interface DotStackEntry {
   id: string;
-  type: 'bleed' | 'poison' | 'stamina_drain' | 'slow';
+  type: 'bleed' | 'poison' | 'stamina_drain' | 'slow' | 'ember';
   damagePerTick: number;       // 초당 데미지 (slow=0)
   damagePerStack: number;      // 스택당 추가 초당 데미지
   stacks: number;
@@ -77,6 +77,12 @@ export interface DotStackEntry {
   totalDuration: number;       // 스택 갱신 시 remainingSec 리셋용
   slowAmount?: number;         // slow: 기본 공속 증가량 (초)
   slowPerStack?: number;       // slow: 스택당 추가 공속 증가량
+  // ── ember (배화교 불씨) ──
+  outDamageReductionPerStack?: number;   // 스택당 플레이어 출력 피해 감소율 (0.05)
+  atkSpeedReductionPerStack?: number;    // 스택당 플레이어 공속 감소율 (0.05, interval 증가)
+  maxOutDamageReduction?: number;        // 출력 피해 감소 상한 (1.0)
+  maxAtkSpeedReduction?: number;         // 공속 감소 상한 (0.8)
+  noDecay?: boolean;                     // true면 시간 감쇠 없음 (답파 지속)
 }
 
 // ============================================================
@@ -198,6 +204,17 @@ export interface GameState {
     bossChargeDmgReduction?: number;
     bossChargeStunImmune?: boolean;
     chargeRegenPenalty?: number;       // 차지 중 내력 회복속도 감소량 (/초)
+    // === 배화교 행자 신규 ===
+    guardDamageTakenMultiplier?: number;  // 적이 받는 피해 배율 (0.5 또는 1.0)
+    guardFirstHitLogged?: boolean;        // 첫 피격 로그 1회 출력 제어
+    atarSacrificeState?: {
+      skillId: string;
+      turnsLeft: number;
+      perTurnHealPercent: number;
+      reflectStacks: number;
+      endDamageMultiplier: number;
+    } | null;
+    killFailureSkipRewards?: boolean;     // 이번 처치는 드랍·숙련도 미지급
   } | null;
   playerFinisherCharge?: {
     artId: string;

@@ -127,6 +127,11 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       const remaining: typeof ctx.bossPatternState.playerDotStacks = [];
 
       for (const dot of ctx.bossPatternState.playerDotStacks) {
+        // 불씨(ember): 감쇠·데미지·기력 감소 없음. 스택만 유지하여 playerCombat에서 출력·공속 페널티 적용
+        if (dot.noDecay || dot.type === 'ember') {
+          remaining.push(dot);
+          continue;
+        }
         const newRemaining = dot.remainingSec - dt;
         if (newRemaining <= 0) {
           expiredDots.push({ dot });

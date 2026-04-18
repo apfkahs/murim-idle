@@ -4,7 +4,7 @@
  * 삼재검법 (주공) + 삼재심법 (심법) 2종만 존재
  */
 
-export type Faction = 'neutral' | 'righteous' | 'evil';
+export type Faction = 'neutral' | 'righteous' | 'evil' | 'baehwagyo';
 export type ArtType = 'active' | 'passive' | 'simbeop';
 export type ProficiencyType = 'sword' | 'palm' | 'footwork' | 'mental' | 'fist';
 // ── 발견 조건 ──

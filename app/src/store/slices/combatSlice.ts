@@ -2,10 +2,48 @@ import type { StateCreator } from 'zustand';
 import type { GameStore } from '../gameStore';
 import type { BattleResult, FloatingText, GameState } from '../types';
 import { BALANCE_PARAMS } from '../../data/balance';
-import { getMonsterDef } from '../../data/monsters';
+import { BOSS_PATTERNS, getMonsterDef } from '../../data/monsters';
+import { getArtDef } from '../../data/arts';
 import { getFieldDef, generateExploreOrder } from '../../data/fields';
 import { spawnEnemy, CLEAR_BATTLE_STATE } from '../../utils/combatCalc';
 import { createBossPatternState } from '../../utils/combat/tickContext';
+
+/**
+ * battle_start 트리거 스킬 처리
+ * - 현재는 baehwa_guard (삼행의 율법)만 존재
+ * - 조건: equippedArts 중 conditionRequiredFaction과 일치하는 무공이 하나라도 있으면 조건 충족
+ * - 불충족 시 guardDamageTakenMultiplier 적용 (0.5 → 적이 받는 피해 절반)
+ * - battleStartLogs를 battleLog에 추가, usedOneTimeSkills에 기록
+ */
+function applyBattleStartSkills(
+  monsterId: string,
+  equippedArts: string[],
+  state: NonNullable<GameState['bossPatternState']>,
+  battleLog: string[],
+): { battleLog: string[]; state: NonNullable<GameState['bossPatternState']> } {
+  const pattern = BOSS_PATTERNS[monsterId];
+  if (!pattern) return { battleLog, state };
+  const next = { ...state };
+  const usedOne = [...(next.usedOneTimeSkills ?? [])];
+  const logs = [...battleLog];
+  for (const skill of pattern.skills) {
+    if (skill.triggerCondition !== 'battle_start') continue;
+    if (skill.type === 'baehwa_guard') {
+      const required = skill.conditionRequiredFaction;
+      const hasFactionArt = required
+        ? equippedArts.some(id => getArtDef(id)?.faction === required)
+        : true;
+      next.guardDamageTakenMultiplier = hasFactionArt ? 1.0 : (skill.damageTakenMultiplierIfCondition ?? 0.5);
+      next.guardFirstHitLogged = false;
+      if (skill.battleStartLogs) {
+        for (const line of skill.battleStartLogs) logs.push(line);
+      }
+      if (skill.oneTime) usedOne.push(skill.id);
+    }
+  }
+  next.usedOneTimeSkills = usedOne;
+  return { battleLog: logs, state: next };
+}
 
 const B = BALANCE_PARAMS;
 
@@ -94,18 +132,27 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
       hiddenRevealedInField[fieldId] = order[0];
     }
 
+    const initialBps = createBossPatternState(order[0]);
+    let battleLog = [`— ${firstMon.name} 등장 —`];
+    let bps = initialBps;
+    if (bps) {
+      const applied = applyBattleStartSkills(order[0], state.equippedArts, bps, battleLog);
+      battleLog = applied.battleLog;
+      bps = applied.state;
+    }
+
     set({
       ...CLEAR_BATTLE_STATE,
       battleMode: 'explore',
       currentEnemy: spawnEnemy(firstMon),
-      bossPatternState: createBossPatternState(order[0]),
+      bossPatternState: bps,
       currentField: fieldId,
       exploreOrder: order,
       exploreStep: 0,
       isBossPhase: false,
       bossTimer: 0,
       explorePendingRewards: { drops: [], proficiencyGains: {}, materialDrops: {} },
-      battleLog: [`— ${firstMon.name} 등장 —`],
+      battleLog,
       battleResult: null,
       hiddenRevealedInField,
       playerAttackTimer: B.BASE_ATTACK_INTERVAL,
@@ -120,11 +167,20 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
     const monDef = getMonsterDef(monsterId);
     if (!monDef) return;
 
+    const initialBps = createBossPatternState(monsterId);
+    let battleLog = [`— ${monDef.name} 사냥 시작 —`];
+    let bps = initialBps;
+    if (bps) {
+      const applied = applyBattleStartSkills(monsterId, state.equippedArts, bps, battleLog);
+      battleLog = applied.battleLog;
+      bps = applied.state;
+    }
+
     set({
       ...CLEAR_BATTLE_STATE,
       battleMode: 'hunt',
       currentEnemy: spawnEnemy(monDef),
-      bossPatternState: createBossPatternState(monsterId),
+      bossPatternState: bps,
       currentField: fieldId,
       huntTarget: monsterId,
       exploreOrder: [],
@@ -132,7 +188,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
       isBossPhase: false,
       bossTimer: 0,
       explorePendingRewards: { drops: [], proficiencyGains: {}, materialDrops: {} },
-      battleLog: [`— ${monDef.name} 사냥 시작 —`],
+      battleLog,
       battleResult: null,
       playerAttackTimer: B.BASE_ATTACK_INTERVAL,
       enemyAttackTimer: monDef.attackInterval,

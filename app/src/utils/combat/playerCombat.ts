@@ -10,6 +10,9 @@ import {
   getArtDamageMultiplier, getEffectiveUltMultiplier, getProfDamageValue,
 } from '../artUtils';
 import { calcAttackDamage } from './damageCalc';
+import {
+  getEmberEntry, getEmberOutDamageMultiplier, getEmberAtkSpeedPenaltyMult, applyEmberStack,
+} from './emberUtils';
 import type { TickContext } from './tickContext';
 
 const B = BALANCE_PARAMS;
@@ -45,7 +48,10 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
     if (slowDot) {
       slowPenalty = (slowDot.slowAmount ?? 0) + (slowDot.slowPerStack ?? 0) * (slowDot.stacks - 1);
     }
-    const attackInterval = Math.max((B.BASE_ATTACK_INTERVAL - atkSpeedBonus + slowPenalty) * atkSpeedDebuffMult, B.ATK_SPEED_MIN);
+    // 배화교 불씨(ember) 공속 감소: attackInterval에 곱셈 적용
+    const emberEntryForSpd = getEmberEntry(ctx.bossPatternState?.playerDotStacks);
+    const emberAtkSpdMult = getEmberAtkSpeedPenaltyMult(emberEntryForSpd);
+    const attackInterval = Math.max((B.BASE_ATTACK_INTERVAL - atkSpeedBonus + slowPenalty) * atkSpeedDebuffMult * emberAtkSpdMult, B.ATK_SPEED_MIN);
     ctx.playerAttackTimer += attackInterval;
 
     // playerFinisherCharge 처리
@@ -405,8 +411,60 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           damage = Math.floor(damage * (1 - ctx.bossPatternState.bossChargeDmgReduction));
         }
 
+        // 배화교 행자 — 불씨(ember) 출력 피해 감소 (플레이어 → 적)
+        const emberEntryForDmg = getEmberEntry(ctx.bossPatternState?.playerDotStacks);
+        if (emberEntryForDmg && emberEntryForDmg.stacks > 0) {
+          const emberMult = getEmberOutDamageMultiplier(emberEntryForDmg);
+          damage = Math.floor(damage * emberMult);
+        }
+
+        // 배화교 행자 — 삼행의 율법 방호 (적이 받는 피해 0.5배)
+        if (ctx.bossPatternState?.guardDamageTakenMultiplier != null
+            && ctx.bossPatternState.guardDamageTakenMultiplier !== 1
+            && damage > 0) {
+          damage = Math.floor(damage * ctx.bossPatternState.guardDamageTakenMultiplier);
+          // 첫 피격 1회 로그 (무공 미장착: A/B/C 중 랜덤)
+          if (!ctx.bossPatternState.guardFirstHitLogged) {
+            ctx.bossPatternState.guardFirstHitLogged = true;
+            const guardSkill = BOSS_PATTERNS[ctx.currentEnemy!.id]?.skills.find(
+              (s: BossSkillDef) => s.type === 'baehwa_guard');
+            if (guardSkill?.firstHitLogMessagesNoArt && guardSkill.firstHitLogMessagesNoArt.length > 0) {
+              const msg = guardSkill.firstHitLogMessagesNoArt[
+                Math.floor(Math.random() * guardSkill.firstHitLogMessagesNoArt.length)];
+              ctx.battleLog.push(msg);
+            }
+          }
+        } else if (ctx.bossPatternState?.guardDamageTakenMultiplier === 1
+                   && !ctx.bossPatternState.guardFirstHitLogged
+                   && damage > 0) {
+          // 조건 충족(배화교 무공 장착) 첫 피격 로그
+          ctx.bossPatternState.guardFirstHitLogged = true;
+          const guardSkill = BOSS_PATTERNS[ctx.currentEnemy!.id]?.skills.find(
+            (s: BossSkillDef) => s.type === 'baehwa_guard');
+          if (guardSkill?.firstHitLogMessagesWithArt && guardSkill.firstHitLogMessagesWithArt.length > 0) {
+            const msg = guardSkill.firstHitLogMessagesWithArt[
+              Math.floor(Math.random() * guardSkill.firstHitLogMessagesWithArt.length)];
+            ctx.battleLog.push(msg);
+          }
+        }
+
         ctx.currentEnemy!.hp -= damage;
         ctx.currentBattleDamageDealt += damage;
+
+        // 배화교 행자 — 아타르로의 귀의: 플레이어 공격 시 공격당 불씨 +1 반사
+        if (damage > 0 && ctx.bossPatternState?.atarSacrificeState) {
+          const atar = ctx.bossPatternState.atarSacrificeState;
+          const reflectN = atar.reflectStacks ?? 1;
+          ctx.bossPatternState.playerDotStacks = applyEmberStack(
+            ctx.bossPatternState.playerDotStacks, reflectN);
+          const sacSkill = BOSS_PATTERNS[ctx.currentEnemy!.id]?.skills.find(
+            (s: BossSkillDef) => s.type === 'baehwa_atar_sacrifice');
+          if (sacSkill?.sacrificeReflectLogs && sacSkill.sacrificeReflectLogs.length > 0) {
+            const msg = sacSkill.sacrificeReflectLogs[
+              Math.floor(Math.random() * sacSkill.sacrificeReflectLogs.length)];
+            ctx.battleLog.push(`${msg} (불씨 +${reflectN})`);
+          }
+        }
 
         // stunOnUlt 처리
         if (isUlt && artDefForBonuses && ctx.currentEnemy) {

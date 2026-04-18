@@ -9,6 +9,9 @@ import { calcEnemyDamage, applyVariance } from './damageCalc';
 import type { TickContext } from './tickContext';
 import { handleDodge } from './tickContext';
 import type { DotStackEntry } from '../../store/types';
+import {
+  applyEmberStack, getEmberStacks,
+} from './emberUtils';
 
 export function executeEnemyAttackPhase(ctx: TickContext): void {
   if (!ctx.currentEnemy) return;
@@ -128,6 +131,43 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
   }
 
   // ========================================
+  // 배화교 행자 — 아타르로의 귀의 활성 중 턴 처리
+  // ========================================
+  if (!skillUsed && ctx.bossPatternState?.atarSacrificeState && ctx.currentEnemy) {
+    const atar = ctx.bossPatternState.atarSacrificeState;
+    const sacSkill = pattern?.skills.find(s => s.type === 'baehwa_atar_sacrifice');
+    // 매 턴 자가 회복
+    const healAmt = Math.floor(ctx.currentEnemy.maxHp * atar.perTurnHealPercent);
+    ctx.currentEnemy = { ...ctx.currentEnemy, hp: Math.min(ctx.currentEnemy.hp + healAmt, ctx.currentEnemy.maxHp) };
+    const healLogBase = sacSkill?.sacrificeHealLogs?.[0] ?? '*행자의 상처가 흰 재로 덮이며 아물어간다.*';
+    ctx.battleLog.push(`${eName}: ${healLogBase} (행자 회복: +${healAmt})`);
+
+    const nextTurns = atar.turnsLeft - 1;
+    if (nextTurns <= 0) {
+      // 자폭 처리
+      const preEmberN = sacSkill?.sacrificeEndPreEmber ?? 3;
+      ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, preEmberN);
+      const curStacks = getEmberStacks(ctx.bossPatternState.playerDotStacks);
+      const dmgMult = sacSkill?.sacrificeDamageMultiplier ?? 1.5;
+      const selfDmg = Math.floor(curStacks * dmgMult * ctx.currentEnemy.attackPower);
+      ctx.hp -= selfDmg;
+      // 플레이어 사망 시 처치 실패 플래그
+      if (ctx.hp <= 0 && sacSkill?.sacrificeKillFailureOnDeath) {
+        ctx.bossPatternState.killFailureSkipRewards = true;
+      }
+      // 행자 자멸
+      ctx.currentEnemy = { ...ctx.currentEnemy, hp: 0 };
+      ctx.bossPatternState.atarSacrificeState = null;
+      const destructMsg = sacSkill?.sacrificeSelfDestructLogs?.[0] ?? '';
+      ctx.battleLog.push(`${eName}: ${destructMsg} (받은 피해: ${selfDmg} / 불씨 +${preEmberN})`);
+      if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
+    } else {
+      ctx.bossPatternState.atarSacrificeState = { ...atar, turnsLeft: nextTurns };
+    }
+    skillUsed = true;
+  }
+
+  // ========================================
   // 6-B: 시퀀스 상태 처리 (bossChargeState 직후, sortedSkills 루프 직전)
   // ========================================
   if (!skillUsed && ctx.bossPatternState?.sequenceState != null && pattern) {
@@ -205,7 +245,50 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           || skill.type === 'revenge'
           || skill.type === 'conditional_passive'
           || skill.type === 'variable_multi_hit'
-          || skill.type === 'dodge_buff_passive') continue;
+          || skill.type === 'dodge_buff_passive'
+          // 배화교 추가 skip (battle_start로 처리됨)
+          || skill.type === 'baehwa_guard') continue;
+
+      // ── 배화교: 성화 송가 ──
+      if (skill.type === 'baehwa_ember_song') {
+        if (Math.random() >= (skill.chance ?? 0.3)) continue; // 70% → 일반 공격으로 폴스루
+        // 송가 발동 (30%): 자가 회복 + 불씨 부여 확률
+        const healPct = (skill.selfHealPercent ?? 8) / 100;
+        const healAmt = Math.floor(ctx.currentEnemy.maxHp * healPct);
+        ctx.currentEnemy = { ...ctx.currentEnemy, hp: Math.min(ctx.currentEnemy.hp + healAmt, ctx.currentEnemy.maxHp) };
+        const applyE = Math.random() < (skill.emberApplyChance ?? 0.8);
+        if (applyE) {
+          ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, 1);
+          const logs = skill.emberSongSuccessLogs ?? [];
+          const msg = logs.length > 0 ? logs[Math.floor(Math.random() * logs.length)] : '';
+          ctx.battleLog.push(`${eName}: ${msg} (행자 회복: +${healAmt} / 불씨 +1)`);
+        } else {
+          const logs = skill.emberSongFailLogs ?? [];
+          const msg = logs.length > 0 ? logs[Math.floor(Math.random() * logs.length)] : '';
+          ctx.battleLog.push(`${eName}: ${msg} (행자 회복: +${healAmt})`);
+        }
+        skillUsed = true;
+        break;
+      }
+
+      // ── 배화교: 아타르로의 귀의 (발동) ──
+      if (skill.type === 'baehwa_atar_sacrifice') {
+        ctx.bossPatternState.atarSacrificeState = {
+          skillId: skill.id,
+          turnsLeft: skill.sacrificeDurationTurns ?? 3,
+          perTurnHealPercent: skill.sacrificeHealPercentPerTurn ?? 0.08,
+          reflectStacks: skill.sacrificeReflectEmberOnHit ?? 1,
+          endDamageMultiplier: skill.sacrificeDamageMultiplier ?? 1.5,
+        };
+        if (skill.oneTime) {
+          ctx.bossPatternState.usedOneTimeSkills = [...(ctx.bossPatternState.usedOneTimeSkills ?? []), skill.id];
+        }
+        const logs = skill.sacrificeOnTriggerLogs ?? [];
+        const msg = logs.length > 0 ? logs[0] : '';
+        ctx.battleLog.push(`${eName}: ${msg}`);
+        skillUsed = true;
+        break;
+      }
 
       // ── 6-B2: timed_buff ──
       if (skill.type === 'timed_buff') {
@@ -647,7 +730,13 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       if (Math.random() < ctx.dodgeRate) {
         handleDodge(ctx, eName);
       } else {
-        let incomingDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
+        // 배화교 행자 — 불씨 평타 추가 피해 배율 (기본 공격 대비)
+        const emberSongSkill = pattern?.skills.find(s => s.type === 'baehwa_ember_song');
+        const emberStk = emberSongSkill ? getEmberStacks(ctx.bossPatternState?.playerDotStacks) : 0;
+        const emberBonusPerStack = emberSongSkill?.emberAttackDamageBonusPerStack ?? 0;
+        const emberBonusMult = emberStk > 0 ? (1 + emberStk * emberBonusPerStack) : 1;
+        const effectiveAtkMult = monAttackMult * emberBonusMult;
+        let incomingDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, effectiveAtkMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
         incomingDmg = Math.floor(incomingDmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
         ctx.hp -= incomingDmg;
         if (incomingDmg > 0 && monDef) {
@@ -656,9 +745,19 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
             const cpMsg = condPassiveSkill.logMessages[Math.floor(Math.random() * condPassiveSkill.logMessages.length)];
             ctx.battleLog.push(`${eName}: ${cpMsg}`);
           }
-          const attackMsg = getMonsterAttackMsg(monDef, incomingDmg);
-          ctx.battleLog.push(attackMsg);
-          ctx.lastEnemyAttack = { enemyName: eName, attackMessage: attackMsg };
+          // 불씨 평타: ember 로그 사용 + 추가 피해 표기
+          if (emberSongSkill && emberStk > 0 && emberSongSkill.emberAttackLogs && emberSongSkill.emberAttackLogs.length > 0) {
+            const baseDmg = Math.floor(incomingDmg / emberBonusMult);
+            const extra = Math.max(0, incomingDmg - baseDmg);
+            const msgBase = emberSongSkill.emberAttackLogs[Math.floor(Math.random() * emberSongSkill.emberAttackLogs.length)];
+            const attackMsg = `${msgBase} ${incomingDmg} 피해. (+${extra})`;
+            ctx.battleLog.push(attackMsg);
+            ctx.lastEnemyAttack = { enemyName: eName, attackMessage: attackMsg };
+          } else {
+            const attackMsg = getMonsterAttackMsg(monDef, incomingDmg);
+            ctx.battleLog.push(attackMsg);
+            ctx.lastEnemyAttack = { enemyName: eName, attackMessage: attackMsg };
+          }
         }
         if (!ctx.isSimulating) {
           ctx.enemyAnim = 'attack';

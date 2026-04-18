@@ -17,6 +17,7 @@ import { spawnEnemy } from '../combatCalc';
 import { PROF_LABEL } from './damageCalc';
 import type { TickContext } from './tickContext';
 import { applyBattleReset, applyUltCooldownReset, createBossPatternState } from './tickContext';
+import { getEmberEntry } from './emberUtils';
 
 const B = BALANCE_PARAMS;
 
@@ -43,9 +44,18 @@ export function processEnemyDeath(ctx: TickContext): void {
     ctx.bossKillCounts[monDef.id] = (ctx.bossKillCounts[monDef.id] ?? 0) + 1;
   }
 
+  // 배화교 행자 — 아타르 자폭으로 플레이어 사망 시 처치 실패: 드롭·숙련도·깨달음 미지급
+  const skipRewards = ctx.bossPatternState?.killFailureSkipRewards === true;
+  if (ctx.bossPatternState?.killFailureSkipRewards) {
+    ctx.bossPatternState.killFailureSkipRewards = false;
+  }
+  if (skipRewards) {
+    ctx.battleLog.push(`— ${monDef.name} 처치했으나 불씨에 스러져 보상을 얻지 못했다. —`);
+  }
+
   // 숙련도 독립 획득
   const profGainParts: string[] = [];
-  if (!monDef.isTraining && (monDef.baseProficiency ?? 0) > 0) {
+  if (!skipRewards && !monDef.isTraining && (monDef.baseProficiency ?? 0) > 0) {
     const baseProfGain = monDef.baseProficiency!;
     const monsterGrade = monDef.grade >= 1 ? monDef.grade : 1;
     const profGainMap: Partial<Record<ProficiencyType, number>> = {};
@@ -134,24 +144,26 @@ export function processEnemyDeath(ctx: TickContext): void {
 
   // 드롭
   const drops: string[] = [];
-  for (const drop of monDef.drops) {
-    if (Math.random() < Math.min(drop.chance * dropRateMultiplier, 1)) {
-      if (!ctx.ownedArts.some(a => a.id === drop.artId) && !ctx.inventory.some(i => i.artId === drop.artId)) {
-        drops.push(drop.artId);
-        ctx.inventory.push({
-          id: `${Date.now()}_${drop.artId}`,
-          itemType: 'art_scroll',
-          artId: drop.artId,
-          obtainedFrom: monDef.id,
-          obtainedAt: Date.now(),
-        });
-        ctx.battleLog.push(`${getArtDef(drop.artId)?.name ?? drop.artId} 비급이 전낭에 담겼다!`);
+  if (!skipRewards) {
+    for (const drop of monDef.drops) {
+      if (Math.random() < Math.min(drop.chance * dropRateMultiplier, 1)) {
+        if (!ctx.ownedArts.some(a => a.id === drop.artId) && !ctx.inventory.some(i => i.artId === drop.artId)) {
+          drops.push(drop.artId);
+          ctx.inventory.push({
+            id: `${Date.now()}_${drop.artId}`,
+            itemType: 'art_scroll',
+            artId: drop.artId,
+            obtainedFrom: monDef.id,
+            obtainedAt: Date.now(),
+          });
+          ctx.battleLog.push(`${getArtDef(drop.artId)?.name ?? drop.artId} 비급이 전낭에 담겼다!`);
+        }
       }
     }
   }
 
   // 장비 드롭
-  if (monDef.equipDrops) {
+  if (!skipRewards && monDef.equipDrops) {
     for (const eqDrop of monDef.equipDrops) {
       if (Math.random() < Math.min(eqDrop.chance * dropRateMultiplier, 1)) {
         const alreadyOwned = Object.values(ctx.state.equipment).some(e => e?.defId === eqDrop.equipId)
@@ -174,7 +186,9 @@ export function processEnemyDeath(ctx: TickContext): void {
   }
 
   // 재료 드롭
-  if (monDef.id === 'training_wood' && ctx.killCounts[monDef.id] === 1) {
+  if (skipRewards) {
+    // 처치 실패 — 재료 드롭 스킵
+  } else if (monDef.id === 'training_wood' && ctx.killCounts[monDef.id] === 1) {
     ctx.materials['wood_fragment'] = (ctx.materials['wood_fragment'] ?? 0) + 1;
     if (!ctx.obtainedMaterials.includes('wood_fragment')) ctx.obtainedMaterials.push('wood_fragment');
     ctx.battleLog.push('나무 조각 1개를 주웠다. 무언가를 만드는 데 쓸 수 있을 것 같다...');
@@ -209,37 +223,39 @@ export function processEnemyDeath(ctx: TickContext): void {
   }
 
   // 폭혈단 복용 후 처치 시 demonic_note +5%
-  if (potionConsumedRage && Math.random() < 0.05) {
+  if (!skipRewards && potionConsumedRage && Math.random() < 0.05) {
     ctx.materials['demonic_note'] = (ctx.materials['demonic_note'] ?? 0) + 1;
     if (!ctx.obtainedMaterials.includes('demonic_note')) ctx.obtainedMaterials.push('demonic_note');
     ctx.battleLog.push('마기에 물든 쪽지를 발견했다!');
   }
 
   // 처치 시 기운 보너스
-  if (ctx.masteryEffects?.killBonusEnabled && ctx.combatQiRatio > 0) {
+  if (!skipRewards && ctx.masteryEffects?.killBonusEnabled && ctx.combatQiRatio > 0) {
     const combatQiRate = ctx.qiPerSec * ctx.combatQiRatio;
     const bonusQi = combatQiRate * ctx.currentBattleDuration * B.KILL_BONUS_RATIO;
     ctx.qi += bonusQi * ctx.qiMult;
   }
 
   // 초(招) 발견 체크
-  const allArts = [...new Set([...ctx.equippedArts, ...(ctx.equippedSimbeop ? [ctx.equippedSimbeop] : [])])];
-  for (const artId of allArts) {
-    const artDef = getArtDef(artId);
-    const artOwned = ctx.ownedArts.find(a => a.id === artId);
-    if (!artDef || !artOwned) continue;
-    for (const m of artDef.masteries) {
-      if (!m.discovery) continue;
-      if (m.discovery.type === 'bijup') continue;
-      if (ctx.discoveredMasteries.includes(m.id)) continue;
-      let discovered = false;
-      if (m.discovery.type === 'boss' && m.discovery.bossId) {
-        if ((ctx.bossKillCounts[m.discovery.bossId] ?? 0) >= 1) discovered = true;
-      }
-      if (discovered) {
-        ctx.discoveredMasteries.push(m.id);
-        ctx.pendingEnlightenments.push({ artId, masteryId: m.id, masteryName: m.name });
-        ctx.battleLog.push(`깨달음! ${artDef.name}의 오의 '${m.name}'을(를) 깨우쳤다!`);
+  if (!skipRewards) {
+    const allArts = [...new Set([...ctx.equippedArts, ...(ctx.equippedSimbeop ? [ctx.equippedSimbeop] : [])])];
+    for (const artId of allArts) {
+      const artDef = getArtDef(artId);
+      const artOwned = ctx.ownedArts.find(a => a.id === artId);
+      if (!artDef || !artOwned) continue;
+      for (const m of artDef.masteries) {
+        if (!m.discovery) continue;
+        if (m.discovery.type === 'bijup') continue;
+        if (ctx.discoveredMasteries.includes(m.id)) continue;
+        let discovered = false;
+        if (m.discovery.type === 'boss' && m.discovery.bossId) {
+          if ((ctx.bossKillCounts[m.discovery.bossId] ?? 0) >= 1) discovered = true;
+        }
+        if (discovered) {
+          ctx.discoveredMasteries.push(m.id);
+          ctx.pendingEnlightenments.push({ artId, masteryId: m.id, masteryName: m.name });
+          ctx.battleLog.push(`깨달음! ${artDef.name}의 오의 '${m.name}'을(를) 깨우쳤다!`);
+        }
       }
     }
   }
@@ -338,7 +354,15 @@ function processExploreMode(
           }
           ctx.hiddenRevealedInField[ctx.currentField] = nextMon.id;
         }
+        // 답파 불씨(魂焰) 유지 — 다음 전투로 이월
+        const carriedEmber = getEmberEntry(ctx.bossPatternState?.playerDotStacks);
         ctx.bossPatternState = createBossPatternState(nextMon.id);
+        if (carriedEmber && ctx.bossPatternState) {
+          ctx.bossPatternState.playerDotStacks = [
+            ...(ctx.bossPatternState.playerDotStacks ?? []),
+            carriedEmber,
+          ];
+        }
         ctx.playerStunTimer = 0;
         ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
         ctx.enemyAttackTimer = nextMon.attackInterval;
@@ -382,7 +406,15 @@ function processExploreMode(
           } else {
             ctx.battleLog.push(`— 보스 등장! ${nextMon.name}이(가) 나타났다! —`);
           }
+          // 답파 불씨(魂焰) 유지 — 보스 전환에도 이월
+          const carriedEmberBoss = getEmberEntry(ctx.bossPatternState?.playerDotStacks);
           ctx.bossPatternState = createBossPatternState(nextMon.id);
+          if (carriedEmberBoss && ctx.bossPatternState) {
+            ctx.bossPatternState.playerDotStacks = [
+              ...(ctx.bossPatternState.playerDotStacks ?? []),
+              carriedEmberBoss,
+            ];
+          }
           ctx.playerStunTimer = 0;
           ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
           ctx.enemyAttackTimer = nextMon.attackInterval;
