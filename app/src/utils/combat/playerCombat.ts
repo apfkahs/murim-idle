@@ -558,14 +558,16 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           const currentDotDmg = g.baseDotDamage + bonusDmg;
           const currentMaxStacks = g.maxDotStacks + bonusStacks;
 
-          const existing = ctx.equipmentDotOnEnemy.find(d => d.equipId === eqDef.id);
-          if (existing) {
-            if (existing.stacks < currentMaxStacks) {
-              existing.stacks += 1;
-            }
-            existing.remainingSec = existing.totalDuration; // 갱신 시 지속시간 리셋
-            existing.damagePerTick = currentDotDmg; // 킬카운트 증가 반영
-            existing.maxStacks = currentMaxStacks;
+          const idx = ctx.equipmentDotOnEnemy.findIndex(d => d.equipId === eqDef.id);
+          if (idx >= 0) {
+            const existing = ctx.equipmentDotOnEnemy[idx];
+            ctx.equipmentDotOnEnemy[idx] = {
+              ...existing,
+              stacks: Math.min(existing.stacks + 1, currentMaxStacks),
+              remainingSec: existing.totalDuration,
+              damagePerTick: currentDotDmg,
+              maxStacks: currentMaxStacks,
+            };
           } else {
             ctx.equipmentDotOnEnemy.push({
               equipId: eqDef.id,
