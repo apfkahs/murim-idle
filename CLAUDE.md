@@ -51,7 +51,7 @@
 | 영역 | 파일 |
 |------|------|
 | **데이터** | `data/arts.ts`, `monsters.ts`, `materials.ts`, `equipment.ts`, `fields.ts`, `achievements.ts`, `tiers.ts`, `balance.ts` |
-| **게임 로직** | `utils/gameLoop.ts` (오케스트레이터), `utils/combat/tickContext.ts` (공유 상태), `utils/combat/damageCalc.ts` (데미지 계산), `utils/combat/playerCombat.ts` (플레이어 공격), `utils/combat/enemyCombat.ts` (적 공격/보스), `utils/combat/battleRewards.ts` (처치 보상), `utils/combatCalc.ts` (전투 수식), `utils/artUtils.ts` (무공 유틸) |
+| **게임 로직** | `utils/gameLoop.ts` (오케스트레이터), `utils/combat/tickContext.ts` (공유 상태), `utils/combat/damageCalc.ts` (데미지 계산), `utils/combat/playerCombat.ts` (플레이어 공격), `utils/combat/enemyCombat.ts` (적 공격/보스), `utils/combat/battleRewards.ts` (처치 보상), `utils/combat/skillHandlers/*` (몬스터별 스킬 핸들러/훅 레지스트리), `utils/combatCalc.ts` (전투 수식), `utils/artUtils.ts` (무공 유틸) |
 | **스토어** | `store/gameStore.ts` (진입점), `store/slices/` (artsSlice, combatSlice, inventorySlice, progressSlice, saveSlice), `store/types.ts`, `store/initialState.ts`, `store/utils/sliceHelpers.ts` (공유 헬퍼) |
 | **UI (탭)** | `components/ArtsTab.tsx`, `BattleTab.tsx`, `NeigongTab.tsx`, `InventoryTab.tsx`, `EquipmentTab.tsx`, `EncyclopediaTab.tsx`, `AchievementTab.tsx` + 서브: `arts/` (ArtGradeBar, MasteryPanel, artsUtils), `battle/`, `encyclopedia/` |
 | **UI (모달)** | `components/EnlightenmentModal.tsx`, `OfflineResultModal.tsx`, `SaveSlotModal.tsx` |
@@ -106,3 +106,25 @@
   - 패치(x.x.+1): 버그 수정, 수치 조정, 소규모 UI 변경
   - 마이너(x.+1.0): 새 기능·콘텐츠 추가, 시스템 확장
   - 메이저(+1.0.0): 대규모 리팩토링, 아키텍처 변경
+
+### 새 보스/몬스터 스킬 추가 절차
+1. `data/monsters.ts` BOSS_PATTERNS 에 skill 정의
+2. 기존 skill type(legacy/문파용) 재사용 가능하면 데이터만 추가
+3. 새 type 필요 시:
+   - `skillHandlers/<문파>/<몬스터>.ts` 에 핸들러/훅 작성
+   - `skillHandlers/registry.ts` 에 등록
+   - 훅은 PRE_SKILL_LOOP / IN_ATTACK_RESOLVE 중 위치에 맞게 선택
+   - 몬스터 id 체크는 훅·핸들러 첫 줄 guard clause
+4. `enemyCombat.ts` 는 건드리지 않음
+5. balance-tester 또는 수동 플레이로 해당 전장 회귀
+
+### bossPatternState 리팩터 트리거 (일회성)
+몬스터 추가 작업 완료 시 `app/src/store/types.ts` 의 `bossPatternState` 객체 필드 수를 확인할 것.
+
+**트리거 조건** (둘 중 하나 충족 시 사용자에게 즉시 보고):
+- 전체 필드 수 **40개 초과**
+- 특정 몬스터 전용 필드 **20개 초과** (prefix 기준: `atarX_`, `howiX_`, `sraoshaX_` 등 단일 몬스터 소유 필드 카운트)
+
+**보고 메시지 예시**: "bossPatternState가 현재 N개 필드. namespace 격리 리팩터 권장 시점입니다. 계획 참조 필요."
+
+**자가 삭제 조건**: `bossPatternState` 에 `monsterState: Record<string, unknown>` 필드가 생기고 기존 몬스터 전용 필드 대부분(80% 이상)이 해당 namespace로 이관되면, **이 섹션을 CLAUDE.md에서 삭제**할 것. 리팩터가 완료되었다는 신호이므로 트리거 규칙은 더 이상 불필요.
