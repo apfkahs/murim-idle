@@ -747,7 +747,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       } else {
         // 배화교 행자 — 불씨 평타 추가 피해 배율 (기본 공격 대비)
         const emberStk = getEmberStacks(ctx.bossPatternState?.playerDotStacks);
-        const emberBonusMult = getEmberAttackBonusMult(ctx.bossPatternState?.playerDotStacks, ctx.currentEnemy?.id);
+        const emberBonusMult = getEmberAttackBonusMult(ctx.bossPatternState?.playerDotStacks, monDef?.emberAttackBonus ?? false);
 
         // 불씨가 있을 때만 분리 계산 (bonusPortion 얻기 위함), 그 외는 기존 calcEnemyDamage 경로 유지
         let incomingDmg: number;

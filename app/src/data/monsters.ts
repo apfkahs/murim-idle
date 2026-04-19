@@ -914,6 +914,7 @@ export interface MonsterDef {
   imageKey: string;
   attackMessages?: string[];
   emberAttackLogs?: string[];      // 불씨 스택 보유 시 평타 로그 (미지정 시 DEFAULT_EMBER_ATTACK_LOGS)
+  emberAttackBonus?: boolean;      // true면 평타가 ember 스택 배율 적용 (배화교 행자 등)
   equipDrops?: { equipId: string; chance: number }[];
   materialDrops?: { materialId: string; chance: number }[];
   description?: string;      // 도감 설명 (10마리 처치 시 해금)
@@ -1189,6 +1190,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
       { materialId: 'huimihan_janbul', chance: 0.025 },
     ],
     grade: 10, imageKey: 'baehwa_haengja',
+    emberAttackBonus: true,
     attackMessages: [
       '행자가 성화를 향해 두 손을 모은다. 그 기도 끝에서 불꽃이 튀어올랐다!',
       '행자의 손끝에서 불씨가 튀어 당신의 살갗에 닿았다!',
