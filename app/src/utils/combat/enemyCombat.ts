@@ -316,26 +316,6 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         continue;
       }
 
-      // ── 배화교 호위: 성화 맹세 (발동) ──
-      if (skill.type === 'sacred_oath') {
-        const heal = Math.floor(ctx.currentEnemy.maxHp * (skill.sacredOathHealPercent ?? 0.15));
-        ctx.currentEnemy = { ...ctx.currentEnemy, hp: Math.min(ctx.currentEnemy.hp + heal, ctx.currentEnemy.maxHp) };
-        const initE = skill.sacredOathInitialEmber ?? 1;
-        ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, initE);
-        ctx.bossPatternState.howiSacredOathState = {
-          phase: 'awakening',
-          awakeningTurnsLeft: skill.sacredOathAwakeningTurns ?? 1,
-          breathTurnCounter: 0,
-          frenzyEnterLogged: false,
-        };
-        if (skill.oneTime) ctx.bossPatternState.usedOneTimeSkills = [...(ctx.bossPatternState.usedOneTimeSkills ?? []), skill.id];
-        ctx.logFlavor(skill.sacredOathOnTriggerLogs?.[0] ?? '', 'right', { actor: 'enemy' });
-        ctx.logEvent({ side: 'incoming', actor: 'enemy', name: eName, tag: 'heal', value: heal, valueTier: 'heal' });
-        ctx.logEvent({ side: 'incoming', actor: 'enemy', chips: [{ kind: 'fire', label: '불씨', count: initE }] });
-        skillUsed = true;
-        break;
-      }
-
       // ── 6-B2: timed_buff ──
       if (skill.type === 'timed_buff') {
         if (Math.random() >= (skill.chance ?? 1)) continue;
