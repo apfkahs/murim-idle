@@ -10,7 +10,7 @@ import type { TickContext } from './tickContext';
 import { handleDodge } from './tickContext';
 import type { DotStackEntry } from '../../store/types';
 import {
-  applyEmberStack, getEmberStacks, getEmberAttackBonusMult, DEFAULT_EMBER_ATTACK_LOGS,
+  getEmberStacks, getEmberAttackBonusMult, DEFAULT_EMBER_ATTACK_LOGS,
 } from './emberUtils';
 import {
   initSkillRegistry, SKILL_HANDLERS, PRE_SKILL_LOOP_HOOKS, IN_ATTACK_RESOLVE_HOOKS,
@@ -646,98 +646,18 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
     }
 
     // ③ in-attack-resolve 훅: dodge 통과 후 공격 변조 (빈 배열 → fallthrough)
-    for (const hook of IN_ATTACK_RESOLVE_HOOKS) {
-      if (hook(ctx, pattern)) return;
-    }
-
-    // ── 배화교 호위: 화창격 분기 (광화 숨결 포함) ──
-    const hwachangSkill = pattern?.skills.find(s => s.type === 'baehwa_hwachang');
-    let hwachangTriggered = false;
-    if (hwachangSkill && ctx.currentEnemy?.id === 'baehwa_howi' && !skillUsed && !variableMultiHitTriggered) {
-      // 광화 숨결: 매 공격마다 카운터+1, breathInterval의 배수에서 불씨+1
-      if (ctx.bossPatternState?.howiSacredOathState?.phase === 'frenzy') {
-        const oath = ctx.bossPatternState.howiSacredOathState;
-        const nextCounter = oath.breathTurnCounter + 1;
-        ctx.bossPatternState.howiSacredOathState = { ...oath, breathTurnCounter: nextCounter };
-        const oathSkill = pattern.skills.find(s => s.type === 'sacred_oath');
-        const breathInterval = oathSkill?.sacredOathBreathIntervalTurns ?? 4;
-        if (nextCounter % breathInterval === 0) {
-          ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, 1);
-          const breathLogs = oathSkill?.sacredOathBreathLogs ?? [];
-          const msg = breathLogs.length ? breathLogs[Math.floor(Math.random() * breathLogs.length)] : '';
-          if (msg) ctx.logFlavor(msg, 'right', { actor: 'enemy' });
-          ctx.logEvent({ side: 'incoming', actor: 'enemy', chips: [{ kind: 'fire', label: '불씨', count: 1 }] });
-        }
+    //   vmh가 이미 공격을 수행한 경우엔 hook 건너뜀 (기존 hwachang 가드 `!variableMultiHitTriggered`와 동일)
+    if (!variableMultiHitTriggered) {
+      const extras = { monAttackMult, effectiveExternalDmgRed };
+      for (const hook of IN_ATTACK_RESOLVE_HOOKS) {
+        if (hook(ctx, pattern, extras)) return;
       }
-      // 3-way 분기
-      const frenzy = ctx.bossPatternState?.howiSacredOathState?.phase === 'frenzy';
-      const singleP = frenzy ? (hwachangSkill.hwachangFrenzySingleChance ?? 0.25) : (hwachangSkill.hwachangSingleChance ?? 0.21);
-      const doubleP = frenzy ? (hwachangSkill.hwachangFrenzyDoubleChance ?? 0.10) : (hwachangSkill.hwachangDoubleChance ?? 0.09);
-      const roll = Math.random();
-      if (roll < singleP) {
-        // 화창격 1타
-        const mult = hwachangSkill.hwachangSingleDamageMult ?? 1.8;
-        if (Math.random() < ctx.dodgeRate) {
-          handleDodge(ctx, `${eName}의 ${hwachangSkill.displayName ?? '화창격'}`);
-        } else {
-          const logs = frenzy ? (hwachangSkill.hwachangFrenzySingleLogs ?? []) : (hwachangSkill.hwachangSingleLogs ?? []);
-          let dmg = calcEnemyDamage(ctx.currentEnemy.attackPower, mult * monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
-          dmg = Math.floor(dmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-          ctx.hp -= dmg;
-          const emberHit = Math.random() < (hwachangSkill.hwachangSingleEmberChance ?? 0.70);
-          const chips: { kind: 'fire'; label: string; count: number }[] = emberHit ? [{ kind: 'fire', label: '불씨', count: 1 }] : [];
-          if (emberHit && ctx.bossPatternState) {
-            ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, 1);
-          }
-          const logMsg = logs.length ? logs[Math.floor(Math.random() * logs.length)] : '';
-          if (logMsg) ctx.logFlavor(logMsg, 'right', { actor: 'enemy' });
-          ctx.logEvent({
-            side: 'incoming', actor: 'enemy',
-            name: hwachangSkill.displayName ?? '화창격',
-            tag: 'hit', value: dmg, valueTier: 'normal',
-            chips,
-          });
-          if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
-          attackLanded = true;
-        }
-        hwachangTriggered = true;
-      } else if (roll < singleP + doubleP) {
-        // 화창2격
-        const mult = hwachangSkill.hwachangDoubleDamageMult ?? 1.2;
-        const logs = frenzy ? (hwachangSkill.hwachangFrenzyDoubleLogs ?? []) : (hwachangSkill.hwachangDoubleLogs ?? []);
-        const logMsg = logs.length ? logs[Math.floor(Math.random() * logs.length)] : '';
-        if (logMsg) ctx.logFlavor(logMsg, 'right', { actor: 'enemy' });
-        const hitChips: { kind: 'fire'; label: string; count: number }[] = [];
-        for (let hi = 0; hi < 2; hi++) {
-          if (Math.random() < ctx.dodgeRate) {
-            ctx.logEvent({ side: 'incoming', actor: 'enemy', name: `${hi + 1}타`, tag: 'dodge', value: '—', valueTier: 'muted' });
-            if (ctx.masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) ctx.dodgeCounterActive = true;
-          } else {
-            let dmg = calcEnemyDamage(ctx.currentEnemy.attackPower, mult * monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
-            dmg = Math.floor(dmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-            ctx.hp -= dmg;
-            const emberHit = Math.random() < (hwachangSkill.hwachangDoubleEmberChance ?? 0.60);
-            if (emberHit && ctx.bossPatternState) {
-              ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, 1);
-              hitChips.push({ kind: 'fire', label: '불씨', count: 1 });
-            }
-            ctx.logEvent({ side: 'incoming', actor: 'enemy', name: `${hi + 1}타`, tag: 'hit', value: dmg, valueTier: 'normal' });
-            attackLanded = true;
-          }
-        }
-        if (hitChips.length > 0) {
-          ctx.logEvent({ side: 'incoming', actor: 'enemy', chips: hitChips });
-        }
-        if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
-        hwachangTriggered = true;
-      }
-      // else: 평타 fallthrough (hwachangTriggered = false)
     }
 
     const rapidFireSkill = pattern?.skills.find(s => s.type === 'rapid_fire');
     const condStrikeSkill = pattern?.skills.find(s => s.type === 'condition_strike');
 
-    if (variableMultiHitTriggered || hwachangTriggered) {
+    if (variableMultiHitTriggered) {
       // already handled above
     } else if (rapidFireSkill && Math.random() < (rapidFireSkill.chance ?? 0)) {
       // rapid_fire: N타 속사 (일반 공격 대체)

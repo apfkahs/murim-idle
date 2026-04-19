@@ -12,8 +12,17 @@ export type SkillHandler = (
 // return true → skillUsed=true + skills 루프 break
 export type PreSkillLoopHook = (ctx: TickContext, pattern: BossPatternDef | null) => boolean;
 
-// return true → 일반 공격 후속 체인 전체 스킵
-export type InAttackResolveHook = (ctx: TickContext, pattern: BossPatternDef | null) => boolean;
+// return true → 일반 공격 후속 체인 전체 스킵 (legacy alternate chain + 기본 공격 모두 스킵)
+// extras: Phase 0에서 계산된 공격 배율·외공 감소치 (hook이 같은 값을 재사용하도록 전달 — RNG 재소비 방지)
+export interface InAttackResolveExtras {
+  monAttackMult: number;
+  effectiveExternalDmgRed: number;
+}
+export type InAttackResolveHook = (
+  ctx: TickContext,
+  pattern: BossPatternDef | null,
+  extras: InAttackResolveExtras,
+) => boolean;
 
 export const SKILL_HANDLERS: Record<string, SkillHandler> = {};
 export const PRE_SKILL_LOOP_HOOKS: PreSkillLoopHook[] = [];
