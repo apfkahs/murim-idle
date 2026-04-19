@@ -100,6 +100,21 @@ export function removeEmberStacks(
   return dots.filter(d => d.id !== EMBER_ID);
 }
 
+/**
+ * 이전 bossPatternState에서 ember를 이월해 새 state에 주입.
+ * 답파 다음 전투 / 보스 전환 등에서 호출.
+ */
+export function carryEmberInto<T extends { playerDotStacks?: DotStackEntry[] } | null>(
+  nextState: T,
+  prevDots: DotStackEntry[] | undefined | null,
+): T {
+  if (!nextState) return nextState;
+  const carried = getEmberEntry(prevDots);
+  if (!carried) return nextState;
+  nextState.playerDotStacks = [...(nextState.playerDotStacks ?? []), carried];
+  return nextState;
+}
+
 /** 출력 피해 감소 배율 (× max(0, 1 - min(cap, stacks × perStack))) */
 export function getEmberOutDamageMultiplier(entry: DotStackEntry | undefined): number {
   if (!entry) return 1;

@@ -17,7 +17,7 @@ import { spawnEnemy, calcPlayerAttackInterval } from '../combatCalc';
 import { PROF_LABEL } from './damageCalc';
 import type { TickContext } from './tickContext';
 import { applyBattleReset, applyUltCooldownReset, createBossPatternState, applyBattleStartSkills } from './tickContext';
-import { getEmberEntry } from './emberUtils';
+import { carryEmberInto } from './emberUtils';
 
 const B = BALANCE_PARAMS;
 
@@ -371,14 +371,8 @@ function processExploreMode(
           ctx.hiddenRevealedInField[ctx.currentField] = nextMon.id;
         }
         // 답파 불씨(魂焰) 유지 — 다음 전투로 이월
-        const carriedEmber = getEmberEntry(ctx.bossPatternState?.playerDotStacks);
-        ctx.bossPatternState = createBossPatternState(nextMon.id);
-        if (carriedEmber && ctx.bossPatternState) {
-          ctx.bossPatternState.playerDotStacks = [
-            ...(ctx.bossPatternState.playerDotStacks ?? []),
-            carriedEmber,
-          ];
-        }
+        const prevDots = ctx.bossPatternState?.playerDotStacks;
+        ctx.bossPatternState = carryEmberInto(createBossPatternState(nextMon.id), prevDots);
         ctx.beginCombat({
           enemyId: nextMon.id,
           playerAttackInterval: calcPlayerAttackInterval(ctx.state),
@@ -433,14 +427,8 @@ function processExploreMode(
             if (ctx.currentField) ctx.hiddenRevealedInField[ctx.currentField] = nextMon.id;
           }
           // 답파 불씨(魂焰) 유지 — 보스 전환에도 이월
-          const carriedEmberBoss = getEmberEntry(ctx.bossPatternState?.playerDotStacks);
-          ctx.bossPatternState = createBossPatternState(nextMon.id);
-          if (carriedEmberBoss && ctx.bossPatternState) {
-            ctx.bossPatternState.playerDotStacks = [
-              ...(ctx.bossPatternState.playerDotStacks ?? []),
-              carriedEmberBoss,
-            ];
-          }
+          const prevDotsBoss = ctx.bossPatternState?.playerDotStacks;
+          ctx.bossPatternState = carryEmberInto(createBossPatternState(nextMon.id), prevDotsBoss);
           ctx.beginCombat({
             enemyId: nextMon.id,
             playerAttackInterval: calcPlayerAttackInterval(ctx.state),
