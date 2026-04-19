@@ -12,6 +12,11 @@ import type { DotStackEntry } from '../../store/types';
 import {
   applyEmberStack, getEmberStacks, getEmberAttackBonusMult, DEFAULT_EMBER_ATTACK_LOGS,
 } from './emberUtils';
+import {
+  initSkillRegistry, SKILL_HANDLERS, PRE_SKILL_LOOP_HOOKS, IN_ATTACK_RESOLVE_HOOKS,
+} from './skillHandlers/registry';
+
+initSkillRegistry();
 
 export function executeEnemyAttackPhase(ctx: TickContext): void {
   if (!ctx.currentEnemy) return;
@@ -139,6 +144,13 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       ctx.logFlavor(`${eName}이(가) 기를 응집하고 있다...`, 'right', { actor: 'enemy', minor: true });
     }
     skillUsed = true;
+  }
+
+  // ② pre-skill-loop 훅: 몬스터별 매-tick 상태 기반 동작 (빈 배열 → fallthrough)
+  if (!skillUsed) {
+    for (const hook of PRE_SKILL_LOOP_HOOKS) {
+      if (hook(ctx, pattern)) { skillUsed = true; break; }
+    }
   }
 
   // ========================================
@@ -355,38 +367,12 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           || skill.type === 'baehwa_hwachang'
           || skill.type === 'sraosha_response') continue;
 
-      // ── 배화교: 성화 송가 ──
-      if (skill.type === 'baehwa_ember_song') {
-        if (Math.random() >= (skill.chance ?? 0.3)) continue; // 70% → 일반 공격으로 폴스루
-        // 송가 발동 (30%): 자가 회복 + 불씨 부여 확률
-        const healPct = (skill.selfHealPercent ?? 8) / 100;
-        const healAmt = Math.floor(ctx.currentEnemy.maxHp * healPct);
-        ctx.currentEnemy = { ...ctx.currentEnemy, hp: Math.min(ctx.currentEnemy.hp + healAmt, ctx.currentEnemy.maxHp) };
-        const applyE = Math.random() < (skill.emberApplyChance ?? 0.8);
-        if (applyE) {
-          ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, 1);
-          const logs = skill.emberSongSuccessLogs ?? [];
-          const msg = logs.length > 0 ? logs[Math.floor(Math.random() * logs.length)] : '';
-          ctx.logEvent({
-            side: 'incoming', actor: 'enemy', name: eName,
-            tag: 'heal', value: healAmt, valueTier: 'heal',
-          });
-          ctx.logFlavor(msg, 'right', { actor: 'enemy' });
-          ctx.logEvent({
-            side: 'incoming', actor: 'enemy',
-            chips: [{ kind: 'fire', label: '불씨', count: 1 }],
-          });
-        } else {
-          const logs = skill.emberSongFailLogs ?? [];
-          const msg = logs.length > 0 ? logs[Math.floor(Math.random() * logs.length)] : '';
-          ctx.logEvent({
-            side: 'incoming', actor: 'enemy', name: eName,
-            tag: 'heal', value: healAmt, valueTier: 'heal',
-          });
-          ctx.logFlavor(msg, 'right', { actor: 'enemy' });
-        }
-        skillUsed = true;
-        break;
+      // ① 레지스트리 조회: 등록된 핸들러 있으면 위임 (없으면 fallthrough)
+      const registeredHandler = SKILL_HANDLERS[skill.type];
+      if (registeredHandler) {
+        const result = registeredHandler(ctx, skill, pattern);
+        if (result.consumed) { skillUsed = true; break; }
+        continue;
       }
 
       // ── 배화교: 아타르로의 귀의 (발동) ──
@@ -825,6 +811,11 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         }
       }
       if (variableMultiHitTriggered) break;
+    }
+
+    // ③ in-attack-resolve 훅: dodge 통과 후 공격 변조 (빈 배열 → fallthrough)
+    for (const hook of IN_ATTACK_RESOLVE_HOOKS) {
+      if (hook(ctx, pattern)) return;
     }
 
     // ── 배화교 호위: 화창격 분기 (광화 숨결 포함) ──
