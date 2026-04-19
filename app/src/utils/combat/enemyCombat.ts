@@ -154,65 +154,6 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
   }
 
   // ========================================
-  // 배화교 행자 — 아타르로의 귀의 활성 중 턴 처리
-  // ========================================
-  if (!skillUsed && ctx.bossPatternState?.atarSacrificeState && ctx.currentEnemy) {
-    const atar = ctx.bossPatternState.atarSacrificeState;
-    const sacSkill = pattern?.skills.find(s => s.type === 'baehwa_atar_sacrifice');
-    // 매 턴 자가 회복
-    const healAmt = Math.floor(ctx.currentEnemy.maxHp * atar.perTurnHealPercent);
-    ctx.currentEnemy = { ...ctx.currentEnemy, hp: Math.min(ctx.currentEnemy.hp + healAmt, ctx.currentEnemy.maxHp) };
-    const healLogBase = sacSkill?.sacrificeHealLogs?.[0] ?? '*행자의 상처가 흰 재로 덮이며 아물어간다.*';
-    ctx.logEvent({
-      side: 'incoming', actor: 'enemy', name: eName,
-      tag: 'heal', value: healAmt, valueTier: 'heal',
-    });
-    ctx.logFlavor(healLogBase, 'right', { actor: 'enemy', minor: true });
-
-    const nextTurns = atar.turnsLeft - 1;
-    if (nextTurns <= 0) {
-      // 자폭 처리
-      const preEmberN = sacSkill?.sacrificeEndPreEmber ?? 3;
-      ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, preEmberN);
-      const curStacks = getEmberStacks(ctx.bossPatternState.playerDotStacks);
-      const dmgMult = sacSkill?.sacrificeDamageMultiplier ?? 1.5;
-
-      const bypassActive = ctx.currentEnemy?.bypassExternalGradeActive ?? false;
-      const externalDmgRed = calcExternalDmgReduction(ctx.state);
-      const effectiveExternalDmgRed = bypassActive ? 0 : externalDmgRed;
-
-      const selfDmgBase = calcEnemyDamage(
-        ctx.currentEnemy.attackPower,
-        curStacks * dmgMult,
-        ctx.dmgReduction,
-        undefined,
-        ctx.equipStats.bonusFixedDmgReduction ?? 0,
-        effectiveExternalDmgRed,
-      );
-      const selfDmg = Math.floor(selfDmgBase * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-      ctx.hp -= selfDmg;
-      // 플레이어 사망 시 처치 실패 플래그
-      if (ctx.hp <= 0 && sacSkill?.sacrificeKillFailureOnDeath) {
-        ctx.bossPatternState.killFailureSkipRewards = true;
-      }
-      // 행자 자멸
-      ctx.currentEnemy = { ...ctx.currentEnemy, hp: 0 };
-      ctx.bossPatternState.atarSacrificeState = null;
-      const destructMsg = sacSkill?.sacrificeSelfDestructLogs?.[0] ?? '';
-      ctx.logFlavor(destructMsg, 'right', { actor: 'enemy' });
-      ctx.logEvent({
-        side: 'incoming', actor: 'enemy', name: '행자의 폭발',
-        tag: 'hit', value: selfDmg, valueTier: 'hit-heavy',
-        chips: [{ kind: 'fire', label: '불씨', count: preEmberN }],
-      });
-      if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
-    } else {
-      ctx.bossPatternState.atarSacrificeState = { ...atar, turnsLeft: nextTurns };
-    }
-    skillUsed = true;
-  }
-
-  // ========================================
   // 배화교 호위 — 성화 맹세 각성 턴 처리
   // ========================================
   if (!skillUsed && ctx.bossPatternState?.howiSacredOathState?.phase === 'awakening' && ctx.currentEnemy) {

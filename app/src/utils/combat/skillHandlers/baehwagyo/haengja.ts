@@ -2,10 +2,75 @@
 import type { TickContext } from '../../tickContext';
 import type { BossPatternDef, BossSkillDef } from '../../../../data/monsters';
 import { getMonsterDef } from '../../../../data/monsters';
-import { applyEmberStack } from '../../emberUtils';
-import { SKILL_HANDLERS, type SkillHandlerResult } from '../registry';
+import { calcExternalDmgReduction } from '../../../combatCalc';
+import { calcEnemyDamage } from '../../damageCalc';
+import { applyEmberStack, getEmberStacks } from '../../emberUtils';
+import { PRE_SKILL_LOOP_HOOKS, SKILL_HANDLERS, type SkillHandlerResult } from '../registry';
 
 const HAENGJA_ID = 'baehwa_haengja';
+
+// 아타르로의 귀의 활성 중 매 공격 tick 처리 (자가회복 + 턴 카운트 + 자폭)
+function advanceAtarSacrificeTick(ctx: TickContext, pattern: BossPatternDef | null): boolean {
+  if (ctx.currentEnemy?.id !== HAENGJA_ID) return false;
+  if (!ctx.bossPatternState?.atarSacrificeState || !ctx.currentEnemy) return false;
+
+  const atar = ctx.bossPatternState.atarSacrificeState;
+  const sacSkill = pattern?.skills.find(s => s.type === 'baehwa_atar_sacrifice');
+  const monDef = getMonsterDef(ctx.currentEnemy.id);
+  const eName = monDef?.name ?? ctx.currentEnemy.id;
+
+  // 매 턴 자가 회복
+  const healAmt = Math.floor(ctx.currentEnemy.maxHp * atar.perTurnHealPercent);
+  ctx.currentEnemy = { ...ctx.currentEnemy, hp: Math.min(ctx.currentEnemy.hp + healAmt, ctx.currentEnemy.maxHp) };
+  const healLogBase = sacSkill?.sacrificeHealLogs?.[0] ?? '*행자의 상처가 흰 재로 덮이며 아물어간다.*';
+  ctx.logEvent({
+    side: 'incoming', actor: 'enemy', name: eName,
+    tag: 'heal', value: healAmt, valueTier: 'heal',
+  });
+  ctx.logFlavor(healLogBase, 'right', { actor: 'enemy', minor: true });
+
+  const nextTurns = atar.turnsLeft - 1;
+  if (nextTurns <= 0) {
+    // 자폭 처리
+    const preEmberN = sacSkill?.sacrificeEndPreEmber ?? 3;
+    ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, preEmberN);
+    const curStacks = getEmberStacks(ctx.bossPatternState.playerDotStacks);
+    const dmgMult = sacSkill?.sacrificeDamageMultiplier ?? 1.5;
+
+    const bypassActive = ctx.currentEnemy?.bypassExternalGradeActive ?? false;
+    const externalDmgRed = calcExternalDmgReduction(ctx.state);
+    const effectiveExternalDmgRed = bypassActive ? 0 : externalDmgRed;
+
+    const selfDmgBase = calcEnemyDamage(
+      ctx.currentEnemy.attackPower,
+      curStacks * dmgMult,
+      ctx.dmgReduction,
+      undefined,
+      ctx.equipStats.bonusFixedDmgReduction ?? 0,
+      effectiveExternalDmgRed,
+    );
+    const selfDmg = Math.floor(selfDmgBase * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
+    ctx.hp -= selfDmg;
+    // 플레이어 사망 시 처치 실패 플래그
+    if (ctx.hp <= 0 && sacSkill?.sacrificeKillFailureOnDeath) {
+      ctx.bossPatternState.killFailureSkipRewards = true;
+    }
+    // 행자 자멸
+    ctx.currentEnemy = { ...ctx.currentEnemy, hp: 0 };
+    ctx.bossPatternState.atarSacrificeState = null;
+    const destructMsg = sacSkill?.sacrificeSelfDestructLogs?.[0] ?? '';
+    ctx.logFlavor(destructMsg, 'right', { actor: 'enemy' });
+    ctx.logEvent({
+      side: 'incoming', actor: 'enemy', name: '행자의 폭발',
+      tag: 'hit', value: selfDmg, valueTier: 'hit-heavy',
+      chips: [{ kind: 'fire', label: '불씨', count: preEmberN }],
+    });
+    if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
+  } else {
+    ctx.bossPatternState.atarSacrificeState = { ...atar, turnsLeft: nextTurns };
+  }
+  return true;
+}
 
 // 성화 송가 (발동): 70% 폴스루(일반 공격) · 30% 자가회복 + 불씨 부여 확률
 function handleEmberSong(ctx: TickContext, skill: BossSkillDef, _pattern: BossPatternDef): SkillHandlerResult {
@@ -68,6 +133,7 @@ function handleAtarSacrifice(ctx: TickContext, skill: BossSkillDef, _pattern: Bo
 }
 
 export function registerBaehwaHaengja(): void {
+  PRE_SKILL_LOOP_HOOKS.push(advanceAtarSacrificeTick);
   SKILL_HANDLERS['baehwa_ember_song'] = handleEmberSong;
   SKILL_HANDLERS['baehwa_atar_sacrifice'] = handleAtarSacrifice;
 }
