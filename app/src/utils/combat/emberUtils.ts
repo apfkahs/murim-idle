@@ -62,10 +62,12 @@ function createEmberEntry(stacks: number): DotStackEntry {
   };
 }
 
-/** 평타 보너스 배율 계산 (몬스터 무관) */
+/** 평타 보너스 배율 계산 — ember bonus 수혜 몬스터(baehwa_haengja)만 적용 */
 export function getEmberAttackBonusMult(
   dots: DotStackEntry[] | undefined | null,
+  attackerId?: string,
 ): number {
+  if (attackerId !== 'baehwa_haengja') return 1;
   const stacks = getEmberStacks(dots);
   if (stacks <= 0) return 1;
   return 1 + stacks * EMBER_DEFAULTS.attackDamageBonusPerStack;

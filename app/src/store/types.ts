@@ -30,6 +30,67 @@ export interface BattleResult {
 }
 
 // ============================================================
+// 전투 로그 v6 — 2축 타임라인 구조
+// ============================================================
+export type BattleLogActor = 'player' | 'enemy' | 'system';
+export type BattleLogKind =
+  | 'event'         // turn-events 내부 (outgoing/incoming)
+  | 'flavor'        // side-left/right/both 서술문
+  | 'dialogue'      // 대사 (「…」)
+  | 'law'           // law-banner (중앙 선언 배너)
+  | 'kill'          // kill-banner (처치 배너)
+  | 'combat-start'  // combat-header (새 전투 경계 마커)
+  | 'system';       // section-divider · 경지돌파 등
+
+export type BattleLogTag =
+  | 'crit' | 'special' | 'hit' | 'heal' | 'block' | 'dodge';
+
+export type BattleLogValueTier =
+  | 'normal' | 'special' | 'crit' | 'super-crit' | 'hit-heavy' | 'heal' | 'muted';
+
+export interface BattleLogChip {
+  kind: 'fire' | 'status';     // fire=불씨, status=무뎌짐 등
+  label: string;
+  count?: number;              // 불씨 +N
+}
+
+export interface BattleLogEntry {
+  id: number;                  // push 시 자동 증가
+  time: number;                // 경과 초(combatElapsed, 소수 1자리)
+  actor: BattleLogActor;
+  kind: BattleLogKind;
+
+  // event용
+  side?: 'outgoing' | 'incoming';
+  name?: string;
+  subName?: string;
+  tag?: BattleLogTag;
+  value?: number | '—';
+  valueTier?: BattleLogValueTier;
+  chips?: BattleLogChip[];
+
+  // flavor/dialogue용
+  text?: string;
+  textSide?: 'left' | 'right' | 'both';
+  minor?: boolean;
+
+  // law용
+  lawFlavor?: string;
+  lawName?: string;
+  lawText?: string;
+
+  // kill용
+  enemyName?: string;
+  rewards?: { label: string; value: string }[];
+
+  // combat-start용
+  enemyId?: string;
+  playerAttackInterval?: number;
+  enemyAttackInterval?: number;
+  enemyHealInterval?: number;
+}
+
+// ============================================================
 // 부유 텍스트 (전투 애니메이션)
 // ============================================================
 export interface FloatingText {
@@ -155,7 +216,10 @@ export interface GameState {
     proficiencyGains?: Record<string, number>;
     materialDrops?: Record<string, number>;
   };
-  battleLog: string[];
+  battleLog: BattleLogEntry[];
+  combatElapsed: number;
+  logEntryIdSeq: number;
+  lawActiveFromSkillId: string | null;
 
   playerAttackTimer: number;
   enemyAttackTimer: number;
@@ -167,6 +231,7 @@ export interface GameState {
   totalYasanKills: number;
   totalKills: number;
   hiddenRevealedInField: Record<string, string | null>;
+  firstEnteredFields: Record<string, boolean>;
 
   // 보스 패턴
   bossPatternState: {
@@ -215,6 +280,15 @@ export interface GameState {
       endDamageMultiplier: number;
     } | null;
     killFailureSkipRewards?: boolean;     // 이번 처치는 드랍·숙련도 미지급
+    // === 배화교 호위 신규 ===
+    sraoshaTier?: number;                 // 현재 단계 (0~3)
+    sraoshaLastLoggedTier?: number;       // 마지막으로 로그 찍힌 단계 (경계 로그 중복 방지)
+    howiSacredOathState?: {
+      phase: 'awakening' | 'frenzy';
+      awakeningTurnsLeft: number;
+      breathTurnCounter: number;
+      frenzyEnterLogged: boolean;
+    } | null;
   } | null;
   playerFinisherCharge?: {
     artId: string;

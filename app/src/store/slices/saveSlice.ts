@@ -1,16 +1,16 @@
 import type { StateCreator } from 'zustand';
 import type { GameStore } from '../gameStore';
-import type { OfflineResult, SaveMeta, GameState } from '../types';
+import type { OfflineResult, SaveMeta, GameState, BattleLogEntry } from '../types';
 import { getTierDef } from '../../data/tiers';
 import { getArtDef } from '../../data/arts';
-import { calcMaxHp, calcTierMultiplier, calcStamina, spawnEnemy, CLEAR_BATTLE_STATE, gatherEquipmentStats } from '../../utils/combatCalc';
+import { calcMaxHp, calcTierMultiplier, calcStamina, spawnEnemy, CLEAR_BATTLE_STATE, gatherEquipmentStats, calcPlayerAttackInterval } from '../../utils/combatCalc';
 import { simulateTick } from '../../utils/gameLoop';
 import { buildAchievementContext } from '../../utils/combat/damageCalc';
 import { ACHIEVEMENTS, CODEX_MONSTERS } from '../../data/achievements';
 import { createInitialState } from '../initialState';
 import { FIELDS, getFieldDef, generateExploreOrder } from '../../data/fields';
 import { getMonsterDef } from '../../data/monsters';
-import { createBossPatternState } from '../../utils/combat/tickContext';
+import { createBossPatternState, applyBattleStartSkills } from '../../utils/combat/tickContext';
 import { BALANCE_PARAMS } from '../../data/balance';
 
 export type SaveSlice = {
@@ -62,6 +62,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
       totalKills: state.totalKills,
       repeatableAchCounts: state.repeatableAchCounts,
       hiddenRevealedInField: state.hiddenRevealedInField,
+      firstEnteredFields: state.firstEnteredFields,
       bossPatternState: state.bossPatternState,
       playerStunTimer: state.playerStunTimer,
       lastEnemyAttack: state.lastEnemyAttack,
@@ -187,6 +188,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
           Object.values((data.killCounts ?? {}) as Record<string, number>).reduce((s, n) => s + n, 0),
         ),
         hiddenRevealedInField: data.hiddenRevealedInField ?? {},
+        firstEnteredFields: data.firstEnteredFields ?? {},
         bossPatternState: data.bossPatternState ?? null,
         playerStunTimer: data.playerStunTimer ?? 0,
         lastEnemyAttack: data.lastEnemyAttack ?? null,
@@ -195,12 +197,16 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
           firstBreakthroughNotified: data.tutorialFlags?.firstBreakthroughNotified ?? false,
         },
         lastTickTime: Date.now(),
-        battleMode: (data.battleMode && data.battleMode !== 'none' && !data.currentEnemy)
-          ? 'none'
-          : (data.battleMode ?? 'none'),
+        ...((): { battleMode: GameState['battleMode']; currentField: GameState['currentField']; currentEnemy: GameState['currentEnemy'] } => {
+          const staleCurrentField = data.currentField && !FIELDS.find(f => f.id === data.currentField);
+          return {
+            battleMode: staleCurrentField ? 'none'
+              : ((data.battleMode && data.battleMode !== 'none' && !data.currentEnemy) ? 'none' : (data.battleMode ?? 'none')),
+            currentField: staleCurrentField ? null : (data.currentField ?? null),
+            currentEnemy: staleCurrentField ? null : (data.currentEnemy ?? null),
+          };
+        })(),
         huntTarget: data.huntTarget ?? null,
-        currentField: data.currentField ?? null,
-        currentEnemy: data.currentEnemy ?? null,
         exploreStep: data.exploreStep ?? 0,
         exploreOrder: data.exploreOrder ?? [],
         isBossPhase: data.isBossPhase ?? false,
@@ -217,6 +223,8 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
           const saved = data.fieldUnlocks ?? {
             training: true, yasan: false, inn: false,
             cheonsan_jangmak: false, cheonsan_godo: false, cheonsan_simjang: false,
+            baehwagyo_oemun: false, baehwagyo_naemun: false,
+            baehwagyo_sawon: false, baehwagyo_simcheo: false,
           };
           const rawKillCounts: Record<string, number> = data.killCounts ?? {};
           const mats: Record<string, number> = data.materials ?? {};
@@ -260,7 +268,24 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         repeatableAchCounts: data.repeatableAchCounts ?? {},
         currentSaveSlot: slot,
         battleResult: null,
-        battleLog: [],
+        battleLog: (() => {
+          // 전투 재개 시 combat-header가 비지 않도록 인공 combat-start 엔트리 삽입
+          const mode = (data.battleMode ?? 'none') as GameState['battleMode'];
+          const enemy = data.currentEnemy as GameState['currentEnemy'];
+          if (mode !== 'none' && enemy) {
+            const artificial: BattleLogEntry = {
+              id: 0, time: 0, actor: 'system', kind: 'combat-start',
+              enemyId: enemy.id,
+              playerAttackInterval: calcPlayerAttackInterval(data as GameState),
+              enemyAttackInterval: enemy.attackInterval,
+            };
+            return [artificial];
+          }
+          return [];
+        })(),
+        combatElapsed: data.combatElapsed ?? 0,
+        logEntryIdSeq: data.logEntryIdSeq ?? 1,
+        lawActiveFromSkillId: data.lawActiveFromSkillId ?? null,
       });
 
       // 로드 후 업적 전체 재계산: 누락 업적 소급 부여 + achievementCount 정정
@@ -430,30 +455,73 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
       const fieldId = currentState.currentField;
       const field = getFieldDef(fieldId);
       if (field?.canExplore) {
-        const order = generateExploreOrder(field);
-        const firstMon = getMonsterDef(order[0]);
-        if (firstMon) {
-          const hiddenRevealedInField = { ...currentState.hiddenRevealedInField };
-          if (firstMon.isHidden) {
-            hiddenRevealedInField[fieldId] = order[0];
-          }
+        if (field.firstEntryEvent && !currentState.firstEnteredFields?.[fieldId]) {
+          // 첫 진입 이벤트 미발동 상태 — 이벤트 적용 후 시뮬레이션 진입
+          const ev = field.firstEntryEvent;
+          let seqEv = currentState.logEntryIdSeq ?? 0;
+          const evEntries: BattleLogEntry[] = ev.logs.map(text => ({
+            id: seqEv++, time: 0, actor: 'system' as const, kind: 'system' as const, text,
+          }));
           currentState = {
             ...currentState,
-            ...CLEAR_BATTLE_STATE,
-            battleMode: 'explore',
-            currentEnemy: spawnEnemy(firstMon),
-            bossPatternState: createBossPatternState(order[0]),
-            currentField: fieldId,
-            exploreOrder: order,
-            exploreStep: 0,
-            isBossPhase: false,
-            bossTimer: 0,
-            explorePendingRewards: { drops: [] },
-            battleResult: null,
-            hiddenRevealedInField,
-            playerAttackTimer: BALANCE_PARAMS.BASE_ATTACK_INTERVAL,
-            enemyAttackTimer: firstMon.attackInterval,
+            firstEnteredFields: { ...currentState.firstEnteredFields, [fieldId]: true },
+            materials: { ...currentState.materials, [ev.materialDrop]: (currentState.materials[ev.materialDrop] ?? 0) + 1 },
+            obtainedMaterials: currentState.obtainedMaterials.includes(ev.materialDrop)
+              ? currentState.obtainedMaterials
+              : [...currentState.obtainedMaterials, ev.materialDrop],
+            battleLog: [...currentState.battleLog, ...evEntries],
+            logEntryIdSeq: seqEv,
+            battleResult: {
+              type: 'explore_win',
+              drops: [],
+              proficiencyGains: {},
+              materialDrops: { [ev.materialDrop]: 1 },
+              message: ev.resultMessage,
+              recentBattleLog: [...ev.logs],
+            },
           } as GameState;
+        } else {
+          const order = generateExploreOrder(field);
+          const firstMon = getMonsterDef(order[0]);
+          if (firstMon) {
+            const hiddenRevealedInField = { ...currentState.hiddenRevealedInField };
+            if (firstMon.isHidden) {
+              hiddenRevealedInField[fieldId] = order[0];
+            }
+            const bps468 = createBossPatternState(order[0]);
+            let seqA = currentState.logEntryIdSeq ?? 0;
+            const startEntryA: BattleLogEntry = {
+              id: seqA++, time: 0, actor: 'system', kind: 'combat-start',
+              enemyId: firstMon.id,
+              playerAttackInterval: calcPlayerAttackInterval(currentState),
+              enemyAttackInterval: firstMon.attackInterval,
+            };
+            const battleLogA: BattleLogEntry[] = [...(currentState.battleLog ?? []), startEntryA];
+            const appliedA = bps468
+              ? applyBattleStartSkills(firstMon.id, currentState.equippedArts, bps468, battleLogA, seqA)
+              : null;
+            currentState = {
+              ...currentState,
+              ...CLEAR_BATTLE_STATE,
+              battleMode: 'explore',
+              currentEnemy: spawnEnemy(firstMon),
+              bossPatternState: appliedA ? appliedA.state : bps468,
+              currentField: fieldId,
+              exploreOrder: order,
+              exploreStep: 0,
+              isBossPhase: false,
+              bossTimer: 0,
+              explorePendingRewards: { drops: [] },
+              battleResult: null,
+              hiddenRevealedInField,
+              playerAttackTimer: BALANCE_PARAMS.BASE_ATTACK_INTERVAL,
+              enemyAttackTimer: firstMon.attackInterval,
+              battleLog: appliedA ? appliedA.battleLog : battleLogA,
+              logEntryIdSeq: appliedA ? appliedA.logEntryIdSeq : seqA,
+              combatElapsed: 0,
+              lawActiveFromSkillId: appliedA ? appliedA.lawActiveFromSkillId : null,
+            } as GameState;
+          }
         }
       }
     }
@@ -509,30 +577,68 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         const fieldId = currentState.currentField;
         const field = getFieldDef(fieldId);
         if (field?.canExplore) {
-          const order = generateExploreOrder(field);
-          const firstMon = getMonsterDef(order[0]);
-          if (firstMon) {
-            const hiddenRevealedInField = { ...currentState.hiddenRevealedInField };
-            if (firstMon.isHidden) {
-              hiddenRevealedInField[fieldId] = order[0];
-            }
+          if (field.firstEntryEvent && !currentState.firstEnteredFields?.[fieldId]) {
+            // 첫 진입 이벤트 미발동 — 이벤트 적용 후 다음 루프는 일반 전투로 재시작됨
+            const ev = field.firstEntryEvent;
             currentState = {
               ...currentState,
-              ...CLEAR_BATTLE_STATE,
-              battleMode: 'explore',
-              currentEnemy: spawnEnemy(firstMon),
-              bossPatternState: createBossPatternState(order[0]),
-              currentField: fieldId,
-              exploreOrder: order,
-              exploreStep: 0,
-              isBossPhase: false,
-              bossTimer: 0,
-              explorePendingRewards: { drops: [] },
-              battleResult: null,
-              hiddenRevealedInField,
-              playerAttackTimer: BALANCE_PARAMS.BASE_ATTACK_INTERVAL,
-              enemyAttackTimer: firstMon.attackInterval,
+              firstEnteredFields: { ...currentState.firstEnteredFields, [fieldId]: true },
+              materials: { ...currentState.materials, [ev.materialDrop]: (currentState.materials[ev.materialDrop] ?? 0) + 1 },
+              obtainedMaterials: currentState.obtainedMaterials.includes(ev.materialDrop)
+                ? currentState.obtainedMaterials
+                : [...currentState.obtainedMaterials, ev.materialDrop],
+              battleLog: [...currentState.battleLog, ...ev.logs],
+              battleResult: {
+                type: 'explore_win',
+                drops: [],
+                proficiencyGains: {},
+                materialDrops: { [ev.materialDrop]: 1 },
+                message: ev.resultMessage,
+                recentBattleLog: [...ev.logs],
+              },
             } as GameState;
+          } else {
+            const order = generateExploreOrder(field);
+            const firstMon = getMonsterDef(order[0]);
+            if (firstMon) {
+              const hiddenRevealedInField = { ...currentState.hiddenRevealedInField };
+              if (firstMon.isHidden) {
+                hiddenRevealedInField[fieldId] = order[0];
+              }
+              const bps569 = createBossPatternState(order[0]);
+              let seqB = currentState.logEntryIdSeq ?? 0;
+              const startEntryB: BattleLogEntry = {
+                id: seqB++, time: 0, actor: 'system', kind: 'combat-start',
+                enemyId: firstMon.id,
+                playerAttackInterval: calcPlayerAttackInterval(currentState),
+                enemyAttackInterval: firstMon.attackInterval,
+              };
+              const battleLogB: BattleLogEntry[] = [...(currentState.battleLog ?? []), startEntryB];
+              const appliedB = bps569
+                ? applyBattleStartSkills(firstMon.id, currentState.equippedArts, bps569, battleLogB, seqB)
+                : null;
+              currentState = {
+                ...currentState,
+                ...CLEAR_BATTLE_STATE,
+                battleMode: 'explore',
+                currentEnemy: spawnEnemy(firstMon),
+                bossPatternState: appliedB ? appliedB.state : bps569,
+                currentField: fieldId,
+                exploreOrder: order,
+                exploreStep: 0,
+                isBossPhase: false,
+                bossTimer: 0,
+                explorePendingRewards: { drops: [] },
+                battleResult: null,
+                hiddenRevealedInField,
+                playerAttackTimer: BALANCE_PARAMS.BASE_ATTACK_INTERVAL,
+                enemyAttackTimer: firstMon.attackInterval,
+                battleLog: appliedB ? appliedB.battleLog : battleLogB,
+                logEntryIdSeq: appliedB ? appliedB.logEntryIdSeq : seqB,
+                combatElapsed: 0,
+                lawActiveFromSkillId: appliedB ? appliedB.lawActiveFromSkillId : null,
+              } as GameState;
+            }
           }
         }
       }

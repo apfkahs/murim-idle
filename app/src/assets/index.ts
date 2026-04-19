@@ -57,6 +57,9 @@ const ENEMY_EMOJI: Record<string, string> = {
   // 새외 몬스터
   hwahyulsa: '🐍',
   eunrang: '🐺',
+  // 배화교 몬스터
+  baehwa_haengja: '🔥',
+  baehwa_howi: '🛡️',
 };
 
 export function getEnemyImage(key: string): string | null {

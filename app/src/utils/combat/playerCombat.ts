@@ -109,7 +109,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
             const fcChargeStunImmune = ctx.bossPatternState?.bossChargeStunImmune ?? false;
             if (fcStunDur > 0 && !fcChargeStunImmune && (!fcEnemyDefStun?.isBoss || fcEnemyDefStun?.stunnable)) {
               ctx.currentEnemy!.enemyStunTimer = fcStunDur;
-              ctx.battleLog.push(`적이 ${fcStunDur}초간 기절했다!`);
+              ctx.logFlavor(`적이 ${fcStunDur}초간 기절했다!`, 'right', { actor: 'enemy', minor: true });
               // 6-E: 스턴 시 연동 (finisher 경로)
               if (ctx.bossPatternState) {
                 const fcMonPattern2 = BOSS_PATTERNS[ctx.currentEnemy!.id] ?? null;
@@ -136,11 +136,10 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           }
           const fcUltChangeName = artMasteryIds2.map(id => fcDef!.masteries.find(m => m.id === id)?.effects?.ultChange?.name).find(Boolean);
           const fcAttackName = fcUltChangeName ?? fcDef!.ultMessages?.[0] ?? '절초';
-          const fcEName = getMonsterDef(ctx.currentEnemy!.id)?.name ?? ctx.currentEnemy!.id;
           if (fcCrit) {
-            ctx.battleLog.push(`치명타! 절초 — ${fcAttackName}! ${fcEName}에게 ${fcDmg} 피해!`);
+            ctx.logEvent({ side: 'outgoing', actor: 'player', name: fcAttackName, subName: '· 절초', tag: 'crit', value: fcDmg, valueTier: 'super-crit' });
           } else {
-            ctx.battleLog.push(`절초 — ${fcAttackName}! ${fcEName}에게 ${fcDmg} 피해!`);
+            ctx.logEvent({ side: 'outgoing', actor: 'player', name: fcAttackName, subName: '· 절초', tag: 'special', value: fcDmg, valueTier: 'special' });
           }
           if (!ctx.isSimulating) {
             ctx.floatingTexts = [...ctx.floatingTexts, { id: ctx.nextFloatingId++, text: `${fcDmg} 절초!`, type: 'critical' as const, timestamp: Date.now() }];
@@ -227,7 +226,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           ctx.stamina -= effectiveUltCostFinal;
           ctx.ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
           ctx.playerFinisherCharge = { artId: chosenId, attackFirst: false, timeLeft: ultChargeTime * effectiveInterval };
-          ctx.battleLog.push('기를 응집하기 시작했다...');
+          ctx.logFlavor('기를 응집하기 시작했다...', 'left', { actor: 'player', minor: true });
           isUlt = false;
         } else {
           isUlt = true;
@@ -351,7 +350,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
       // dodge_buff_passive 우선 (dodge_buff_passive가 있으면 passive_dodge와 택일이 아닌 별개)
       if (dodgeBuffPassiveSkill && Math.random() < (dodgeBuffPassiveSkill.dodgeChance ?? 0)) {
         monsterDodged = true;
-        ctx.battleLog.push(dodgeBuffPassiveSkill.logMessages[0]);
+        ctx.logFlavor(dodgeBuffPassiveSkill.logMessages[0], 'right', { actor: 'enemy' });
         if (!ctx.isSimulating) {
           ctx.floatingTexts = [...ctx.floatingTexts, { id: ctx.nextFloatingId++, text: '회피!', type: 'evade' as const, timestamp: Date.now() }];
           if (ctx.floatingTexts.length > 15) ctx.floatingTexts = ctx.floatingTexts.slice(-15);
@@ -369,7 +368,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
         }
       } else if (monDodgeSkill && Math.random() < (monDodgeSkill.dodgeChance ?? 0)) {
         monsterDodged = true;
-        ctx.battleLog.push(monDodgeSkill.logMessages[0]);
+        ctx.logFlavor(monDodgeSkill.logMessages[0], 'right', { actor: 'enemy' });
         if (!ctx.isSimulating) {
           ctx.floatingTexts = [...ctx.floatingTexts, { id: ctx.nextFloatingId++, text: '회피!', type: 'evade' as const, timestamp: Date.now() }];
           if (ctx.floatingTexts.length > 15) ctx.floatingTexts = ctx.floatingTexts.slice(-15);
@@ -385,7 +384,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
         const absorbSkill = monPattern?.skills.find(s => s.type === 'passive_dmg_absorb');
         if (absorbSkill && Math.random() < (absorbSkill.absorbChance ?? 0)) {
           damage = Math.floor(damage * (absorbSkill.absorbMultiplier ?? 0.5));
-          ctx.battleLog.push(absorbSkill.logMessages[0]);
+          ctx.logFlavor(absorbSkill.logMessages[0], 'right', { actor: 'enemy', minor: true });
         }
 
         // 6-D: 철벽 감소 (보스가 받는 피해 감소)
@@ -431,7 +430,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
             if (guardSkill?.firstHitLogMessagesNoArt && guardSkill.firstHitLogMessagesNoArt.length > 0) {
               const msg = guardSkill.firstHitLogMessagesNoArt[
                 Math.floor(Math.random() * guardSkill.firstHitLogMessagesNoArt.length)];
-              ctx.battleLog.push(msg);
+              ctx.logFlavor(msg, 'left', { actor: 'player' });
             }
           }
         } else if (ctx.bossPatternState?.guardDamageTakenMultiplier === 1
@@ -444,12 +443,27 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           if (guardSkill?.firstHitLogMessagesWithArt && guardSkill.firstHitLogMessagesWithArt.length > 0) {
             const msg = guardSkill.firstHitLogMessagesWithArt[
               Math.floor(Math.random() * guardSkill.firstHitLogMessagesWithArt.length)];
-            ctx.battleLog.push(msg);
+            ctx.logFlavor(msg, 'left', { actor: 'player' });
           }
         }
 
         ctx.currentEnemy!.hp -= damage;
         ctx.currentBattleDamageDealt += damage;
+
+        // 배화교 호위 — 성화 맹세 각성 턴: 플레이어 공격 시 공격당 반사 불씨
+        if (damage > 0 && ctx.bossPatternState?.howiSacredOathState?.phase === 'awakening') {
+          const oathSkill = BOSS_PATTERNS[ctx.currentEnemy!.id]?.skills.find(
+            (s: BossSkillDef) => s.type === 'sacred_oath');
+          const reflectN = oathSkill?.sacredOathReflectPerHit ?? 1;
+          ctx.bossPatternState.playerDotStacks = applyEmberStack(
+            ctx.bossPatternState.playerDotStacks, reflectN);
+          if (oathSkill?.sacredOathReflectLogs?.length) {
+            const msg = oathSkill.sacredOathReflectLogs[
+              Math.floor(Math.random() * oathSkill.sacredOathReflectLogs.length)];
+            ctx.logFlavor(msg, 'right', { actor: 'enemy' });
+            ctx.logEvent({ side: 'incoming', actor: 'enemy', chips: [{ kind: 'fire', label: '불씨', count: reflectN }] });
+          }
+        }
 
         // 배화교 행자 — 아타르로의 귀의: 플레이어 공격 시 공격당 불씨 +1 반사
         if (damage > 0 && ctx.bossPatternState?.atarSacrificeState) {
@@ -462,7 +476,8 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           if (sacSkill?.sacrificeReflectLogs && sacSkill.sacrificeReflectLogs.length > 0) {
             const msg = sacSkill.sacrificeReflectLogs[
               Math.floor(Math.random() * sacSkill.sacrificeReflectLogs.length)];
-            ctx.battleLog.push(`${msg} (불씨 +${reflectN})`);
+            ctx.logFlavor(msg, 'right', { actor: 'enemy' });
+            ctx.logEvent({ side: 'incoming', actor: 'enemy', chips: [{ kind: 'fire', label: '불씨', count: reflectN }] });
           }
         }
 
@@ -479,7 +494,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           const chargeStunImmune = ctx.bossPatternState?.bossChargeStunImmune ?? false;
           if (stunDur > 0 && !chargeStunImmune && (!stunEnemyDef?.isBoss || stunEnemyDef?.stunnable)) {
             ctx.currentEnemy.enemyStunTimer = stunDur;
-            ctx.battleLog.push(`적이 ${stunDur}초간 기절했다!`);
+            ctx.logFlavor(`적이 ${stunDur}초간 기절했다!`, 'right', { actor: 'enemy', minor: true });
 
             // 6-E: 스턴 시 연동 처리
             if (ctx.bossPatternState) {
@@ -497,6 +512,14 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
                 ctx.bossPatternState.enemyBuffs = ctx.bossPatternState.enemyBuffs.filter(b => !b.removableByStun);
               }
             }
+          } else if (stunDur > 0 && chargeStunImmune && ctx.bossPatternState?.howiSacredOathState?.phase === 'frenzy') {
+            const oathSkill = BOSS_PATTERNS[ctx.currentEnemy!.id]?.skills.find(
+              (s: BossSkillDef) => s.type === 'sacred_oath');
+            if (oathSkill?.sacredOathStunImmuneLogs?.length) {
+              const msg = oathSkill.sacredOathStunImmuneLogs[
+                Math.floor(Math.random() * oathSkill.sacredOathStunImmuneLogs.length)];
+              ctx.logFlavor(msg, 'right', { actor: 'enemy' });
+            }
           }
         }
 
@@ -508,8 +531,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
             if ((ctx.bossPatternState.cheolbyeokStacks ?? 0) < maxStacks) {
               ctx.bossPatternState.cheolbyeokStacks = (ctx.bossPatternState.cheolbyeokStacks ?? 0) + 1;
               const cheolMsg = cheolSkill.logMessages[Math.floor(Math.random() * cheolSkill.logMessages.length)];
-              const cheolEName = getMonsterDef(ctx.currentEnemy!.id)?.name ?? ctx.currentEnemy!.id;
-              ctx.battleLog.push(`${cheolEName}: ${cheolMsg}`);
+              ctx.logFlavor(cheolMsg, 'right', { actor: 'enemy', minor: true });
             }
           }
         }
@@ -555,28 +577,28 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
             });
           }
           const eName2 = getMonsterDef(ctx.currentEnemy!.id)?.name ?? ctx.currentEnemy!.id;
-          ctx.battleLog.push(`${eqDef.name}의 독이 ${eName2}에게 스며들었다!`);
+          ctx.logFlavor(`${eqDef.name}의 독이 ${eName2}에게 스며들었다!`, 'left', { actor: 'player', minor: true });
         }
-
-        const monDef = getMonsterDef(ctx.currentEnemy!.id);
-        const eName = monDef?.name ?? ctx.currentEnemy!.id;
 
         if (isUlt) {
+          // 비기·절초가 치명타로 들어갈 때만 큰 크기(super-crit) 사용. 그 외엔 special.
+          const ultTier: 'super-crit' | 'special' = isCritical ? 'super-crit' : 'special';
+          const ultTag: 'crit' | 'special' = isCritical ? 'crit' : 'special';
           if (attackName === '태산압정') {
-            ctx.battleLog.push(`비기 — 태산압정! ${eName}에게 ${damage}의 거대한 충격!`);
+            ctx.logEvent({ side: 'outgoing', actor: 'player', name: '태산압정', subName: '· 비기', tag: ultTag, value: damage, valueTier: ultTier });
           } else {
-            ctx.battleLog.push(`절초 — ${attackName}! ${eName}에게 ${damage} 피해!`);
+            ctx.logEvent({ side: 'outgoing', actor: 'player', name: attackName, subName: '· 절초', tag: ultTag, value: damage, valueTier: ultTier });
           }
         } else if (isCritical) {
-          ctx.battleLog.push(`치명타! ${attackName} ${eName}에게 ${damage} 피해!`);
+          ctx.logEvent({ side: 'outgoing', actor: 'player', name: attackName, tag: 'crit', value: damage, valueTier: 'crit' });
         } else if (!isUlt && damage > 0) {
-          ctx.battleLog.push(`${attackName} ${eName}에게 ${damage} 피해를 입혔다.`);
+          ctx.logEvent({ side: 'outgoing', actor: 'player', name: attackName, value: damage, valueTier: 'normal' });
         }
         if (isCounterHit) {
-          ctx.battleLog.push('적의 공격을 간파하고 강력한 공격을 가했다!');
+          ctx.logFlavor('적의 공격을 간파하고 강력한 공격을 가했다!', 'left', { actor: 'player', minor: true });
         }
         if (sajaBuffTriggered) {
-          ctx.battleLog.push('사자의 깃발이 전투의 고양을 불어넣었다!');
+          ctx.logFlavor('사자의 깃발이 전투의 고양을 불어넣었다!', 'left', { actor: 'player', minor: true });
         }
 
         if (!ctx.isSimulating) {

@@ -178,14 +178,17 @@ export const createArtsSlice: StateCreator<GameStore, [], [], ArtsSlice> = (set,
     const state = get() as GameStore;
     if (state.battleMode !== 'none') return;
 
-    // pointCost === 0 심득(자동 해금)은 보존, pointCost > 0(수동 투자)만 초기화
+    // 비급/레시피/성(星)/이벤트/보스 기반 해금 초식은 재복구 수단이 없으므로 반드시 보존.
+    // 그 외엔 pointCost === 0(자동 해금)만 보존, pointCost > 0(수동 투자)만 초기화.
     const preserved: Record<string, string[]> = {};
     for (const [artId, masteryIds] of Object.entries(state.activeMasteries)) {
       const artDef = getArtDef(artId);
       if (!artDef) continue;
       const kept = masteryIds.filter(mid => {
         const m = artDef.masteries.find(x => x.id === mid);
-        return m && m.pointCost === 0;
+        if (!m) return false;
+        if (m.discovery) return true;           // 비급/레시피/성 등 발견형은 항상 보존
+        return m.pointCost === 0;               // 발견형 아니면 자동 해금(0pt)만 보존
       });
       if (kept.length > 0) preserved[artId] = kept;
     }

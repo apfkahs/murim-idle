@@ -31,6 +31,7 @@ export default function ArtsTab() {
   const discoveredMasteries = useGameStore(s => s.discoveredMasteries);
   const artGradeExp = useGameStore(s => s.artGradeExp);
   const materials = useGameStore(s => s.materials);
+  const baehwaUnlocked = useGameStore(s => s.firstEnteredFields?.['baehwagyo_oemun'] === true);
   const equipArt = useGameStore(s => s.equipArt);
   const unequipArt = useGameStore(s => s.unequipArt);
   const equipSimbeop = useGameStore(s => s.equipSimbeop);
@@ -477,17 +478,20 @@ export default function ArtsTab() {
         </div>
       )}
 
-      {/* 배화교 백지 무공서 */}
-      <div className="fire-arts-entry" onClick={() => setShowBahwagyo(true)}>
-        <div className="fire-arts-entry-icon">📜</div>
-        <div className="fire-arts-entry-info">
-          <div className="fire-arts-entry-name">배화교 백지 무공서</div>
-          <div className="fire-arts-entry-desc">배화교에서 입수한 비전 무공서. 내용이 아직 채워지지 않았다.</div>
-        </div>
-        <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>›</span>
-      </div>
-
-      {showBahwagyo && <BahwagyoTab onClose={() => setShowBahwagyo(false)} />}
+      {/* 배화교 백지 무공서 — 첫 진입 이벤트 해금 후에만 노출 */}
+      {baehwaUnlocked && (
+        <>
+          <div className="fire-arts-entry" onClick={() => setShowBahwagyo(true)}>
+            <div className="fire-arts-entry-icon">📜</div>
+            <div className="fire-arts-entry-info">
+              <div className="fire-arts-entry-name">배화교 백지 무공서</div>
+              <div className="fire-arts-entry-desc">배화교에서 입수한 비전 무공서. 내용이 아직 채워지지 않았다.</div>
+            </div>
+            <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>›</span>
+          </div>
+          {showBahwagyo && <BahwagyoTab onClose={() => setShowBahwagyo(false)} />}
+        </>
+      )}
     </div>
   );
 }

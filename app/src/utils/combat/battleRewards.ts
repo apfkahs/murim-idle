@@ -4,7 +4,7 @@
  */
 import { BALANCE_PARAMS } from '../../data/balance';
 import { getArtDef, type ProficiencyType } from '../../data/arts';
-import { getMonsterDef } from '../../data/monsters';
+import { getMonsterDef, BOSS_PATTERNS } from '../../data/monsters';
 import { FIELDS, getFieldDef } from '../../data/fields';
 import { MATERIALS } from '../../data/materials';
 import { getEquipmentDef, type EquipmentInstance, type EquipSlot } from '../../data/equipment';
@@ -13,10 +13,10 @@ import {
   PROF_TABLE, getGradeTableForArt, getArtGradeInfoFromTable,
   getProficiencyGrade,
 } from '../artUtils';
-import { spawnEnemy } from '../combatCalc';
+import { spawnEnemy, calcPlayerAttackInterval } from '../combatCalc';
 import { PROF_LABEL } from './damageCalc';
 import type { TickContext } from './tickContext';
-import { applyBattleReset, applyUltCooldownReset, createBossPatternState } from './tickContext';
+import { applyBattleReset, applyUltCooldownReset, createBossPatternState, applyBattleStartSkills } from './tickContext';
 import { getEmberEntry } from './emberUtils';
 
 const B = BALANCE_PARAMS;
@@ -50,7 +50,18 @@ export function processEnemyDeath(ctx: TickContext): void {
     ctx.bossPatternState.killFailureSkipRewards = false;
   }
   if (skipRewards) {
-    ctx.battleLog.push(`— ${monDef.name} 처치했으나 불씨에 스러져 보상을 얻지 못했다. —`);
+    ctx.logKill({ enemyName: monDef.name, rewards: [] });
+    ctx.logFlavor('불씨에 스러져 보상을 얻지 못했다.', 'both', { minor: true });
+  }
+
+  // 배화교 호위 처치 로그 분기
+  if (monDef.id === 'baehwa_howi' && ctx.bossPatternState) {
+    const phase = ctx.bossPatternState.howiSacredOathState?.phase;
+    const oathSkill = BOSS_PATTERNS['baehwa_howi']?.skills.find(s => s.type === 'sacred_oath');
+    const killLogs = phase === 'frenzy' ? oathSkill?.sacredOathKillFrenzyLogs : oathSkill?.sacredOathKillEarlyLogs;
+    if (killLogs?.length) {
+      ctx.logFlavor(killLogs[0], 'right', { actor: 'enemy' });
+    }
   }
 
   // 숙련도 독립 획득
@@ -114,12 +125,12 @@ export function processEnemyDeath(ctx: TickContext): void {
         if (currentStarIdx >= discoverStar && !ctx.discoveredMasteries.includes(m.id)) {
           ctx.discoveredMasteries.push(m.id);
           ctx.pendingEnlightenments.push({ artId, masteryId: m.id, masteryName: m.name });
-          ctx.battleLog.push(`깨달음! ${artDef.name}의 오의 '${m.name}'을(를) 깨우쳤다!`);
+          ctx.logSystem(`깨달음! ${artDef.name}의 오의 '${m.name}'을(를) 깨우쳤다!`);
         }
 
         if (currentStarIdx >= unlockStar && !(ctx.activeMasteries[artId] ?? []).includes(m.id)) {
           ctx.activeMasteries[artId] = [...(ctx.activeMasteries[artId] ?? []), m.id];
-          ctx.battleLog.push(`'${m.name}' 자동 해금!`);
+          ctx.logSystem(`'${m.name}' 자동 해금!`);
         }
       }
     }
@@ -156,7 +167,7 @@ export function processEnemyDeath(ctx: TickContext): void {
             obtainedFrom: monDef.id,
             obtainedAt: Date.now(),
           });
-          ctx.battleLog.push(`${getArtDef(drop.artId)?.name ?? drop.artId} 비급이 전낭에 담겼다!`);
+          ctx.logSystem(`${getArtDef(drop.artId)?.name ?? drop.artId} 비급이 전낭에 담겼다!`);
         }
       }
     }
@@ -179,7 +190,7 @@ export function processEnemyDeath(ctx: TickContext): void {
           };
           ctx.equipmentInventory.push(instance);
           if (!ctx.knownEquipment.includes(eqDrop.equipId)) ctx.knownEquipment.push(eqDrop.equipId);
-          ctx.battleLog.push(`${eqDef.name}을(를) 획득했다!`);
+          ctx.logSystem(`${eqDef.name}을(를) 획득했다!`);
         }
       }
     }
@@ -191,7 +202,7 @@ export function processEnemyDeath(ctx: TickContext): void {
   } else if (monDef.id === 'training_wood' && ctx.killCounts[monDef.id] === 1) {
     ctx.materials['wood_fragment'] = (ctx.materials['wood_fragment'] ?? 0) + 1;
     if (!ctx.obtainedMaterials.includes('wood_fragment')) ctx.obtainedMaterials.push('wood_fragment');
-    ctx.battleLog.push('나무 조각 1개를 주웠다. 무언가를 만드는 데 쓸 수 있을 것 같다...');
+    ctx.logSystem('나무 조각 1개를 주웠다. 무언가를 만드는 데 쓸 수 있을 것 같다...');
   } else if (monDef.materialDrops) {
     for (const mDrop of monDef.materialDrops) {
       if (Math.random() < Math.min(mDrop.chance * dropRateMultiplier, 1)) {
@@ -200,7 +211,7 @@ export function processEnemyDeath(ctx: TickContext): void {
           ctx.obtainedMaterials.push(mDrop.materialId);
         }
         const matName = MATERIALS.find(m => m.id === mDrop.materialId)?.name ?? mDrop.materialId;
-        ctx.battleLog.push(`${matName}을(를) 주웠다! (${ctx.materials[mDrop.materialId]}개)`);
+        ctx.logSystem(`${matName}을(를) 주웠다! (${ctx.materials[mDrop.materialId]}개)`);
         if (ctx.battleMode === 'explore') {
           const md = ctx.explorePendingRewards.materialDrops ?? {};
           md[mDrop.materialId] = (md[mDrop.materialId] ?? 0) + 1;
@@ -226,7 +237,7 @@ export function processEnemyDeath(ctx: TickContext): void {
   if (!skipRewards && potionConsumedRage && Math.random() < 0.05) {
     ctx.materials['demonic_note'] = (ctx.materials['demonic_note'] ?? 0) + 1;
     if (!ctx.obtainedMaterials.includes('demonic_note')) ctx.obtainedMaterials.push('demonic_note');
-    ctx.battleLog.push('마기에 물든 쪽지를 발견했다!');
+    ctx.logSystem('마기에 물든 쪽지를 발견했다!');
   }
 
   // 처치 시 기운 보너스
@@ -254,7 +265,7 @@ export function processEnemyDeath(ctx: TickContext): void {
         if (discovered) {
           ctx.discoveredMasteries.push(m.id);
           ctx.pendingEnlightenments.push({ artId, masteryId: m.id, masteryName: m.name });
-          ctx.battleLog.push(`깨달음! ${artDef.name}의 오의 '${m.name}'을(를) 깨우쳤다!`);
+          ctx.logSystem(`깨달음! ${artDef.name}의 오의 '${m.name}'을(를) 깨우쳤다!`);
         }
       }
     }
@@ -290,7 +301,7 @@ export function processEnemyDeath(ctx: TickContext): void {
     if (!cond?.materialOwned) continue;
     if ((ctx.materials[cond.materialOwned] ?? 0) > 0) {
       ctx.fieldUnlocks[field.id] = true;
-      ctx.battleLog.push(`새로운 전장 '${field.name}'이(가) 개방됐다!`);
+      ctx.logSystem(`새로운 전장 '${field.name}'이(가) 개방됐다!`);
     }
   }
 
@@ -310,7 +321,13 @@ function processExploreMode(
   monDef: ReturnType<typeof getMonsterDef> & {},
 ): void {
   ctx.explorePendingRewards.drops.push(...drops);
-  ctx.battleLog.push(`— ${monDef.name} 처치.${profGainParts.length > 0 ? `  ${profGainParts.join('  ')}` : ''} —`);
+  {
+    const rewards = profGainParts.map(s => {
+      const m = s.match(/^(.+?)\s+(\S+)$/);
+      return m ? { label: m[1], value: m[2] } : { label: s, value: '' };
+    });
+    ctx.logKill({ enemyName: monDef.name, rewards });
+  }
 
   if (monDef.isHidden) {
     ctx.battleResult = {
@@ -323,12 +340,12 @@ function processExploreMode(
     ctx.battleMode = 'none';
     ctx.currentEnemy = null;
     applyBattleReset(ctx);
-    ctx.battleLog.push('괴이한 존재를 물리치고 답파에 성공했다!');
+    ctx.logSystem('괴이한 존재를 물리치고 답파에 성공했다!');
   } else {
     // 일반 처치 후 HP 15% 회복
     const exploreHeal = Math.floor(ctx.maxHp * 0.15);
     ctx.hp = Math.min(ctx.hp + exploreHeal, ctx.maxHp);
-    ctx.battleLog.push(`적을 격파한 후 휴식을 취해 일부 체력을 회복했다! (+${exploreHeal})`);
+    ctx.logSystem(`적을 격파한 후 휴식을 취해 일부 체력을 회복했다! (+${exploreHeal})`);
 
     const nextStep = ctx.exploreStep + 1;
     if (nextStep < ctx.exploreOrder.length) {
@@ -341,15 +358,14 @@ function processExploreMode(
         ctx.currentBattleDamageDealt = 0;
         ctx.stamina = 0;
         applyUltCooldownReset(ctx);
-        ctx.battleLog.push(`— ${nextMon.name} 등장 —`);
         if (nextMon.isHidden && ctx.currentField) {
           if (!ctx.hiddenRevealedInField[ctx.currentField]) {
-            ctx.battleLog.push('산군이 쓰러진 틈에 괴이한 존재가 침입한 것 같다..');
+            ctx.logFlavor('산군이 쓰러진 틈에 괴이한 존재가 침입한 것 같다..', 'both', { minor: true });
           }
           // 히든 조우 연출
           if (nextMon.hiddenEncounterLogs && nextMon.hiddenEncounterLogs.length > 0) {
             for (const line of nextMon.hiddenEncounterLogs) {
-              ctx.battleLog.push(line);
+              ctx.logDialogue(line, 'right', { actor: 'enemy' });
             }
           }
           ctx.hiddenRevealedInField[ctx.currentField] = nextMon.id;
@@ -362,6 +378,19 @@ function processExploreMode(
             ...(ctx.bossPatternState.playerDotStacks ?? []),
             carriedEmber,
           ];
+        }
+        ctx.beginCombat({
+          enemyId: nextMon.id,
+          playerAttackInterval: calcPlayerAttackInterval(ctx.state),
+          enemyAttackInterval: nextMon.attackInterval,
+        });
+        // battle_start 스킬 적용 (삼행의 율법 등)
+        if (ctx.bossPatternState) {
+          const applied = applyBattleStartSkills(nextMon.id, ctx.equippedArts, ctx.bossPatternState, ctx.battleLog, ctx.logEntryIdSeq);
+          ctx.bossPatternState = applied.state;
+          ctx.battleLog = applied.battleLog;
+          ctx.logEntryIdSeq = applied.logEntryIdSeq;
+          ctx.lawActiveFromSkillId = applied.lawActiveFromSkillId;
         }
         ctx.playerStunTimer = 0;
         ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
@@ -396,15 +425,12 @@ function processExploreMode(
             // 히든 조우 연출: 대사 로그 출력 + 공격 타이머 지연
             if (nextMon.hiddenEncounterLogs && nextMon.hiddenEncounterLogs.length > 0) {
               for (const line of nextMon.hiddenEncounterLogs) {
-                ctx.battleLog.push(line);
+                ctx.logDialogue(line, 'right', { actor: 'enemy' });
               }
               ctx.playerAttackTimer += 3;
               ctx.enemyAttackTimer += 3;
             }
-            ctx.battleLog.push(`— 보스방에 괴이한 존재가 나타났다! ${nextMon.name}이(가) 등장! —`);
             if (ctx.currentField) ctx.hiddenRevealedInField[ctx.currentField] = nextMon.id;
-          } else {
-            ctx.battleLog.push(`— 보스 등장! ${nextMon.name}이(가) 나타났다! —`);
           }
           // 답파 불씨(魂焰) 유지 — 보스 전환에도 이월
           const carriedEmberBoss = getEmberEntry(ctx.bossPatternState?.playerDotStacks);
@@ -414,6 +440,19 @@ function processExploreMode(
               ...(ctx.bossPatternState.playerDotStacks ?? []),
               carriedEmberBoss,
             ];
+          }
+          ctx.beginCombat({
+            enemyId: nextMon.id,
+            playerAttackInterval: calcPlayerAttackInterval(ctx.state),
+            enemyAttackInterval: nextMon.attackInterval,
+          });
+          // battle_start 스킬 적용 (삼행의 율법 등)
+          if (ctx.bossPatternState) {
+            const applied = applyBattleStartSkills(nextMon.id, ctx.equippedArts, ctx.bossPatternState, ctx.battleLog, ctx.logEntryIdSeq);
+            ctx.bossPatternState = applied.state;
+            ctx.battleLog = applied.battleLog;
+            ctx.logEntryIdSeq = applied.logEntryIdSeq;
+            ctx.lawActiveFromSkillId = applied.lawActiveFromSkillId;
           }
           ctx.playerStunTimer = 0;
           ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
@@ -444,7 +483,7 @@ function processExploreMode(
       ctx.battleMode = 'none';
       ctx.currentEnemy = null;
       applyBattleReset(ctx);
-      ctx.battleLog.push('답파 승리!');
+      ctx.logSystem('답파 승리!');
     }
   }
 }
@@ -455,7 +494,13 @@ function processHuntMode(
   profGainParts: string[],
   monDef: ReturnType<typeof getMonsterDef> & {},
 ): void {
-  ctx.battleLog.push(`— ${monDef.name} 처치.${profGainParts.length > 0 ? `  ${profGainParts.join('  ')}` : ''} —`);
+  {
+    const rewards = profGainParts.map(s => {
+      const m = s.match(/^(.+?)\s+(\S+)$/);
+      return m ? { label: m[1], value: m[2] } : { label: s, value: '' };
+    });
+    ctx.logKill({ enemyName: monDef.name, rewards });
+  }
 
   if (ctx.huntTarget) {
     const nextMon = getMonsterDef(ctx.huntTarget);
@@ -466,7 +511,20 @@ function processHuntMode(
       ctx.currentBattleDamageDealt = 0;
       ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
       ctx.enemyAttackTimer = nextMon.attackInterval;
-      ctx.bossPatternState = createBossPatternState(ctx.huntTarget) ?? ctx.bossPatternState;
+      const newBps = createBossPatternState(ctx.huntTarget);
+      ctx.bossPatternState = newBps;
+      ctx.beginCombat({
+        enemyId: nextMon.id,
+        playerAttackInterval: calcPlayerAttackInterval(ctx.state),
+        enemyAttackInterval: nextMon.attackInterval,
+      });
+      if (newBps) {
+        const applied = applyBattleStartSkills(ctx.huntTarget, ctx.equippedArts, newBps, ctx.battleLog, ctx.logEntryIdSeq);
+        ctx.bossPatternState = applied.state;
+        ctx.battleLog = applied.battleLog;
+        ctx.logEntryIdSeq = applied.logEntryIdSeq;
+        ctx.lawActiveFromSkillId = applied.lawActiveFromSkillId;
+      }
       ctx.playerStunTimer = 0;
     }
   }

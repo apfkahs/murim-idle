@@ -1,11 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGameStore, getMonsterRevealLevel, calcStamina, calcTierMultiplier } from '../../store/gameStore';
 import { getMonsterDef, BOSS_PATTERNS } from '../../data/monsters';
-import { getArtDef } from '../../data/arts';
 import { formatNumber } from '../../utils/format';
 import { getEnemyImage, getEnemyEmoji, getPlayerByTier, getFieldBackground } from '../../assets';
 import { getFieldDef } from '../../data/fields';
-import type { FloatingText } from '../../store/types';
+import BattleLog, { type DensityMode } from './BattleLog';
+
+const DENSITY_KEY = 'battleLogDensity';
+
+function readInitialDensity(): DensityMode {
+  if (typeof window === 'undefined') return 'compact';
+  const v = window.localStorage?.getItem(DENSITY_KEY);
+  if (v === 'full' || v === 'compact' || v === 'minimal') return v;
+  return 'compact';
+}
 
 // ─────────────────────────────────────────────
 // 전투 화면 (v1.1: DPS 제거, 공격 간격 표시)
@@ -22,12 +30,8 @@ export default function BattleScreen() {
   const maxHp = useGameStore(s => s.maxHp);
   const stamina = useGameStore(s => s.stamina);
   const stats = useGameStore(s => s.stats);
-  const equippedArts = useGameStore(s => s.equippedArts);
-  const equippedSimbeop = useGameStore(s => s.equippedSimbeop);
-  const ownedArts = useGameStore(s => s.ownedArts);
   const battleLog = useGameStore(s => s.battleLog);
   const abandonBattle = useGameStore(s => s.abandonBattle);
-  const getAttackInterval = useGameStore(s => s.getAttackInterval);
   const killCounts = useGameStore(s => s.killCounts);
   const tier = useGameStore(s => s.tier);
   const bossPatternState = useGameStore(s => s.bossPatternState);
@@ -35,15 +39,13 @@ export default function BattleScreen() {
   const currentBattleDuration = useGameStore(s => s.currentBattleDuration);
   const currentBattleDamageDealt = useGameStore(s => s.currentBattleDamageDealt);
   const equipmentDotOnEnemy = useGameStore(s => s.equipmentDotOnEnemy);
-  const floatingTexts = useGameStore(s => s.floatingTexts);
 
-  const logRef = useRef<HTMLDivElement>(null);
-
+  const [density, setDensity] = useState<DensityMode>(readInitialDensity);
   useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
+    if (typeof window !== 'undefined') {
+      window.localStorage?.setItem(DENSITY_KEY, density);
     }
-  }, [battleLog.length]);
+  }, [density]);
 
   if (!currentEnemy) return null;
 
@@ -52,7 +54,6 @@ export default function BattleScreen() {
   const reveal = getMonsterRevealLevel(kills);
   // 전투 중 이름: 1회 이상 처치했으면 이름, 아니면 ???
   const enemyName = reveal >= 1 ? (monDef?.name ?? currentEnemy.id) : '???';
-  const atkInterval = getAttackInterval();
   const playerDps = currentBattleDuration >= 1
     ? Math.floor(currentBattleDamageDealt / currentBattleDuration)
     : 0;
@@ -66,7 +67,7 @@ export default function BattleScreen() {
   return (
     <div className="battle-layout">
       {/* 상단 바 */}
-      <div className="battle-header">
+      <div className="battle-header" style={{ flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 14, fontWeight: 500 }}>
             {currentField ? (getFieldDef(currentField)?.name ?? currentField) : ''}
@@ -80,7 +81,20 @@ export default function BattleScreen() {
             <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>지정 사냥</span>
           )}
         </div>
-        <button className="btn btn-small btn-danger" onClick={abandonBattle}>포기</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="density-toggle">
+            {(['full', 'compact', 'minimal'] as DensityMode[]).map(m => (
+              <button
+                key={m}
+                className={`density-btn ${density === m ? 'active' : ''}`}
+                onClick={() => setDensity(m)}
+              >
+                {m === 'full' ? 'Full' : m === 'compact' ? 'Compact' : 'Numbers Only'}
+              </button>
+            ))}
+          </div>
+          <button className="btn btn-small btn-danger" onClick={abandonBattle}>포기</button>
+        </div>
       </div>
 
       {/* 전투 장면 */}
@@ -227,67 +241,18 @@ export default function BattleScreen() {
         </div>
       </div>
 
-      {/* 플로팅 텍스트 */}
-      <FloatingTexts texts={floatingTexts} />
-
-      {/* 내 스탯 바 */}
-      <div className="info-bar">
-        <div className="info-bar-item">
-          <div className="info-bar-value">{formatNumber(maxHp)}</div>
-          <div className="info-bar-label">최대 체력</div>
-        </div>
-        <div className="info-bar-item">
-          <div className="info-bar-value">{formatNumber(playerDps)}</div>
-          <div className="info-bar-label">초당 피해</div>
-        </div>
-        <div className="info-bar-item">
-          <div className="info-bar-value">{maxStamina > 0 ? formatNumber(maxStamina) : '-'}</div>
-          <div className="info-bar-label">최대내력</div>
-        </div>
-        <div className="info-bar-item">
-          <div className="info-bar-value">{atkInterval.toFixed(1)}초</div>
-          <div className="info-bar-label">공격속도</div>
-        </div>
-      </div>
-
-      {/* 적 스탯 바 */}
-      <div className="info-bar" style={{ borderTop: '1px solid var(--border)', opacity: 0.85 }}>
-        <div className="info-bar-item">
-          <div className="info-bar-value">
-            {reveal >= 2 ? formatNumber(currentEnemy.maxHp) : '???'}
-          </div>
-          <div className="info-bar-label">적 최대 체력</div>
-        </div>
-        <div className="info-bar-item">
-          <div className="info-bar-value">
+      {/* DPS 스트립 — 내/적 초당 피해 (다른 곳에 중복 안 된 유일 정보) */}
+      <div className="combat-info-strip">
+        <span>내 DPS <span className="num">{formatNumber(playerDps)}</span></span>
+        <span>
+          적 DPS <span className="num">
             {reveal >= 4
               ? (currentEnemy.attackInterval > 0
                   ? formatNumber(Math.floor(currentEnemy.attackPower / currentEnemy.attackInterval))
                   : '-')
               : '???'}
-          </div>
-          <div className="info-bar-label">적 초당 피해</div>
-        </div>
-        <div className="info-bar-item">
-          <div className="info-bar-value">
-            {reveal >= 4
-              ? (BOSS_PATTERNS[currentEnemy.id] && BOSS_PATTERNS[currentEnemy.id].stamina.max > 0
-                  ? formatNumber(BOSS_PATTERNS[currentEnemy.id].stamina.max)
-                  : '-')
-              : '???'}
-          </div>
-          <div className="info-bar-label">적 최대내력</div>
-        </div>
-        <div className="info-bar-item">
-          <div className="info-bar-value">
-            {reveal >= 4
-              ? (currentEnemy.attackInterval > 0
-                  ? currentEnemy.attackInterval.toFixed(1) + '초'
-                  : '-')
-              : '???'}
-          </div>
-          <div className="info-bar-label">적 공격속도</div>
-        </div>
+          </span>
+        </span>
       </div>
 
       {/* 답파 진행 바 */}
@@ -299,109 +264,11 @@ export default function BattleScreen() {
         </div>
       )}
 
-      {/* 전투 로그 */}
-      <div className="battle-log" ref={logRef} style={{ flex: 1, minHeight: 0 }}>
-        {battleLog.map((log, i) => {
-          const actualEnemyName = monDef?.name ?? currentEnemy.id;
-          let cls = 'battle-log-line';
-          if (log.startsWith('비기 — 태산압정')) {
-            cls += ' log-ult-taesan';
-          } else if (log.startsWith('절초 —')) {
-            cls += ' log-ult';
-          } else if (log.startsWith(actualEnemyName + ':')) {
-            const isStrong = log.includes(' 피해!') || log.includes('빙결') || log.includes('경직');
-            cls += isStrong ? ' log-enemy-strong' : ' log-enemy';
-          } else if (log.startsWith('—') || log.includes('등장') || log.includes('처치') || log.includes('사냥 시작')) {
-            cls += ' log-system';
-          } else if (log.includes('치명타') || log.includes('연속') || log.includes('피했다') || log.includes('📜') || log.includes('보스') || log.includes('승리') || log.includes('업적') || log.endsWith('..')) {
-            cls += ' log-gold';
-          }
-          return <div key={i} className={cls}>{log}</div>;
-        })}
-      </div>
-
-      {/* 무공 칩 바 */}
-      <div className="chip-bar">
-        {equippedArts.map(artId => {
-          const def = getArtDef(artId);
-          const owned = ownedArts.find(a => a.id === artId);
-          if (!def || !owned) return null;
-          return (
-            <span key={artId} className="chip">
-              {def.name}
-            </span>
-          );
-        })}
-        {equippedSimbeop && (() => {
-          const def = getArtDef(equippedSimbeop);
-          const owned = ownedArts.find(a => a.id === equippedSimbeop);
-          if (!def || !owned) return null;
-          return (
-            <span className="chip chip-simbeop">
-              {def.name}
-            </span>
-          );
-        })()}
+      {/* 전투 로그 (v6) */}
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <BattleLog entries={battleLog} playerMaxHp={maxHp} density={density} />
       </div>
     </div>
   );
 }
 
-// ── 플로팅 텍스트 컴포넌트 ──
-function FloatingTexts({ texts }: { texts: FloatingText[] }) {
-  const [visible, setVisible] = useState<(FloatingText & { key: number })[]>([]);
-  const seenRef = useRef(new Set<number>());
-
-  useEffect(() => {
-    const newOnes: typeof visible = [];
-    for (const t of texts) {
-      if (!seenRef.current.has(t.id)) {
-        seenRef.current.add(t.id);
-        newOnes.push({ ...t, key: t.id });
-      }
-    }
-    if (newOnes.length > 0) {
-      setVisible(prev => [...prev, ...newOnes].slice(-8));
-      // 자동 제거
-      const timer = setTimeout(() => {
-        setVisible(prev => prev.filter(v => !newOnes.some(n => n.key === v.key)));
-      }, 1200);
-      return () => clearTimeout(timer);
-    }
-  }, [texts]);
-
-  // seenRef 정리 (오래된 ID 제거)
-  useEffect(() => {
-    if (seenRef.current.size > 100) {
-      const ids = texts.map(t => t.id);
-      seenRef.current = new Set(ids);
-    }
-  }, [texts.length]);
-
-  if (visible.length === 0) return null;
-
-  const colorMap: Record<string, string> = {
-    damage: 'var(--text)', critical: '#ffcc00', dot: '#88dd44',
-    heal: '#44dd88', evade: '#88ccff', drop: '#d4a853',
-  };
-
-  return (
-    <div style={{ position: 'relative', height: 0, overflow: 'visible', pointerEvents: 'none' }}>
-      {visible.map((ft, i) => (
-        <div key={ft.key} className="floating-text-anim" style={{
-          position: 'absolute',
-          right: ft.type === 'dot' ? 8 : '50%',
-          transform: ft.type === 'dot' ? 'none' : 'translateX(50%)',
-          top: -(20 + i * 18),
-          fontSize: ft.type === 'critical' ? 14 : 12,
-          fontWeight: 600,
-          color: colorMap[ft.type] ?? 'var(--text)',
-          textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-          whiteSpace: 'nowrap',
-        }}>
-          {ft.text}
-        </div>
-      ))}
-    </div>
-  );
-}

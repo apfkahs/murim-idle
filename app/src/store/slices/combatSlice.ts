@@ -1,49 +1,11 @@
 import type { StateCreator } from 'zustand';
 import type { GameStore } from '../gameStore';
-import type { BattleResult, FloatingText, GameState } from '../types';
+import type { BattleResult, FloatingText, GameState, BattleLogEntry } from '../types';
 import { BALANCE_PARAMS } from '../../data/balance';
-import { BOSS_PATTERNS, getMonsterDef } from '../../data/monsters';
-import { getArtDef } from '../../data/arts';
+import { getMonsterDef } from '../../data/monsters';
 import { getFieldDef, generateExploreOrder } from '../../data/fields';
-import { spawnEnemy, CLEAR_BATTLE_STATE } from '../../utils/combatCalc';
-import { createBossPatternState } from '../../utils/combat/tickContext';
-
-/**
- * battle_start 트리거 스킬 처리
- * - 현재는 baehwa_guard (삼행의 율법)만 존재
- * - 조건: equippedArts 중 conditionRequiredFaction과 일치하는 무공이 하나라도 있으면 조건 충족
- * - 불충족 시 guardDamageTakenMultiplier 적용 (0.5 → 적이 받는 피해 절반)
- * - battleStartLogs를 battleLog에 추가, usedOneTimeSkills에 기록
- */
-function applyBattleStartSkills(
-  monsterId: string,
-  equippedArts: string[],
-  state: NonNullable<GameState['bossPatternState']>,
-  battleLog: string[],
-): { battleLog: string[]; state: NonNullable<GameState['bossPatternState']> } {
-  const pattern = BOSS_PATTERNS[monsterId];
-  if (!pattern) return { battleLog, state };
-  const next = { ...state };
-  const usedOne = [...(next.usedOneTimeSkills ?? [])];
-  const logs = [...battleLog];
-  for (const skill of pattern.skills) {
-    if (skill.triggerCondition !== 'battle_start') continue;
-    if (skill.type === 'baehwa_guard') {
-      const required = skill.conditionRequiredFaction;
-      const hasFactionArt = required
-        ? equippedArts.some(id => getArtDef(id)?.faction === required)
-        : true;
-      next.guardDamageTakenMultiplier = hasFactionArt ? 1.0 : (skill.damageTakenMultiplierIfCondition ?? 0.5);
-      next.guardFirstHitLogged = false;
-      if (skill.battleStartLogs) {
-        for (const line of skill.battleStartLogs) logs.push(line);
-      }
-      if (skill.oneTime) usedOne.push(skill.id);
-    }
-  }
-  next.usedOneTimeSkills = usedOne;
-  return { battleLog: logs, state: next };
-}
+import { spawnEnemy, CLEAR_BATTLE_STATE, calcPlayerAttackInterval } from '../../utils/combatCalc';
+import { createBossPatternState, applyBattleStartSkills } from '../../utils/combat/tickContext';
 
 const B = BALANCE_PARAMS;
 
@@ -63,7 +25,10 @@ export type CombatSlice = {
   isBossPhase: boolean;
   bossTimer: number;
   explorePendingRewards: { drops: string[]; proficiencyGains?: Record<string, number>; materialDrops?: Record<string, number> };
-  battleLog: string[];
+  battleLog: BattleLogEntry[];
+  combatElapsed: number;
+  logEntryIdSeq: number;
+  lawActiveFromSkillId: string | null;
   playerAttackTimer: number;
   enemyAttackTimer: number;
   bossPatternState: GameState['bossPatternState'];
@@ -109,6 +74,9 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
   playerStunTimer: 0,
   lastEnemyAttack: null,
   dodgeCounterActive: false,
+  combatElapsed: 0,
+  logEntryIdSeq: 0,
+  lawActiveFromSkillId: null,
   battleResult: null,
   floatingTexts: [],
   nextFloatingId: 0,
@@ -127,18 +95,59 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
     const firstMon = getMonsterDef(order[0]);
     if (!firstMon) return;
 
+    if (field.firstEntryEvent && !state.firstEnteredFields?.[fieldId]) {
+      const ev = field.firstEntryEvent;
+      let seq = state.logEntryIdSeq ?? 0;
+      const eventEntries: BattleLogEntry[] = ev.logs.map(text => ({
+        id: seq++,
+        time: 0,
+        actor: 'system' as const,
+        kind: 'system' as const,
+        text,
+      }));
+      set({
+        firstEnteredFields: { ...state.firstEnteredFields, [fieldId]: true },
+        materials: { ...state.materials, [ev.materialDrop]: (state.materials[ev.materialDrop] ?? 0) + 1 },
+        obtainedMaterials: state.obtainedMaterials.includes(ev.materialDrop)
+          ? state.obtainedMaterials
+          : [...state.obtainedMaterials, ev.materialDrop],
+        battleLog: [...state.battleLog, ...eventEntries],
+        logEntryIdSeq: seq,
+        battleResult: {
+          type: 'explore_win',
+          drops: [],
+          proficiencyGains: {},
+          materialDrops: { [ev.materialDrop]: 1 },
+          message: ev.resultMessage,
+          recentBattleLog: [...ev.logs],
+        },
+      });
+      return;
+    }
+
     const hiddenRevealedInField = { ...state.hiddenRevealedInField };
     if (firstMon.isHidden) {
       hiddenRevealedInField[fieldId] = order[0];
     }
 
     const initialBps = createBossPatternState(order[0]);
-    let battleLog = [`— ${firstMon.name} 등장 —`];
+    // 새 전투 진입 시 이전 로그 완전 초기화 — seq=0부터 시작
+    let seq = 0;
+    const startEntry: BattleLogEntry = {
+      id: seq++, time: 0, actor: 'system', kind: 'combat-start',
+      enemyId: order[0],
+      playerAttackInterval: calcPlayerAttackInterval(state as GameState),
+      enemyAttackInterval: firstMon.attackInterval,
+    };
+    let battleLog: BattleLogEntry[] = [startEntry];
     let bps = initialBps;
+    let lawActive: string | null = null;
     if (bps) {
-      const applied = applyBattleStartSkills(order[0], state.equippedArts, bps, battleLog);
+      const applied = applyBattleStartSkills(order[0], state.equippedArts, bps, battleLog, seq);
       battleLog = applied.battleLog;
       bps = applied.state;
+      seq = applied.logEntryIdSeq;
+      lawActive = applied.lawActiveFromSkillId;
     }
 
     set({
@@ -153,6 +162,9 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
       bossTimer: 0,
       explorePendingRewards: { drops: [], proficiencyGains: {}, materialDrops: {} },
       battleLog,
+      logEntryIdSeq: seq,
+      combatElapsed: 0,
+      lawActiveFromSkillId: lawActive,
       battleResult: null,
       hiddenRevealedInField,
       playerAttackTimer: B.BASE_ATTACK_INTERVAL,
@@ -168,12 +180,23 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
     if (!monDef) return;
 
     const initialBps = createBossPatternState(monsterId);
-    let battleLog = [`— ${monDef.name} 사냥 시작 —`];
+    // 새 전투 진입 시 이전 로그 완전 초기화 — seq=0부터 시작
+    let seq = 0;
+    const startEntry: BattleLogEntry = {
+      id: seq++, time: 0, actor: 'system', kind: 'combat-start',
+      enemyId: monsterId,
+      playerAttackInterval: calcPlayerAttackInterval(state as GameState),
+      enemyAttackInterval: monDef.attackInterval,
+    };
+    let battleLog: BattleLogEntry[] = [startEntry];
     let bps = initialBps;
+    let lawActive: string | null = null;
     if (bps) {
-      const applied = applyBattleStartSkills(monsterId, state.equippedArts, bps, battleLog);
+      const applied = applyBattleStartSkills(monsterId, state.equippedArts, bps, battleLog, seq);
       battleLog = applied.battleLog;
       bps = applied.state;
+      seq = applied.logEntryIdSeq;
+      lawActive = applied.lawActiveFromSkillId;
     }
 
     set({
@@ -189,6 +212,9 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
       bossTimer: 0,
       explorePendingRewards: { drops: [], proficiencyGains: {}, materialDrops: {} },
       battleLog,
+      logEntryIdSeq: seq,
+      combatElapsed: 0,
+      lawActiveFromSkillId: lawActive,
       battleResult: null,
       playerAttackTimer: B.BASE_ATTACK_INTERVAL,
       enemyAttackTimer: monDef.attackInterval,
@@ -203,6 +229,10 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
     if (state.battleMode === 'explore') {
       set({
         ...CLEAR_BATTLE_STATE,
+        battleLog: [],
+        combatElapsed: 0,
+        logEntryIdSeq: 0,
+        lawActiveFromSkillId: null,
         battleResult: {
           type: 'explore_fail',
           drops: [],
@@ -214,6 +244,10 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
     } else {
       set({
         ...CLEAR_BATTLE_STATE,
+        battleLog: [],
+        combatElapsed: 0,
+        logEntryIdSeq: 0,
+        lawActiveFromSkillId: null,
         battleResult: null,
       });
     }

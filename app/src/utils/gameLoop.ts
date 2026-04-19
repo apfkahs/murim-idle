@@ -12,8 +12,8 @@
 import { BALANCE_PARAMS } from '../data/balance';
 import { getMonsterDef, BOSS_PATTERNS } from '../data/monsters';
 import { getFieldDef, generateExploreOrder } from '../data/fields';
-import { calcFullMaxHp, spawnEnemy } from './combatCalc';
-import { createTickContext, applyBattleReset, buildResult, createBossPatternState } from './combat/tickContext';
+import { calcFullMaxHp, spawnEnemy, calcPlayerAttackInterval } from './combatCalc';
+import { createTickContext, applyBattleReset, buildResult, createBossPatternState, applyBattleStartSkills, flattenEntryForDeathLog } from './combat/tickContext';
 import { buildAchievementContext, ACHIEVEMENTS } from './combat/damageCalc';
 import { executePlayerAttackPhase } from './combat/playerCombat';
 import { executeEnemyAttackPhase } from './combat/enemyCombat';
@@ -52,7 +52,19 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         ctx.enemyAttackTimer = retryMon.attackInterval;
         applyBattleReset(ctx);
         ctx.bossPatternState = createBossPatternState(ctx.huntTarget);
-        if (!isSimulating) ctx.battleLog = [...ctx.battleLog, `— ${retryMon.name} 자동 재도전 —`];
+        ctx.beginCombat({
+          enemyId: retryMon.id,
+          playerAttackInterval: calcPlayerAttackInterval(ctx.state),
+          enemyAttackInterval: retryMon.attackInterval,
+        });
+        if (ctx.bossPatternState) {
+          const applied = applyBattleStartSkills(ctx.huntTarget, ctx.equippedArts, ctx.bossPatternState, ctx.battleLog, ctx.logEntryIdSeq);
+          ctx.bossPatternState = applied.state;
+          ctx.battleLog = applied.battleLog;
+          ctx.logEntryIdSeq = applied.logEntryIdSeq;
+          ctx.lawActiveFromSkillId = applied.lawActiveFromSkillId;
+        }
+        if (!isSimulating) ctx.logSystem(`${retryMon.name} 자동 재도전`);
       }
     }
 
@@ -76,8 +88,19 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
           ctx.enemyAttackTimer = firstMon.attackInterval;
           ctx.bossPatternState = createBossPatternState(order[0]);
+          ctx.beginCombat({
+            enemyId: firstMon.id,
+            playerAttackInterval: calcPlayerAttackInterval(ctx.state),
+            enemyAttackInterval: firstMon.attackInterval,
+          });
+          if (ctx.bossPatternState) {
+            const applied = applyBattleStartSkills(order[0], ctx.equippedArts, ctx.bossPatternState, ctx.battleLog, ctx.logEntryIdSeq);
+            ctx.bossPatternState = applied.state;
+            ctx.battleLog = applied.battleLog;
+            ctx.logEntryIdSeq = applied.logEntryIdSeq;
+            ctx.lawActiveFromSkillId = applied.lawActiveFromSkillId;
+          }
           ctx.playerStunTimer = 0;
-          if (!ctx.isSimulating) ctx.battleLog = [`— ${firstMon.name} 등장 —`];
         } else {
           ctx.pendingAutoExplore = false;
         }
@@ -90,6 +113,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   // 3) 전투 (타이머 기반)
   if (ctx.isBattling && ctx.currentEnemy) {
     ctx.currentBattleDuration += dt;
+    ctx.combatElapsed += dt;
 
     // pre-combat: 적 HP회복
     if (ctx.currentEnemy.regen > 0) {
@@ -229,7 +253,9 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       const deathLog = ctx.lastEnemyAttack
         ? `${ctx.lastEnemyAttack.enemyName}의 공격을 받아 쓰러졌습니다...`
         : undefined;
-      const recentBattleLog = ctx.battleLog.slice(-8);
+      const recentBattleLog = ctx.battleLog.slice(-8)
+        .map(flattenEntryForDeathLog)
+        .filter(s => s.length > 0);
       if (ctx.battleMode === 'explore') {
         ctx.battleResult = {
           type: 'death',
@@ -273,7 +299,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         repeatableAchCounts[ach.id] = (repeatableAchCounts[ach.id] ?? 0) + 1;
         achCtx.repeatableAchCounts = repeatableAchCounts;
         if (ach.reward?.artPoints) artPoints += ach.reward.artPoints;
-        ctx.battleLog.push(`업적 달성: ${ach.name}! (${repeatableAchCounts[ach.id]}회)`);
+        ctx.logSystem(`업적 달성: ${ach.name}! (${repeatableAchCounts[ach.id]}회)`);
       }
     } else {
       if (achievements.includes(ach.id)) continue;
@@ -281,7 +307,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       if (ach.check(achCtx)) {
         achievements.push(ach.id);
         achievementCount += 1;
-        ctx.battleLog.push(`업적 달성: ${ach.name}!`);
+        ctx.logSystem(`업적 달성: ${ach.name}!`);
       }
     }
   }

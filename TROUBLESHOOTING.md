@@ -162,6 +162,14 @@ location.reload();
 | **원인** | 저장된 세이브의 `version`이 현재 코드의 버전(`1.0`)과 불일치 |
 | **해결법** | 세이브 초기화 또는 마이그레이션 로직 추가 |
 
+### 4-3. 무공 포인트 "초기화" 버튼 후 발견형 초식이 사라지고 복구 불가
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 조악한 무명보법(`crude_bobeop`)처럼 레시피/비급으로 해금한 초식이 초기화 버튼 후 활성 목록에서 사라지고, "투자" 버튼이 동작하지 않으며 레시피도 재제작되지 않음 |
+| **원인** | `resetAllMasteries` 필터가 `m.pointCost === 0`만 기준으로 삼아, `discovery` 필드의 의미(발견형=점수 외 경로로만 해금)를 명시하지 않음. 향후 데이터에서 pointCost가 바뀌면 즉시 재발. 또한 `activateMastery`는 `discovery.type === 'recipe'`를 조기반환하고, `craftArtRecipe`는 `discoveredMasteries` 가드로 재제작을 차단하므로 한 번 wipe되면 영구 stuck |
+| **해결법** | 필터를 `if (m.discovery) return true; return m.pointCost === 0;`로 변경해 발견형 초식을 항상 보존 ([artsSlice.ts resetAllMasteries](app/src/store/slices/artsSlice.ts)) |
+
 ---
 
 ## 빠른 참조: 자주 쓰는 명령어
@@ -311,4 +319,27 @@ cd D:/newidle/app && node node_modules/.bin/tsx scripts/generate-assets.ts
 
 ---
 
-*마지막 업데이트: 2026-03-15*
+---
+
+## 8. 배화교 행자 관련
+
+### 8-1. "삼행의 율법" 연속 전투 미발동
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | `startExplore` / `startHunt`로 첫 전투를 시작할 때는 삼행의 율법이 정상 발동하지만, 답파 중 다음 몬스터로 전환되거나 수련 리트라이 시 발동하지 않아 `guardDamageTakenMultiplier`가 `undefined`로 남는다. `playerCombat.ts`의 `!= null` 체크가 `false`가 되어 피해 감소가 적용되지 않는다. |
+| **원인** | `battleRewards.ts`에서 다음 몬스터 스폰 시 `createBossPatternState()`만 호출하고 `applyBattleStartSkills()`를 호출하지 않았다. `applyBattleStartSkills`가 `combatSlice.ts`의 private 함수였기 때문에 다른 파일에서 재사용 불가. |
+| **해결법** | `applyBattleStartSkills`를 `tickContext.ts`에 `export function`으로 이동. `battleRewards.ts`의 3개 위치(explore 일반 전환, explore 보스 전환, hunt 리트라이)에서 `createBossPatternState()` 직후 `applyBattleStartSkills()` 호출 추가. `combatSlice.ts`에서 private 함수 삭제 후 `tickContext`에서 import. |
+
+```typescript
+// battleRewards.ts — 각 스폰 위치에 추가한 패턴
+const newBps = createBossPatternState(nextMon.id);
+// ...불씨 이월 코드...
+if (ctx.bossPatternState) {
+  const applied = applyBattleStartSkills(nextMon.id, ctx.equippedArts, ctx.bossPatternState, []);
+  ctx.bossPatternState = applied.state;
+  ctx.battleLog.push(...applied.battleLog);  // push 방식 — 재할당 금지
+}
+```
+
+*마지막 업데이트: 2026-04-19*

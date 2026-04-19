@@ -5,7 +5,7 @@
 import { getMonsterDef, getMonsterAttackMsg, BOSS_PATTERNS } from '../../data/monsters';
 import { calcExternalDmgReduction } from '../combatCalc';
 import { getProfStarInfo } from '../artUtils';
-import { calcEnemyDamage, calcEnemyDamageWithBonus, applyVariance } from './damageCalc';
+import { calcEnemyDamage, calcEnemyDamageWithBonus } from './damageCalc';
 import type { TickContext } from './tickContext';
 import { handleDodge } from './tickContext';
 import type { DotStackEntry } from '../../store/types';
@@ -37,7 +37,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       rageModeHpCost: rageCost + 10,
     };
     if (ctx.currentEnemy.hp <= 0) {
-      ctx.battleLog.push('폭혈단의 기운이 바닥나 스스로 쓰러졌다!');
+      ctx.logFlavor('폭혈단의 기운이 바닥나 스스로 쓰러졌다!', 'right', { actor: 'enemy', minor: true });
     }
   }
 
@@ -69,7 +69,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       if (ctx.currentEnemy.hp / ctx.currentEnemy.maxHp <= lastStandSkill.hpThreshold) {
         ctx.bossPatternState.lastStandActive = true;
         const lsMsg = lastStandSkill.logMessages[Math.floor(Math.random() * lastStandSkill.logMessages.length)];
-        ctx.battleLog.push(`${eName}: ${lsMsg}`);
+        ctx.logDialogue(lsMsg, 'right', { actor: 'enemy' });
       }
     }
 
@@ -88,7 +88,12 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
     const smashDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, stackSmashSkill.stackSmashMultiplier ?? 4, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0);
     ctx.hp -= smashDmg;
     const smashMsg = `${stackSmashSkill.logMessages[0]} ${smashDmg} 피해! 회피불가!`;
-    ctx.battleLog.push(smashMsg);
+    ctx.logEvent({
+      side: 'incoming', actor: 'enemy',
+      name: stackSmashSkill.displayName ?? '강타',
+      tag: 'hit', value: smashDmg, valueTier: 'hit-heavy',
+    });
+    ctx.logFlavor(stackSmashSkill.logMessages[0], 'right', { actor: 'enemy' });
     ctx.lastEnemyAttack = { enemyName: eName, attackMessage: smashMsg };
     if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
     skillUsed = true;
@@ -110,14 +115,20 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         if (cs.stunAfterHit) ctx.playerStunTimer = cs.stunAfterHit;
         const chargeLogMsg = chargeSkillDef?.logMessages[1] ?? chargeSkillDef?.logMessages[0] ?? '강력한 일격!';
         const chargeMsg = `${eName}: ${chargeLogMsg} ${csDmg} 피해!${cs.stunAfterHit ? ' 기절!' : ''}`;
-        ctx.battleLog.push(chargeMsg);
+        ctx.logEvent({
+          side: 'incoming', actor: 'enemy',
+          name: chargeSkillDef?.displayName ?? eName,
+          tag: 'hit', value: csDmg, valueTier: 'hit-heavy',
+        });
+        ctx.logFlavor(chargeLogMsg, 'right', { actor: 'enemy' });
+        if (cs.stunAfterHit) ctx.logFlavor('기절!', 'left', { actor: 'player', minor: true });
         ctx.lastEnemyAttack = { enemyName: eName, attackMessage: chargeMsg };
         if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
       }
       // postFireSelfStun: 발사 후 영구 자기 스턴
       if (chargeSkillDef?.postFireSelfStun && ctx.currentEnemy) {
         ctx.currentEnemy = { ...ctx.currentEnemy, enemyStunTimer: 999999 };
-        ctx.battleLog.push(`${eName}이(가) 무리한 반동으로 스스로 쓰러졌다!`);
+        ctx.logFlavor(`${eName}이(가) 무리한 반동으로 스스로 쓰러졌다!`, 'right', { actor: 'enemy' });
       }
       // 차지 확장 플래그 클리어
       ctx.bossPatternState.bossChargeDmgReduction = 0;
@@ -125,7 +136,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       ctx.bossPatternState.chargeRegenPenalty = 0;
       ctx.bossPatternState.bossChargeState = null;
     } else {
-      ctx.battleLog.push(`${eName}이(가) 기를 응집하고 있다...`);
+      ctx.logFlavor(`${eName}이(가) 기를 응집하고 있다...`, 'right', { actor: 'enemy', minor: true });
     }
     skillUsed = true;
   }
@@ -140,7 +151,11 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
     const healAmt = Math.floor(ctx.currentEnemy.maxHp * atar.perTurnHealPercent);
     ctx.currentEnemy = { ...ctx.currentEnemy, hp: Math.min(ctx.currentEnemy.hp + healAmt, ctx.currentEnemy.maxHp) };
     const healLogBase = sacSkill?.sacrificeHealLogs?.[0] ?? '*행자의 상처가 흰 재로 덮이며 아물어간다.*';
-    ctx.battleLog.push(`${eName}: ${healLogBase} (행자 회복: +${healAmt})`);
+    ctx.logEvent({
+      side: 'incoming', actor: 'enemy', name: eName,
+      tag: 'heal', value: healAmt, valueTier: 'heal',
+    });
+    ctx.logFlavor(healLogBase, 'right', { actor: 'enemy', minor: true });
 
     const nextTurns = atar.turnsLeft - 1;
     if (nextTurns <= 0) {
@@ -154,7 +169,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       const externalDmgRed = calcExternalDmgReduction(ctx.state);
       const effectiveExternalDmgRed = bypassActive ? 0 : externalDmgRed;
 
-      const selfDmg = calcEnemyDamage(
+      const selfDmgBase = calcEnemyDamage(
         ctx.currentEnemy.attackPower,
         curStacks * dmgMult,
         ctx.dmgReduction,
@@ -162,6 +177,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         ctx.equipStats.bonusFixedDmgReduction ?? 0,
         effectiveExternalDmgRed,
       );
+      const selfDmg = Math.floor(selfDmgBase * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
       ctx.hp -= selfDmg;
       // 플레이어 사망 시 처치 실패 플래그
       if (ctx.hp <= 0 && sacSkill?.sacrificeKillFailureOnDeath) {
@@ -171,12 +187,43 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       ctx.currentEnemy = { ...ctx.currentEnemy, hp: 0 };
       ctx.bossPatternState.atarSacrificeState = null;
       const destructMsg = sacSkill?.sacrificeSelfDestructLogs?.[0] ?? '';
-      ctx.battleLog.push(`${eName}: ${destructMsg} (받은 피해: ${selfDmg} / 불씨 +${preEmberN})`);
+      ctx.logFlavor(destructMsg, 'right', { actor: 'enemy' });
+      ctx.logEvent({
+        side: 'incoming', actor: 'enemy', name: '행자의 폭발',
+        tag: 'hit', value: selfDmg, valueTier: 'hit-heavy',
+        chips: [{ kind: 'fire', label: '불씨', count: preEmberN }],
+      });
       if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
     } else {
       ctx.bossPatternState.atarSacrificeState = { ...atar, turnsLeft: nextTurns };
     }
     skillUsed = true;
+  }
+
+  // ========================================
+  // 배화교 호위 — 성화 맹세 각성 턴 처리
+  // ========================================
+  if (!skillUsed && ctx.bossPatternState?.howiSacredOathState?.phase === 'awakening' && ctx.currentEnemy) {
+    const oath = ctx.bossPatternState.howiSacredOathState;
+    const nextTurns = oath.awakeningTurnsLeft - 1;
+    const oathSkill = BOSS_PATTERNS['baehwa_howi']?.skills.find(s => s.type === 'sacred_oath');
+    if (nextTurns <= 0) {
+      // 광화 전환: 같은 tick에 공격 재개(스펙 §4-2 "1 공격 타이밍" 준수) → skillUsed 세팅 X
+      ctx.bossPatternState.howiSacredOathState = {
+        ...oath,
+        phase: 'frenzy',
+        awakeningTurnsLeft: 0,
+        breathTurnCounter: 0,
+        frenzyEnterLogged: true,
+      };
+      ctx.bossPatternState.bossChargeStunImmune = true;
+      const msg = oathSkill?.sacredOathFrenzyEnterLogs?.[0] ?? '';
+      if (msg) ctx.logFlavor(msg, 'right', { actor: 'enemy' });
+      // skillUsed는 false 유지 — Sraosha sync + 공격 phase(frenzy)가 같은 tick에 실행
+    } else {
+      ctx.bossPatternState.howiSacredOathState = { ...oath, awakeningTurnsLeft: nextTurns };
+      skillUsed = true; // 각성 지속 tick은 공격 스킵
+    }
   }
 
   // ========================================
@@ -189,7 +236,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       const nextStep = seq.currentStep + 1;
       const step = seqSkill.sequenceSteps[nextStep];
       if (step) {
-        ctx.battleLog.push(`${eName}: ${step.logMessage}`);
+        ctx.logDialogue(step.logMessage, 'right', { actor: 'enemy' });
         ctx.currentEnemy = { ...ctx.currentEnemy };
         // 회복
         if (step.healPercent) {
@@ -221,6 +268,50 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       }
     }
     skillUsed = true;
+  }
+
+  // ========================================
+  // 배화교 호위 — Sraosha 단계 동기 (매 공격 tick)
+  // ========================================
+  if (!skillUsed && ctx.currentEnemy?.id === 'baehwa_howi' && ctx.bossPatternState) {
+    const hwowi = BOSS_PATTERNS['baehwa_howi'];
+    const sraoskill = hwowi?.skills.find(s => s.type === 'sraosha_response');
+    const tiers = sraoskill?.sraoshaTiers ?? [];
+    const stacks = getEmberStacks(ctx.bossPatternState.playerDotStacks);
+    const frenzy = ctx.bossPatternState.howiSacredOathState?.phase === 'frenzy';
+    let newTier = 0;
+    for (let i = tiers.length - 1; i >= 0; i--) {
+      if (stacks >= tiers[i].stackMin) { newTier = i; break; }
+    }
+    if (frenzy) newTier = 3;
+    const prev = ctx.bossPatternState.sraoshaLastLoggedTier ?? 0;
+    const frenzyEnterLogged = ctx.bossPatternState.howiSacredOathState?.frenzyEnterLogged ?? false;
+    // 광화 진입 로그가 이미 찍힌 경우 Sraosha 3단계 상승 중복 로그 방지
+    if (newTier !== prev && !(frenzy && frenzyEnterLogged)) {
+      const logsArr = newTier > prev ? sraoskill?.sraoshaRiseLogs : sraoskill?.sraoshaFallLogs;
+      const bucket = logsArr?.find(b => b.toTier === newTier);
+      if (bucket?.logs?.length) {
+        const msg = bucket.logs[Math.floor(Math.random() * bucket.logs.length)];
+        ctx.logFlavor(msg, 'right', { actor: 'enemy' });
+      }
+      ctx.bossPatternState.sraoshaLastLoggedTier = newTier;
+    } else if (frenzy && frenzyEnterLogged && prev !== newTier) {
+      // 광화 진입 이후엔 로그는 찍지 않되 lastLogged는 3으로 동기
+      ctx.bossPatternState.sraoshaLastLoggedTier = newTier;
+    }
+    // tier 변화 없으면 buff 재계산 skip
+    const oldTier = ctx.bossPatternState.sraoshaTier ?? -1;
+    if (newTier !== oldTier) {
+      ctx.bossPatternState.sraoshaTier = newTier;
+      const t = tiers[newTier] ?? { atkBonus: 0, aspdBonus: 0 };
+      const baseAtk = ctx.bossPatternState.baseAttackPower ?? ctx.currentEnemy.attackPower;
+      const baseIv = ctx.bossPatternState.baseAttackInterval ?? ctx.currentEnemy.attackInterval;
+      ctx.currentEnemy = {
+        ...ctx.currentEnemy,
+        attackPower: Math.floor(baseAtk * (1 + t.atkBonus)),
+        attackInterval: baseIv / (1 + t.aspdBonus),
+      };
+    }
   }
 
   // ========================================
@@ -259,7 +350,10 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           || skill.type === 'variable_multi_hit'
           || skill.type === 'dodge_buff_passive'
           // 배화교 추가 skip (battle_start로 처리됨)
-          || skill.type === 'baehwa_guard') continue;
+          || skill.type === 'baehwa_guard'
+          // 배화교 호위 추가 skip
+          || skill.type === 'baehwa_hwachang'
+          || skill.type === 'sraosha_response') continue;
 
       // ── 배화교: 성화 송가 ──
       if (skill.type === 'baehwa_ember_song') {
@@ -273,11 +367,23 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, 1);
           const logs = skill.emberSongSuccessLogs ?? [];
           const msg = logs.length > 0 ? logs[Math.floor(Math.random() * logs.length)] : '';
-          ctx.battleLog.push(`${eName}: ${msg} (행자 회복: +${healAmt} / 불씨 +1)`);
+          ctx.logEvent({
+            side: 'incoming', actor: 'enemy', name: eName,
+            tag: 'heal', value: healAmt, valueTier: 'heal',
+          });
+          ctx.logFlavor(msg, 'right', { actor: 'enemy' });
+          ctx.logEvent({
+            side: 'incoming', actor: 'enemy',
+            chips: [{ kind: 'fire', label: '불씨', count: 1 }],
+          });
         } else {
           const logs = skill.emberSongFailLogs ?? [];
           const msg = logs.length > 0 ? logs[Math.floor(Math.random() * logs.length)] : '';
-          ctx.battleLog.push(`${eName}: ${msg} (행자 회복: +${healAmt})`);
+          ctx.logEvent({
+            side: 'incoming', actor: 'enemy', name: eName,
+            tag: 'heal', value: healAmt, valueTier: 'heal',
+          });
+          ctx.logFlavor(msg, 'right', { actor: 'enemy' });
         }
         skillUsed = true;
         break;
@@ -297,7 +403,27 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         }
         const logs = skill.sacrificeOnTriggerLogs ?? [];
         const msg = logs.length > 0 ? logs[0] : '';
-        ctx.battleLog.push(`${eName}: ${msg}`);
+        ctx.logFlavor(msg, 'right', { actor: 'enemy' });
+        skillUsed = true;
+        break;
+      }
+
+      // ── 배화교 호위: 성화 맹세 (발동) ──
+      if (skill.type === 'sacred_oath') {
+        const heal = Math.floor(ctx.currentEnemy.maxHp * (skill.sacredOathHealPercent ?? 0.15));
+        ctx.currentEnemy = { ...ctx.currentEnemy, hp: Math.min(ctx.currentEnemy.hp + heal, ctx.currentEnemy.maxHp) };
+        const initE = skill.sacredOathInitialEmber ?? 1;
+        ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, initE);
+        ctx.bossPatternState.howiSacredOathState = {
+          phase: 'awakening',
+          awakeningTurnsLeft: skill.sacredOathAwakeningTurns ?? 1,
+          breathTurnCounter: 0,
+          frenzyEnterLogged: false,
+        };
+        if (skill.oneTime) ctx.bossPatternState.usedOneTimeSkills = [...(ctx.bossPatternState.usedOneTimeSkills ?? []), skill.id];
+        ctx.logFlavor(skill.sacredOathOnTriggerLogs?.[0] ?? '', 'right', { actor: 'enemy' });
+        ctx.logEvent({ side: 'incoming', actor: 'enemy', name: eName, tag: 'heal', value: heal, valueTier: 'heal' });
+        ctx.logEvent({ side: 'incoming', actor: 'enemy', chips: [{ kind: 'fire', label: '불씨', count: initE }] });
         skillUsed = true;
         break;
       }
@@ -318,7 +444,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         ctx.currentEnemy = { ...ctx.currentEnemy };
         ctx.currentEnemy.attackPower = Math.floor(ctx.currentEnemy.attackPower * (1 + (skill.buffAtkPercent ?? 0)));
         const buffMsg = skill.logMessages[Math.floor(Math.random() * skill.logMessages.length)];
-        ctx.battleLog.push(`${eName}: ${buffMsg}`);
+        ctx.logFlavor(buffMsg, 'right', { actor: 'enemy', minor: true });
         skillUsed = true;
         break;
       }
@@ -331,7 +457,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           totalSteps: skill.sequenceSteps.length,
         };
         const firstStepMsg = skill.sequenceSteps[0].logMessage;
-        ctx.battleLog.push(`${eName}: ${firstStepMsg}`);
+        ctx.logDialogue(firstStepMsg, 'right', { actor: 'enemy' });
         // stunOnTrigger: 시퀀스 발동 시 플레이어 스턴
         if (skill.stunOnTrigger) {
           ctx.playerStunTimer = skill.stunOnTrigger;
@@ -364,7 +490,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           ctx.currentEnemy.hp -= ctx.currentEnemy.maxHp * skill.finalSelfDmgPercent;
         }
         const fpMsg = skill.logMessages[Math.floor(Math.random() * skill.logMessages.length)];
-        ctx.battleLog.push(`${eName}: ${fpMsg}`);
+        ctx.logDialogue(fpMsg, 'right', { actor: 'enemy' });
         if (skill.oneTime) {
           ctx.bossPatternState.usedOneTimeSkills = [...(ctx.bossPatternState.usedOneTimeSkills ?? []), skill.id];
         }
@@ -389,7 +515,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           if (skill.staminaCost) ctx.bossPatternState.bossStamina -= skill.staminaCost;
           if (skill.oneTime) ctx.bossPatternState.usedOneTimeSkills = [...(ctx.bossPatternState.usedOneTimeSkills ?? []), skill.id];
           const chargeStartMsg = skill.logMessages[0] ?? '기를 응집하기 시작했다!';
-          ctx.battleLog.push(`${eName}: ${chargeStartMsg}`);
+          ctx.logFlavor(chargeStartMsg, 'right', { actor: 'enemy', minor: true });
         }
         skillUsed = true;
         break;
@@ -407,7 +533,12 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           handleDodge(ctx, eName, `${eName}의 포효를 흘려냈다!`);
         } else {
           ctx.playerStunTimer = skill.stunDuration ?? 4;
-          ctx.battleLog.push(`${eName}: ${logMsg}`);
+          ctx.logEvent({
+            side: 'incoming', actor: 'enemy',
+            name: skill.displayName ?? eName,
+            tag: 'hit', value: '—', valueTier: 'muted',
+          });
+          ctx.logDialogue(logMsg, 'right', { actor: 'enemy' });
           ctx.lastEnemyAttack = { enemyName: eName, attackMessage: logMsg };
         }
       } else if (skill.type === 'replace_normal' && !skill.useNormalDamage && !skill.damageMultiplier) {
@@ -421,7 +552,10 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           const healAmt = ctx.currentEnemy.maxHp * (skill.selfHealPercent / 100);
           ctx.currentEnemy = { ...ctx.currentEnemy, hp: Math.min(ctx.currentEnemy.hp + healAmt, ctx.currentEnemy.maxHp) };
         }
-        ctx.battleLog.push(`${eName}: ${logMsg}`);
+        if (skill.debuffAtkPercent == null) {
+          // 디버프 없는 replace_normal (heal/stamina only): 기본 flavor
+          ctx.logFlavor(logMsg, 'right', { actor: 'enemy' });
+        }
         if (skill.debuffAtkPercent != null) {
           const usedAlready = ctx.bossPatternState.usedOneTimeSkills?.includes(skill.id);
           if (!(skill.oneTime && usedAlready)) {
@@ -440,15 +574,19 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
               const allArts = [...ctx.equippedArts, ...(ctx.equippedSimbeop ? [ctx.equippedSimbeop] : [])];
               const hasAllArts = skill.conditionRequiredArts.every(a => allArts.includes(a));
               if (ignoreByEquip) {
-                // logMsg는 L329에서 이미 push됨, 결과만 추가
-                ctx.battleLog.push('녹림의 전령이 영역의 압박을 막아냈다!');
+                ctx.logFlavor('녹림의 전령이 영역의 압박을 막아냈다!', 'right', { actor: 'enemy' });
               } else if (hasAllArts) {
-                ctx.battleLog.push('녹림의 무공으로 영역을 꿰뚫어 보았다!');
+                ctx.logFlavor('녹림의 무공으로 영역을 꿰뚫어 보았다!', 'left', { actor: 'player' });
               } else {
                 // 디버프 적용 — 곱연산으로 기존 살기와 누적
                 ctx.bossPatternState.playerAtkDebuffMult = (ctx.bossPatternState.playerAtkDebuffMult ?? 1) * (1 - (skill.debuffAtkPercent ?? 0));
                 ctx.bossPatternState.playerAtkSpeedDebuffMult = (ctx.bossPatternState.playerAtkSpeedDebuffMult ?? 1) * (1 + (skill.debuffAtkSpeedPercent ?? 0));
-                ctx.battleLog.push('녹림의 영역에 압도당했다! 공격력과 공격속도가 감소한다!');
+                ctx.logLaw({
+                  lawFlavor: undefined,
+                  lawName: `${skill.displayName} · 발동`,
+                  lawText: skill.logMessages[0] ?? '녹림의 영역에 압도당했다!',
+                });
+                ctx.lawActiveFromSkillId = skill.id;
               }
               if (skill.oneTime) {
                 ctx.bossPatternState.usedOneTimeSkills = [...(ctx.bossPatternState.usedOneTimeSkills ?? []), skill.id];
@@ -466,7 +604,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
                   if (mentalStarIndex >= ge.minGrade) {
                     ctx.bossPatternState.playerAtkDebuffMult = 1 - ge.debuffAtkPercent;
                     ctx.bossPatternState.playerAtkSpeedDebuffMult = 1 + ge.debuffAtkSpeedPercent;
-                    ctx.battleLog.push(`${eName}: ${ge.logMessage}`);
+                    ctx.logDialogue(ge.logMessage, 'right', { actor: 'enemy' });
                     matched = true;
                     break;
                   }
@@ -476,15 +614,15 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
                   ctx.bossPatternState.playerAtkDebuffMult = 1 - (skill.debuffAtkPercent ?? 0);
                   ctx.bossPatternState.playerAtkSpeedDebuffMult = 1 + (skill.debuffAtkSpeedPercent ?? 0);
                   const killMsg = skill.logMessages[1] ?? skill.logMessages[0];
-                  ctx.battleLog.push(`${eName}: ${killMsg}`);
+                  ctx.logDialogue(killMsg, 'right', { actor: 'enemy' });
                 }
               } else if (skill.conditionMinSimbeopGrade != null && mentalStarIndex >= skill.conditionMinSimbeopGrade) {
-                ctx.battleLog.push('살기를 꿰뚫어 보았다! 기백으로 압도한다!');
+                ctx.logFlavor('살기를 꿰뚫어 보았다! 기백으로 압도한다!', 'left', { actor: 'player' });
               } else {
                 ctx.bossPatternState.playerAtkDebuffMult = 1 - (skill.debuffAtkPercent ?? 0);
                 ctx.bossPatternState.playerAtkSpeedDebuffMult = 1 + (skill.debuffAtkSpeedPercent ?? 0);
                 const killMsg = skill.logMessages[1] ?? skill.logMessages[0];
-                ctx.battleLog.push(`${eName}: ${killMsg}`);
+                ctx.logDialogue(killMsg, 'right', { actor: 'enemy' });
               }
               if (skill.oneTime) {
                 ctx.bossPatternState.usedOneTimeSkills = [...(ctx.bossPatternState.usedOneTimeSkills ?? []), skill.id];
@@ -501,7 +639,13 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           }
           const freezeSuffix = skill.freezeAttacks ? ' 빙결!' : '';
           const attackMsg = `${eName}: ${logMsg} ${dmg} 피해!${freezeSuffix}`;
-          ctx.battleLog.push(attackMsg);
+          ctx.logEvent({
+            side: 'incoming', actor: 'enemy',
+            name: skill.displayName ?? eName,
+            tag: 'hit', value: dmg, valueTier: 'hit-heavy',
+          });
+          ctx.logFlavor(logMsg, 'right', { actor: 'enemy' });
+          if (skill.freezeAttacks) ctx.logFlavor('빙결!', 'left', { actor: 'player', minor: true });
           ctx.lastEnemyAttack = { enemyName: eName, attackMessage: attackMsg };
           if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
         } else {
@@ -513,7 +657,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           attackPower: Math.floor(ctx.currentEnemy.attackPower * (1 + (skill.atkBuffPercent ?? 0))),
           bypassExternalGradeActive: true,
         };
-        ctx.battleLog.push(`${eName}: ${skill.logMessages[0]}`);
+        ctx.logFlavor(skill.logMessages[0], 'right', { actor: 'enemy' });
         if (skill.oneTime) {
           ctx.bossPatternState.usedOneTimeSkills = [...(ctx.bossPatternState.usedOneTimeSkills ?? []), skill.id];
         }
@@ -535,13 +679,13 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
             potionConsumedRage: true,
           };
           ctx.enemyAttackTimer = ctx.currentEnemy.attackInterval;
-          ctx.battleLog.push(`${eName}: ${skill.logMessages[1] ?? skill.logMessages[0]}`);
+          ctx.logFlavor(skill.logMessages[1] ?? skill.logMessages[0], 'right', { actor: 'enemy' });
         } else {
           ctx.currentEnemy = {
             ...ctx.currentEnemy,
             hp: Math.min(ctx.currentEnemy.hp + ctx.currentEnemy.maxHp * chosenOpt.healPercent, ctx.currentEnemy.maxHp),
           };
-          ctx.battleLog.push(`${eName}: ${skill.logMessages[0]}`);
+          ctx.logFlavor(skill.logMessages[0], 'right', { actor: 'enemy' });
         }
         if (skill.oneTime) {
           ctx.bossPatternState.usedOneTimeSkills = [...(ctx.bossPatternState.usedOneTimeSkills ?? []), skill.id];
@@ -554,7 +698,13 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
 
         if (skill.undodgeable || Math.random() >= ctx.dodgeRate) {
           ctx.hp -= skillDmg;
-          ctx.battleLog.push(`${eName}: ${logMsg} ${skillDmg} 피해!`);
+          ctx.logEvent({
+            side: 'incoming', actor: 'enemy',
+            name: skill.displayName ?? eName,
+            tag: 'hit', value: skillDmg,
+            valueTier: skillDmg >= (ctx.maxHp * 0.25) ? 'hit-heavy' : 'normal',
+          });
+          ctx.logFlavor(logMsg, 'right', { actor: 'enemy' });
           ctx.lastEnemyAttack = { enemyName: eName, attackMessage: `${eName}: ${logMsg} ${skillDmg} 피해!` };
           if (!ctx.isSimulating) {
             ctx.enemyAnim = 'attack';
@@ -651,16 +801,22 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         if (Math.random() < tier.chance) {
           variableMultiHitTriggered = true;
           const vmhMsg = vmhSkill.logMessages[Math.floor(Math.random() * vmhSkill.logMessages.length)];
-          ctx.battleLog.push(`${eName}: ${vmhMsg}`);
+          ctx.logFlavor(vmhMsg, 'right', { actor: 'enemy' });
           for (let i = 0; i < tier.hitCount; i++) {
             if (Math.random() < ctx.dodgeRate) {
-              ctx.battleLog.push(`${i + 1}타 — 회피!`);
+              ctx.logEvent({
+                side: 'incoming', actor: 'enemy',
+                name: `${i + 1}타`, tag: 'dodge', value: '—', valueTier: 'muted',
+              });
               if (ctx.masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) ctx.dodgeCounterActive = true;
             } else {
               let vmhDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, tier.hitMultipliers[i] * monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
               vmhDmg = Math.floor(vmhDmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
               ctx.hp -= vmhDmg;
-              ctx.battleLog.push(`${i + 1}타! ${vmhDmg} 피해!`);
+              ctx.logEvent({
+                side: 'incoming', actor: 'enemy',
+                name: `${i + 1}타`, tag: 'hit', value: vmhDmg, valueTier: 'normal',
+              });
               attackLanded = true;
             }
           }
@@ -671,10 +827,94 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       if (variableMultiHitTriggered) break;
     }
 
+    // ── 배화교 호위: 화창격 분기 (광화 숨결 포함) ──
+    const hwachangSkill = pattern?.skills.find(s => s.type === 'baehwa_hwachang');
+    let hwachangTriggered = false;
+    if (hwachangSkill && ctx.currentEnemy?.id === 'baehwa_howi' && !skillUsed && !variableMultiHitTriggered) {
+      // 광화 숨결: 매 공격마다 카운터+1, breathInterval의 배수에서 불씨+1
+      if (ctx.bossPatternState?.howiSacredOathState?.phase === 'frenzy') {
+        const oath = ctx.bossPatternState.howiSacredOathState;
+        const nextCounter = oath.breathTurnCounter + 1;
+        ctx.bossPatternState.howiSacredOathState = { ...oath, breathTurnCounter: nextCounter };
+        const oathSkill = pattern.skills.find(s => s.type === 'sacred_oath');
+        const breathInterval = oathSkill?.sacredOathBreathIntervalTurns ?? 4;
+        if (nextCounter % breathInterval === 0) {
+          ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, 1);
+          const breathLogs = oathSkill?.sacredOathBreathLogs ?? [];
+          const msg = breathLogs.length ? breathLogs[Math.floor(Math.random() * breathLogs.length)] : '';
+          if (msg) ctx.logFlavor(msg, 'right', { actor: 'enemy' });
+          ctx.logEvent({ side: 'incoming', actor: 'enemy', chips: [{ kind: 'fire', label: '불씨', count: 1 }] });
+        }
+      }
+      // 3-way 분기
+      const frenzy = ctx.bossPatternState?.howiSacredOathState?.phase === 'frenzy';
+      const singleP = frenzy ? (hwachangSkill.hwachangFrenzySingleChance ?? 0.25) : (hwachangSkill.hwachangSingleChance ?? 0.21);
+      const doubleP = frenzy ? (hwachangSkill.hwachangFrenzyDoubleChance ?? 0.10) : (hwachangSkill.hwachangDoubleChance ?? 0.09);
+      const roll = Math.random();
+      if (roll < singleP) {
+        // 화창격 1타
+        const mult = hwachangSkill.hwachangSingleDamageMult ?? 1.8;
+        if (Math.random() < ctx.dodgeRate) {
+          handleDodge(ctx, `${eName}의 ${hwachangSkill.displayName ?? '화창격'}`);
+        } else {
+          const logs = frenzy ? (hwachangSkill.hwachangFrenzySingleLogs ?? []) : (hwachangSkill.hwachangSingleLogs ?? []);
+          let dmg = calcEnemyDamage(ctx.currentEnemy.attackPower, mult * monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
+          dmg = Math.floor(dmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
+          ctx.hp -= dmg;
+          const emberHit = Math.random() < (hwachangSkill.hwachangSingleEmberChance ?? 0.70);
+          const chips: { kind: 'fire'; label: string; count: number }[] = emberHit ? [{ kind: 'fire', label: '불씨', count: 1 }] : [];
+          if (emberHit && ctx.bossPatternState) {
+            ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, 1);
+          }
+          const logMsg = logs.length ? logs[Math.floor(Math.random() * logs.length)] : '';
+          if (logMsg) ctx.logFlavor(logMsg, 'right', { actor: 'enemy' });
+          ctx.logEvent({
+            side: 'incoming', actor: 'enemy',
+            name: hwachangSkill.displayName ?? '화창격',
+            tag: 'hit', value: dmg, valueTier: 'normal',
+            chips,
+          });
+          if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
+          attackLanded = true;
+        }
+        hwachangTriggered = true;
+      } else if (roll < singleP + doubleP) {
+        // 화창2격
+        const mult = hwachangSkill.hwachangDoubleDamageMult ?? 1.2;
+        const logs = frenzy ? (hwachangSkill.hwachangFrenzyDoubleLogs ?? []) : (hwachangSkill.hwachangDoubleLogs ?? []);
+        const logMsg = logs.length ? logs[Math.floor(Math.random() * logs.length)] : '';
+        if (logMsg) ctx.logFlavor(logMsg, 'right', { actor: 'enemy' });
+        const hitChips: { kind: 'fire'; label: string; count: number }[] = [];
+        for (let hi = 0; hi < 2; hi++) {
+          if (Math.random() < ctx.dodgeRate) {
+            ctx.logEvent({ side: 'incoming', actor: 'enemy', name: `${hi + 1}타`, tag: 'dodge', value: '—', valueTier: 'muted' });
+            if (ctx.masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) ctx.dodgeCounterActive = true;
+          } else {
+            let dmg = calcEnemyDamage(ctx.currentEnemy.attackPower, mult * monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
+            dmg = Math.floor(dmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
+            ctx.hp -= dmg;
+            const emberHit = Math.random() < (hwachangSkill.hwachangDoubleEmberChance ?? 0.60);
+            if (emberHit && ctx.bossPatternState) {
+              ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, 1);
+              hitChips.push({ kind: 'fire', label: '불씨', count: 1 });
+            }
+            ctx.logEvent({ side: 'incoming', actor: 'enemy', name: `${hi + 1}타`, tag: 'hit', value: dmg, valueTier: 'normal' });
+            attackLanded = true;
+          }
+        }
+        if (hitChips.length > 0) {
+          ctx.logEvent({ side: 'incoming', actor: 'enemy', chips: hitChips });
+        }
+        if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
+        hwachangTriggered = true;
+      }
+      // else: 평타 fallthrough (hwachangTriggered = false)
+    }
+
     const rapidFireSkill = pattern?.skills.find(s => s.type === 'rapid_fire');
     const condStrikeSkill = pattern?.skills.find(s => s.type === 'condition_strike');
 
-    if (variableMultiHitTriggered) {
+    if (variableMultiHitTriggered || hwachangTriggered) {
       // already handled above
     } else if (rapidFireSkill && Math.random() < (rapidFireSkill.chance ?? 0)) {
       // rapid_fire: N타 속사 (일반 공격 대체)
@@ -698,7 +938,13 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       const total = damages.reduce((a, b) => a + b, 0);
       const dmgStr = damages.map(d => d === 0 ? '회피' : d).join(', ');
       const rfMsg = `${eName}: ${rapidFireSkill.logMessages[0]} ${dmgStr} (총 ${total})`;
-      ctx.battleLog.push(rfMsg);
+      ctx.logFlavor(rapidFireSkill.logMessages[0], 'right', { actor: 'enemy' });
+      ctx.logEvent({
+        side: 'incoming', actor: 'enemy',
+        name: rapidFireSkill.displayName ?? '속사',
+        tag: 'hit', value: total,
+        valueTier: total > ctx.maxHp * 0.25 ? 'hit-heavy' : 'normal',
+      });
       ctx.lastEnemyAttack = { enemyName: eName, attackMessage: rfMsg };
       if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
       attackLanded = total > 0;
@@ -717,7 +963,13 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         csDmg = Math.floor(csDmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
         ctx.hp -= csDmg;
         const csMsg = `${eName}: ${condStrikeSkill.logMessages[0]} ${csDmg} 피해! (회피불가!)`;
-        ctx.battleLog.push(csMsg);
+        ctx.logEvent({
+          side: 'incoming', actor: 'enemy',
+          name: condStrikeSkill.displayName ?? '비열한 일격',
+          tag: 'hit', value: csDmg,
+          valueTier: csDmg > ctx.maxHp * 0.25 ? 'hit-heavy' : 'normal',
+        });
+        ctx.logFlavor(condStrikeSkill.logMessages[0] + ' (회피불가)', 'right', { actor: 'enemy' });
         ctx.lastEnemyAttack = { enemyName: eName, attackMessage: csMsg };
         if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
         attackLanded = true;
@@ -731,7 +983,12 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           csDmg = Math.floor(csDmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
           ctx.hp -= csDmg;
           const csMsg = `${eName}: ${condStrikeSkill.logMessages[0]} ${csDmg} 피해!`;
-          ctx.battleLog.push(csMsg);
+          ctx.logEvent({
+            side: 'incoming', actor: 'enemy',
+            name: condStrikeSkill.displayName ?? '비열한 일격',
+            tag: 'hit', value: csDmg, valueTier: 'normal',
+          });
+          ctx.logFlavor(condStrikeSkill.logMessages[0], 'right', { actor: 'enemy' });
           ctx.lastEnemyAttack = { enemyName: eName, attackMessage: csMsg };
           if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
           attackLanded = true;
@@ -744,7 +1001,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       } else {
         // 배화교 행자 — 불씨 평타 추가 피해 배율 (기본 공격 대비)
         const emberStk = getEmberStacks(ctx.bossPatternState?.playerDotStacks);
-        const emberBonusMult = getEmberAttackBonusMult(ctx.bossPatternState?.playerDotStacks);
+        const emberBonusMult = getEmberAttackBonusMult(ctx.bossPatternState?.playerDotStacks, ctx.currentEnemy?.id);
 
         // 불씨가 있을 때만 분리 계산 (bonusPortion 얻기 위함), 그 외는 기존 calcEnemyDamage 경로 유지
         let incomingDmg: number;
@@ -770,21 +1027,29 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         emberExtra = Math.floor(emberExtra * takenMult);
         ctx.hp -= incomingDmg;
         if (incomingDmg > 0 && monDef) {
-          if (monCritLog) ctx.battleLog.push(`${eName}: ${monCritLog}`);
+          if (monCritLog) ctx.logFlavor(monCritLog, 'right', { actor: 'enemy', minor: true });
           if (conditionalPassiveTriggered && condPassiveSkill) {
             const cpMsg = condPassiveSkill.logMessages[Math.floor(Math.random() * condPassiveSkill.logMessages.length)];
-            ctx.battleLog.push(`${eName}: ${cpMsg}`);
+            ctx.logFlavor(cpMsg, 'right', { actor: 'enemy', minor: true });
           }
-          // 불씨 평타: ember 로그 사용 + 추가 피해 표기
-          if (emberStk > 0) {
+          // 불씨 평타: ember bonus 수혜 적(행자)만 ember 로그 사용 + 추가 피해 표기
+          if (emberStk > 0 && emberBonusMult > 1) {
             const emberLogs = monDef.emberAttackLogs ?? DEFAULT_EMBER_ATTACK_LOGS;
             const msgBase = emberLogs[Math.floor(Math.random() * emberLogs.length)];
             const attackMsg = `${msgBase} ${incomingDmg} 피해. (+${emberExtra})`;
-            ctx.battleLog.push(attackMsg);
+            ctx.logEvent({
+              side: 'incoming', actor: 'enemy', name: eName,
+              tag: 'hit', value: incomingDmg, valueTier: 'normal',
+            });
+            ctx.logFlavor(msgBase, 'right', { actor: 'enemy', minor: true });
             ctx.lastEnemyAttack = { enemyName: eName, attackMessage: attackMsg };
           } else {
             const attackMsg = getMonsterAttackMsg(monDef, incomingDmg);
-            ctx.battleLog.push(attackMsg);
+            ctx.logEvent({
+              side: 'incoming', actor: 'enemy', name: eName,
+              tag: 'hit', value: incomingDmg, valueTier: 'normal',
+            });
+            ctx.logFlavor(attackMsg, 'right', { actor: 'enemy', minor: true });
             ctx.lastEnemyAttack = { enemyName: eName, attackMessage: attackMsg };
           }
         }
@@ -843,7 +1108,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           }
         }
         const bleedMsg = passiveBleedSkill.logMessages[Math.floor(Math.random() * passiveBleedSkill.logMessages.length)];
-        ctx.battleLog.push(`${eName}: ${bleedMsg}`);
+        ctx.logFlavor(bleedMsg, 'right', { actor: 'enemy', minor: true });
       }
 
       // multi_dot: 각 독립 롤
@@ -873,7 +1138,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           ctx.bossPatternState.playerDotStacks = [...(ctx.bossPatternState.playerDotStacks ?? []), newDot];
         }
         const mdMsg = mdSkill.logMessages[Math.floor(Math.random() * mdSkill.logMessages.length)];
-        ctx.battleLog.push(`${eName}: ${mdMsg}`);
+        ctx.logFlavor(mdMsg, 'right', { actor: 'enemy', minor: true });
       }
 
       // conditional_passive ON-HIT: 출혈 + 철벽
@@ -919,7 +1184,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
             dotPattern2.stamina.max,
           );
           const dmsg = dotSkill.logMessages[Math.floor(Math.random() * dotSkill.logMessages.length)];
-          ctx.battleLog.push(`${eName}: ${dmsg}`);
+          ctx.logFlavor(dmsg, 'right', { actor: 'enemy', minor: true });
         }
         const dblSkill = dotPattern2.skills.find(s => s.type === 'double_hit');
         if (dblSkill && Math.random() < (dblSkill.chance ?? 0)) {
@@ -927,9 +1192,18 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           if (Math.random() >= ctx.dodgeRate) {
             const dmg2 = calcEnemyDamage(ctx.currentEnemy.attackPower, dblSkill.hitMultiplier ?? 1, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0);
             ctx.hp -= dmg2;
-            ctx.battleLog.push(`${eName}: ${dmsg} ${dmg2} 피해!`);
+            ctx.logEvent({
+              side: 'incoming', actor: 'enemy',
+              name: dblSkill.displayName ?? '연격',
+              tag: 'hit', value: dmg2, valueTier: 'normal',
+            });
+            ctx.logFlavor(dmsg, 'right', { actor: 'enemy', minor: true });
           } else {
-            ctx.battleLog.push(`${eName}: ${dmsg} — 회피!`);
+            ctx.logEvent({
+              side: 'incoming', actor: 'enemy',
+              name: dblSkill.displayName ?? '연격',
+              tag: 'dodge', value: '—', valueTier: 'muted',
+            });
             if (ctx.masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) {
               ctx.dodgeCounterActive = true;
             }
@@ -944,15 +1218,21 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         const tripleSkill = dotPattern2.skills.find(s => s.type === 'multi_hit');
         if (tripleSkill && Math.random() < (tripleSkill.chance ?? 0)) {
           const tripleMsg = tripleSkill.logMessages[Math.floor(Math.random() * tripleSkill.logMessages.length)];
-          ctx.battleLog.push(`${eName}: ${tripleMsg}`);
+          ctx.logFlavor(tripleMsg, 'right', { actor: 'enemy' });
           const hitCount = tripleSkill.hitCount ?? 3;
           for (let i = 0; i < hitCount; i++) {
             if (Math.random() >= ctx.dodgeRate) {
               const tDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, tripleSkill.hitMultiplier ?? 1, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0);
               ctx.hp -= tDmg;
-              ctx.battleLog.push(`연격 ${i + 1}타! ${tDmg} 피해!`);
+              ctx.logEvent({
+                side: 'incoming', actor: 'enemy',
+                name: `연격 ${i + 1}타`, tag: 'hit', value: tDmg, valueTier: 'normal',
+              });
             } else {
-              ctx.battleLog.push(`연격 ${i + 1}타 — 회피!`);
+              ctx.logEvent({
+                side: 'incoming', actor: 'enemy',
+                name: `연격 ${i + 1}타`, tag: 'dodge', value: '—', valueTier: 'muted',
+              });
               if (ctx.masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) ctx.dodgeCounterActive = true;
             }
           }

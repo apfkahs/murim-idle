@@ -10,6 +10,12 @@ export interface FieldUnlockCondition {
   materialOwned?: string; // 이 재료 소지 시 해금
 }
 
+export interface FieldFirstEntryEvent {
+  logs: string[];           // battleLog에 순서대로 push (몰입 서술체)
+  materialDrop: string;     // 확정 드랍 재료 id
+  resultMessage: string;    // BattleResultScreen 상단 message
+}
+
 export interface FieldDef {
   id: string;
   name: string;
@@ -26,6 +32,7 @@ export interface FieldDef {
   location?: string;         // 지역 그룹명 (예: '천산 대맥')
   sequential?: boolean;      // true이면 몬스터를 순서대로 배치 (랜덤 아님)
   totalMonsterSlots?: number; // 총 몬스터 슬롯 수 (미구현 슬롯은 ??? 표시)
+  firstEntryEvent?: FieldFirstEntryEvent; // 첫 진입 시 발동하는 서사 이벤트
 }
 
 export const FIELDS: FieldDef[] = [
@@ -117,13 +124,53 @@ export const FIELDS: FieldDef[] = [
     canExplore: false,
     unlockCondition: { materialOwned: 'gongdong_map' },
   },
+  // ── 배화교(拜火敎) — 4단계 다층 구조 ──
   {
-    id: 'baehwagyo',
-    name: '배화교',
-    monsters: ['baehwa_haengja'],
+    id: 'baehwagyo_oemun',
+    name: '배화교 외문',
+    monsters: ['baehwa_haengja', 'baehwa_howi'],
     hiddenMonsters: [],
     canExplore: true,
+    sequential: true,
+    totalMonsterSlots: 7,
     unlockCondition: { materialOwned: 'secret_order' },
+    firstEntryEvent: {
+      logs: [
+        '꿈 같은 공간을 헤쳐나가다 문득 눈을 뜨니, 백지로만 가득한 비급이 손에 있었다.',
+      ],
+      materialDrop: 'baekji_mugongseo',
+      resultMessage: '꿈속에서 백지무공서를 얻었다.',
+    },
+  },
+  {
+    id: 'baehwagyo_naemun',
+    name: '배화교 내문',
+    monsters: [],
+    hiddenMonsters: [],
+    canExplore: true,
+    sequential: true,
+    totalMonsterSlots: 5,
+    unlockCondition: { bossKill: 'baehwagyo_oemun_boss' },
+  },
+  {
+    id: 'baehwagyo_sawon',
+    name: '배화교 사원',
+    monsters: [],
+    hiddenMonsters: [],
+    canExplore: true,
+    sequential: true,
+    totalMonsterSlots: 5,
+    unlockCondition: { bossKill: 'baehwagyo_naemun_boss' },
+  },
+  {
+    id: 'baehwagyo_simcheo',
+    name: '배화교 심처',
+    monsters: [],
+    hiddenMonsters: [],
+    canExplore: true,
+    sequential: true,
+    totalMonsterSlots: 5,
+    unlockCondition: { bossKill: 'baehwagyo_sawon_boss' },
   },
 ];
 

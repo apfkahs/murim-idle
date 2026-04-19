@@ -33,7 +33,11 @@ export interface BossSkillDef {
      // ── 배화교 행자 신규 ──
      | 'baehwa_guard'          // 삼행의 율법 (전투 시작, 조건부 피해 감소)
      | 'baehwa_ember_song'     // 성화 송가 (70% 평타 / 30% 자가회복 + 불씨 부여)
-     | 'baehwa_atar_sacrifice';// 아타르로의 귀의 (HP%, 3턴 반사 후 자폭)
+     | 'baehwa_atar_sacrifice' // 아타르로의 귀의 (HP%, 3턴 반사 후 자폭)
+     // ── 배화교 호위 신규 ──
+     | 'baehwa_hwachang'       // 화창격 (확률 분기 3-way: 평타/1타/2격)
+     | 'sraosha_response'      // 스라오샤의 응답 (ember 스택 연동 자기 버프)
+     | 'sacred_oath';          // 성화 맹세 (HP 30% 임계 → 각성+광화 시퀀스)
   triggerCondition: 'stamina_full' | 'hp_threshold' | 'default' | 'battle_start';
   staminaCost?: number;
   staminaGain?: number;
@@ -181,6 +185,37 @@ export interface BossSkillDef {
   sacrificeReflectLogs?: string[];                      // 귀의 중 반사 불씨 로그 (A/B/C)
   sacrificeSelfDestructLogs?: string[];                 // 자폭 로그
   sacrificeEarlyKillLogs?: string[];                    // 3턴 내 처치 시 로그
+  // ── 배화교 호위 신규 ──
+  // 화창격 (baehwa_hwachang)
+  hwachangSingleChance?: number;
+  hwachangSingleDamageMult?: number;
+  hwachangSingleEmberChance?: number;
+  hwachangDoubleChance?: number;
+  hwachangDoubleDamageMult?: number;
+  hwachangDoubleEmberChance?: number;
+  hwachangFrenzySingleChance?: number;
+  hwachangFrenzyDoubleChance?: number;
+  hwachangSingleLogs?: string[];
+  hwachangDoubleLogs?: string[];
+  hwachangFrenzySingleLogs?: string[];
+  hwachangFrenzyDoubleLogs?: string[];
+  // 스라오샤 (sraosha_response)
+  sraoshaTiers?: { stackMin: number; stackMax: number; atkBonus: number; aspdBonus: number }[];
+  sraoshaRiseLogs?: { toTier: number; logs: string[] }[];
+  sraoshaFallLogs?: { toTier: number; logs: string[] }[];
+  // 성화 맹세 (sacred_oath)
+  sacredOathHealPercent?: number;
+  sacredOathInitialEmber?: number;
+  sacredOathAwakeningTurns?: number;
+  sacredOathReflectPerHit?: number;
+  sacredOathBreathIntervalTurns?: number;
+  sacredOathOnTriggerLogs?: string[];
+  sacredOathReflectLogs?: string[];
+  sacredOathFrenzyEnterLogs?: string[];
+  sacredOathBreathLogs?: string[];
+  sacredOathStunImmuneLogs?: string[];
+  sacredOathKillFrenzyLogs?: string[];
+  sacredOathKillEarlyLogs?: string[];
 }
 
 export interface BossPatternDef {
@@ -691,6 +726,136 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
       },
     ],
   },
+  // ── 배화교 호위 패턴 ──
+  baehwa_howi: {
+    stamina: { initial: 0, max: 0, regenPerSec: 0 },
+    skills: [
+      {
+        id: 'baehwa_guard_howi',
+        displayName: '삼행의 율법(三行律法)',
+        type: 'baehwa_guard',
+        triggerCondition: 'battle_start',
+        oneTime: true,
+        priority: 10,
+        conditionRequiredFaction: 'baehwagyo',
+        damageTakenMultiplierIfCondition: 0.5,
+        battleStartLogs: [
+          '*호위가 창을 바로 세우며 자세를 낮춘다.*',
+          '*「삼행(三行)의 율법 아래에 있지 않은 손은, 우리 교의 살갗에 닿을 수 없다.」*',
+        ],
+        firstHitLogMessagesNoArt: [
+          '*당신의 일격이 호위의 갑주 앞에서 미끄러진다.*\n*「길이 갈라진 자의 창은 갑주를 가르지 못한다.」*',
+          '*호위가 한 발도 물러서지 않는다. 창끝이 당신의 공격을 가볍게 받아넘긴다.*\n*「삼행이 하나로 모이지 않은 손끝이군.」*',
+          '*당신의 공격이 호위의 살갗을 스치기 전에 흐트러진다.*\n*「율법을 모르는 자로군.」*',
+        ],
+        firstHitLogMessagesWithArt: [
+          '*당신의 일격이 호위의 갑주를 찢는다. 호위의 눈빛이 달라진다.*\n*「...삼행을 걷는 자였군.」*',
+        ],
+        logMessages: [],
+      },
+      {
+        id: 'sraosha_howi',
+        displayName: '스라오샤의 응답(Sraosha 應答)',
+        type: 'sraosha_response',
+        triggerCondition: 'battle_start',
+        oneTime: true,
+        priority: 9,
+        sraoshaTiers: [
+          { stackMin: 0, stackMax: 1, atkBonus: 0, aspdBonus: 0 },
+          { stackMin: 2, stackMax: 4, atkBonus: 0.10, aspdBonus: 0.05 },
+          { stackMin: 5, stackMax: 8, atkBonus: 0.20, aspdBonus: 0.10 },
+          { stackMin: 9, stackMax: 9999, atkBonus: 0.30, aspdBonus: 0.15 },
+        ],
+        sraoshaRiseLogs: [
+          { toTier: 1, logs: ['*당신 몸의 불씨가 호위의 창끝을 감싼다. 호위의 창이 조금 빨라진다.*'] },
+          { toTier: 2, logs: ['*호위가 당신의 불씨에 호흡을 맞춘다. 창끝이 붉게 타오른다.*'] },
+          { toTier: 3, logs: ['*호위의 눈에서 광기가 비친다.*\n*「성화가 그대 안에 있다. 나는 그것에 응답할 뿐.」*'] },
+        ],
+        sraoshaFallLogs: [
+          { toTier: 2, logs: ['*호위의 숨이 한 박자 무뎌진다. 창끝의 붉은 기운이 조금 가라앉는다.*\n*「…그대의 불이 잦아드는군.」*'] },
+          { toTier: 1, logs: ['*호위의 창대에 감돌던 열기가 서서히 식어간다. 호위가 자세를 고쳐 잡는다.*'] },
+          { toTier: 0, logs: ['*호위의 호흡이 정돈된다. 창끝이 원래의 차가운 빛을 되찾는다.*'] },
+        ],
+        logMessages: [],
+      },
+      {
+        id: 'baehwa_hwachang_howi',
+        displayName: '화창격(火槍擊)',
+        type: 'baehwa_hwachang',
+        triggerCondition: 'default',
+        priority: 5,
+        hwachangSingleChance: 0.21,
+        hwachangDoubleChance: 0.09,
+        hwachangSingleDamageMult: 1.8,
+        hwachangDoubleDamageMult: 1.2,
+        hwachangSingleEmberChance: 0.70,
+        hwachangDoubleEmberChance: 0.60,
+        hwachangFrenzySingleChance: 0.25,
+        hwachangFrenzyDoubleChance: 0.10,
+        hwachangSingleLogs: [
+          '*호위가 창대를 양손에 모으고 발을 구른다. 다음 순간 창끝이 폭발적으로 내뻗친다.*',
+          '*『성화의 이름으로.』 호위의 창이 한 호흡에 두 걸음을 파고든다.*',
+          '*호위의 창대가 성화를 스친 듯 붉게 달아오른다. 창끝이 당신의 살갗을 꿰뚫는다.*',
+          '*호위가 자세를 낮추며 창을 비스듬히 당긴다. 다음 순간, 붉은 궤적이 당신의 몸을 관통한다.*',
+        ],
+        hwachangDoubleLogs: [
+          '*호위의 창이 두 번 번쩍인다. 첫 찌르기에 이어, 창대를 되돌린 두 번째 찌르기가 곧장 이어진다.*',
+          '*『두 번. 두 번 그의 길을 끊으소서.』 호위의 창이 짧은 간격으로 두 번 내뻗친다.*',
+          '*호위가 창을 한 차례 회전시키며 두 갈래의 궤적을 그린다. 두 궤적 모두가 당신의 몸을 스친다.*',
+        ],
+        hwachangFrenzySingleLogs: [
+          '*『성화여.』 호위의 창이 붉은 궤적을 그리며 내리꽂힌다.*',
+          '*호위의 창끝에서 흰 불티가 흩뿌려지며 당신을 꿰뚫는다.*',
+        ],
+        hwachangFrenzyDoubleLogs: [
+          '*호위의 창이 두 번 번쩍인다. 두 번 모두 성화가 당신의 몸에 박힌다.*',
+          '*『성화여, 두 번 — 두 번 그의 길을 끊으소서.』 호위의 창이 짧은 간격으로 두 번 당신을 꿰뚫는다.*',
+        ],
+        logMessages: [],
+      },
+      {
+        id: 'sacred_oath_howi',
+        displayName: '성화 맹세(聖火盟誓)',
+        type: 'sacred_oath',
+        triggerCondition: 'hp_threshold',
+        hpThreshold: 0.30,
+        oneTime: true,
+        priority: 8,
+        sacredOathHealPercent: 0.15,
+        sacredOathInitialEmber: 1,
+        sacredOathAwakeningTurns: 1,
+        sacredOathReflectPerHit: 1,
+        sacredOathBreathIntervalTurns: 4,
+        sacredOathOnTriggerLogs: [
+          '*호위가 창을 땅에 깊숙이 꽂고 한쪽 무릎을 꿇는다. 두 눈을 감고 성화를 향해 고개를 숙인다.*\n*「성화 앞에 맹세했다 — 이 문은 넘게 하지 않겠다.」*\n*호위의 갑주 틈새로 흰 불꽃이 스며 나와 당신의 살갗에 옮겨 붙는다.*',
+        ],
+        sacredOathReflectLogs: [
+          '*당신의 일격이 기도하는 호위의 어깨를 쳤다. 상처에서 튄 흰 불꽃이 당신에게 내려앉는다.*',
+          '*호위는 반응하지 않는다. 꽂힌 창을 붙잡은 자세 그대로, 벌어진 상처에서 불씨 한 점이 새어 나와 당신의 옷자락을 물들인다.*',
+          '*「...」 호위는 말이 없다. 그러나 그의 몸에서 번져 나온 불꽃이 당신을 스치며 흔적을 남긴다.*',
+        ],
+        sacredOathFrenzyEnterLogs: [
+          '*호위가 천천히 고개를 든다. 두 눈 속에서 흰 불꽃이 타오르고 있다.*\n*창을 뽑아 들자, 창대 전체에 성화가 옮겨붙어 일렁인다.*\n*「이제부터 당신을 찌르는 것은 — 내가 아니다. 성화다.」*',
+        ],
+        sacredOathBreathLogs: [
+          '*호위의 살갗 틈새로 흘러나온 흰 불꽃이 당신에게 스며든다.*',
+          '*호위 주변의 공기가 하얗게 일렁이더니, 그 파편이 당신 위로 내려앉는다.*',
+          '*호위의 입가에서 흰 불씨가 번진다. 그 일부가 당신의 살갗에 닿는다.*',
+        ],
+        sacredOathStunImmuneLogs: [
+          '*당신의 일격이 호위의 급소를 정확히 찍었다. 그러나 호위는 흔들리지 않는다. 두 눈 속 흰 불꽃이 오히려 더 깊게 타오른다.*',
+          '*호위의 몸이 한 차례 비틀린다. 하지만 창은 놓지 않는다. 성화가 그의 의식을 붙잡고 있다.*',
+        ],
+        sacredOathKillFrenzyLogs: [
+          '*호위가 창을 땅에 꽂고 무릎을 꿇는다. 몸을 감싸던 불꽃이 서서히 꺼진다.*\n*「성화여...... 이 몸으로는...... 부족했습니다......」*',
+        ],
+        sacredOathKillEarlyLogs: [
+          '*호위가 창을 놓치며 무너진다. 피 묻은 입가로 성화 쪽을 바라본다.*\n*「...아직...... 성화 앞에...... 맹세를...... 드리지도...... 못했는데......」*',
+        ],
+        logMessages: [],
+      },
+    ],
+  },
   masked_swordsman: {
     stamina: { initial: 0, max: 0, regenPerSec: 0 },
     skills: [
@@ -1035,6 +1200,21 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
       '*꺼져가던 불씨가 행자의 숨결에 살아난다. 당신의 몸을 조금씩 갉아먹는다.*',
     ],
     description: '배화교의 가장 낮은 자리에 있는 잡일꾼. 무공은 익히지 못했으나, 매일 성화 앞에서 기도하며 광기의 첫 불씨를 품게 된 자들이다. 무력으로는 위협적이지 않지만, 그 몸에 옮겨 붙은 불씨는 생각보다 오래 타오른다.',
+  },
+  {
+    id: 'baehwa_howi', name: '배화교 호위',
+    hp: 5000, attackPower: 220, attackInterval: 2.2, regen: 0, baseProficiency: 10,
+    drops: [],
+    materialDrops: [
+      { materialId: 'huimihan_janbul', chance: 0.035 },
+    ],
+    grade: 10, imageKey: 'baehwa_howi',
+    attackMessages: [
+      '호위가 창을 바로 세우고 빠르게 내뻗쳤다!',
+      '호위의 창끝이 날카롭게 당신을 파고들었다!',
+      '호위가 성화를 향해 고개를 끄덕인 뒤 창을 찌른다!',
+    ],
+    description: '배화교 호교당(護敎堂)의 외문 경비를 맡은 무사. 정식 무공을 익힌 사제는 아니지만, 교단의 기본 호법 창법과 성화에 대한 맹세만으로 창끝이 흐트러지지 않는다. 상대의 몸에 옮겨 붙은 불씨가 짙어질수록, 그의 창끝도 함께 뜨거워진다.',
   },
 ];
 

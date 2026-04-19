@@ -27,6 +27,12 @@ export default function FieldNavigation() {
       onBack={() => setSelectedLocation(null)}
     />;
   }
+  if (selectedLocation === 'baehwagyo') {
+    return <BaehwagyoDetailScreen
+      onSelect={setSelectedField}
+      onBack={() => setSelectedLocation(null)}
+    />;
+  }
   return <FieldListScreen onSelectField={setSelectedField} onSelectLocation={setSelectedLocation} />;
 }
 
@@ -143,13 +149,13 @@ function FieldListScreen({
       )}
 
       {/* 배화교 */}
-      {fieldUnlocks.baehwagyo && (
-        <div className="card field-card" onClick={() => onSelectField('baehwagyo')}>
+      {fieldUnlocks.baehwagyo_oemun && (
+        <div className="card field-card" onClick={() => onSelectLocation('baehwagyo')}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <span style={{ fontWeight: 500, fontSize: 13 }}>배화교(拜火敎)</span>
               <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
-                마교의 본진 · 준비 중
+                마교의 본진 · 4단계
               </div>
             </div>
             <span style={{ fontSize: 14, opacity: 0.3 }}>→</span>
@@ -190,6 +196,13 @@ const CHEONSAN_STAGES = [
   { id: 'cheonsan_simjang', name: '백색의 심장' },
 ] as const;
 
+const BAEHWAGYO_STAGES = [
+  { id: 'baehwagyo_oemun', name: '외문' },
+  { id: 'baehwagyo_naemun', name: '내문' },
+  { id: 'baehwagyo_sawon', name: '사원' },
+  { id: 'baehwagyo_simcheo', name: '심처' },
+] as const;
+
 function CheonsanDetailScreen({
   onSelect,
   onBack,
@@ -220,6 +233,77 @@ function CheonsanDetailScreen({
 
       <div className="card">
         {CHEONSAN_STAGES.map((stage, i) => {
+          const unlocked = fieldUnlocks[stage.id];
+          const fieldDef = getFieldDef(stage.id);
+          const cleared = fieldDef?.boss
+            ? (bossKillCounts[fieldDef.boss] ?? 0) > 0
+            : fieldDef?.monsters.length
+              ? (killCounts[fieldDef.monsters[fieldDef.monsters.length - 1]] ?? 0) > 0
+              : false;
+
+          if (unlocked) {
+            return (
+              <div
+                key={stage.id}
+                className="stat-row"
+                style={{ cursor: 'pointer', padding: '8px 0' }}
+                onClick={() => onSelect(stage.id)}
+              >
+                <div>
+                  <div style={{ fontSize: 13 }}>{i + 1}단계. {stage.name}</div>
+                  {cleared && <span style={{ fontSize: 11, color: 'var(--green)' }}>답파 완료</span>}
+                </div>
+                <span style={{ fontSize: 14, opacity: 0.3 }}>→</span>
+              </div>
+            );
+          }
+          return (
+            <div key={stage.id} className="stat-row" style={{ opacity: 0.3, padding: '8px 0' }}>
+              <div>
+                <div style={{ fontSize: 13 }}>{i + 1}단계. ???</div>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>이전 단계 답파 필요</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// 배화교 4단계 선택 화면
+// ─────────────────────────────────────────────
+function BaehwagyoDetailScreen({
+  onSelect,
+  onBack,
+}: {
+  onSelect: (id: string) => void;
+  onBack: () => void;
+}) {
+  const fieldUnlocks = useGameStore(s => s.fieldUnlocks);
+  const bossKillCounts = useGameStore(s => s.bossKillCounts);
+  const killCounts = useGameStore(s => s.killCounts);
+  const baehwagyoBg = getFieldBackground('baehwagyo');
+
+  return (
+    <div>
+      <div className="field-detail-banner" style={baehwagyoBg ? { backgroundImage: `url(${baehwagyoBg})` } : {}}>
+        <div className="field-detail-banner-overlay">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="field-back-btn" onClick={onBack}>←</button>
+            <div>
+              <div style={{ fontWeight: 500, fontSize: 14 }}>배화교(拜火敎)</div>
+              <div style={{ fontSize: 11, opacity: 0.7, fontStyle: 'italic' }}>
+                성화가 타오르는 교단의 심장. 네 겹의 문이 그 불꽃을 지키고 있다.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        {BAEHWAGYO_STAGES.map((stage, i) => {
           const unlocked = fieldUnlocks[stage.id];
           const fieldDef = getFieldDef(stage.id);
           const cleared = fieldDef?.boss

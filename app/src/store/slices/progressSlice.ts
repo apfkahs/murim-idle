@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { GameStore } from '../gameStore';
-import type { GameState } from '../types';
+import type { GameState, BattleLogEntry } from '../types';
 import { BALANCE_PARAMS } from '../../data/balance';
 import { TIERS } from '../../data/tiers';
 import { FIELDS } from '../../data/fields';
@@ -34,6 +34,7 @@ export type ProgressSlice = {
   totalYasanKills: number;
   totalKills: number;
   hiddenRevealedInField: Record<string, string | null>;
+  firstEnteredFields: Record<string, boolean>;
   tutorialFlags: GameState['tutorialFlags'];
   fieldUnlocks: Record<string, boolean>;
   repeatableAchCounts: Record<string, number>;
@@ -65,6 +66,7 @@ export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice>
   totalYasanKills: 0,
   totalKills: 0,
   hiddenRevealedInField: {},
+  firstEnteredFields: {},
   tutorialFlags: {
     equippedSword: false,
     equippedSimbeop: false,
@@ -164,8 +166,16 @@ export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice>
 
     const tutorialFlags = { ...state.tutorialFlags };
     const battleLog = [...state.battleLog];
+    let logEntryIdSeq = state.logEntryIdSeq ?? 0;
     if (!tutorialFlags.firstBreakthroughNotified && tierDef.rewards?.artPoints) {
-      battleLog.push(`[${tierDef.name}] 경지 돌파! 무공포인트 +${tierDef.rewards.artPoints} 획득. 무공(武功) 탭에서 새 무공을 익힐 수 있습니다.`);
+      const entry: BattleLogEntry = {
+        id: logEntryIdSeq++,
+        time: 0,
+        actor: 'system',
+        kind: 'system',
+        text: `[${tierDef.name}] 경지 돌파! 무공포인트 +${tierDef.rewards.artPoints} 획득. 무공(武功) 탭에서 새 무공을 익힐 수 있습니다.`,
+      };
+      battleLog.push(entry);
       tutorialFlags.firstBreakthroughNotified = true;
     }
 
@@ -175,6 +185,7 @@ export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice>
       fieldUnlocks,
       tutorialFlags,
       battleLog,
+      logEntryIdSeq,
       playerAnim: 'breakthrough',
     });
   },

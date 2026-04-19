@@ -155,6 +155,11 @@ export const MATERIALS: MaterialDef[] = [
     name: '희미한 잔불',
     description: '행자의 옷깃에서 떨어진 미세한 불씨. 아직 꺼지지 않은 성화의 숨결이 깃들어 있다.',
   },
+  {
+    id: 'baekji_mugongseo',
+    name: '백지무공서',
+    description: '꿈 같은 공간에서 건네받은 아무것도 적히지 않은 비급. 진기를 불어넣으면 문양이 드러날 듯하다.',
+  },
 ];
 
 export const RECIPES: RecipeDef[] = [

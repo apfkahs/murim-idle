@@ -269,6 +269,31 @@ export function calcCombatQiRatio(state: GameState): number {
 // 기타 유틸
 // ============================================================
 
+/**
+ * 전투 로그 헤더 표시용 플레이어 공격 간격.
+ * playerCombat.ts의 atkSpeedBonus/slowPenalty/ember 공속 페널티 논리와 동일 기준.
+ */
+export function calcPlayerAttackInterval(state: GameState): number {
+  const effects = gatherMasteryEffects(state);
+  const equipStats = gatherEquipmentStats(state);
+  const atkSpeedBonus = (effects.bonusAtkSpeed ?? 0) + (equipStats.bonusAtkSpeed ?? 0);
+  const atkSpeedDebuffMult = state.bossPatternState?.playerAtkSpeedDebuffMult ?? 1;
+  let slowPenalty = 0;
+  const slowDot = state.bossPatternState?.playerDotStacks?.find(d => d.type === 'slow');
+  if (slowDot) {
+    slowPenalty = (slowDot.slowAmount ?? 0) + (slowDot.slowPerStack ?? 0) * (slowDot.stacks - 1);
+  }
+  const emberEntry = state.bossPatternState?.playerDotStacks?.find(d => d.id === 'ember');
+  let emberPenalty = 1;
+  if (emberEntry) {
+    const per = emberEntry.atkSpeedReductionPerStack ?? 0;
+    const cap = emberEntry.maxAtkSpeedReduction ?? 0.8;
+    const penalty = Math.min(cap, emberEntry.stacks * per);
+    emberPenalty = 1 + penalty;
+  }
+  return Math.max((B.BASE_ATTACK_INTERVAL - atkSpeedBonus + slowPenalty) * atkSpeedDebuffMult * emberPenalty, B.ATK_SPEED_MIN);
+}
+
 /** 장착된 무공 중 ult 가능한 첫 번째의 절초 이름 (ultChange 반영) */
 export function getActiveUltName(state: GameState): string {
   for (const artId of state.equippedArts) {
