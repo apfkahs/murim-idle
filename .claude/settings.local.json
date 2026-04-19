@@ -23,7 +23,21 @@
       "Bash(npx vite build)",
       "Bash(npm install openai)",
       "Bash(npx tsx scripts/generate-assets.ts)",
-      "Bash(ls -la /d/newidle/*.docx)"
+      "Bash(ls -la /d/newidle/*.docx)",
+      "Bash(node ../node_modules/vite/bin/vite.js build)",
+      "Bash(node node_modules/vite/bin/vite.js build)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(find D:newidleappsrcassets -type f -name *.png)",
+      "Bash(find D:newidleappsrcassets/enemies -type f -name *.png)",
+      "Bash(xargs -I {} basename {} .png)",
+      "Bash(find D:/newidle/docs -type f -name *.md)",
+      "Bash(ls -la D:/newidle/*.zip)",
+      "Bash(xargs grep:*)",
+      "Bash(find /d/newidle/app/src -name *equipment* -o -name *item* -o -name *art*)",
+      "Bash(node node_modules/tsx/dist/cli.mjs scripts/test-strategy-compare.ts)",
+      "Bash(node -e \":*)"
     ]
   }
 }

@@ -18,6 +18,7 @@ tools:
 ## 반드시 참조
 - `GAME_GUIDE.md` (밸런스 원칙, 테스트 체크리스트)
 - `app/src/testAdapter.ts` (테스트 인터페이스 — 사용법과 주의사항이 주석에 있음)
+- `app/scripts/test-helpers.ts` (전략 비교 헬퍼 함수 모음)
 
 ## 핵심 원칙
 
@@ -56,6 +57,44 @@ testAdapter로 게임을 실제로 돌리고 결과를 측정한다.
 `app/scripts/test-helpers.ts`에 모아둔다.
 헬퍼는 testAdapter 함수와 데이터 파일만 참조한다.
 게임 시스템이 바뀌어서 헬퍼가 깨지면 해당 헬퍼만 고치면 된다.
+
+### 전략 비교 테스트
+두 전략의 60분 결과를 비교할 때는 `test-helpers.ts`의 `compareStrategies`를 사용한다.
+
+```typescript
+import { setupBuild, runHuntCycle, investAllAvailable, snapshot, compareStrategies } from './test-helpers';
+
+compareStrategies(
+  [
+    { label: '전략A', fn: (ctx) => { setupBuild({...}); ...; return snapshot(); } },
+    { label: '전략B', fn: (ctx) => { setupBuild({...}); ...; return snapshot(); } },
+  ],
+  { runs: 3, milestoneIds: ['tier1', 'stats50', 'wolf_first', 'simdeuk_decay_start', 'combat_qi_unlocked'] }
+)
+```
+
+**헬퍼 함수 목록:**
+- `setupBuild(opts)` — 빌드 초기화 (resetGame + setState)
+- `investAllAvailable()` — 투자 가능한 모든 스탯 자동 투자 (낮은 레벨 우선, 동률: gi→sim→che)
+- `runHuntCycle(fieldId, monsterId, seconds, ctx)` — 사냥 루프 (자동 재도전)
+- `huntUntilMaterials(fieldId, monsterId, materialId, count, maxWait, ctx)` — 재료 목표량까지 파밍
+- `craftEquip(recipeId, materialCount): string | null` — 장비 제작 (instanceId 반환)
+- `craftArt(recipeId): boolean` — 무공 제작
+- `learnAvailableScrolls(): string[]` — 인벤토리 두루마리 자동 학습
+- `attemptBreakthroughIfReady(ctx): boolean` — 경지 돌파 시도 + 마일스톤 기록
+- `activateMasteriesIfReady(ctx): string[]` — 활성화 가능한 모든 마스터리 자동 활성화
+- `idle(seconds, ctx)` — 대기
+- `runExploreCycle(fieldId, ctx)` — 탐방 루프
+- `snapshot(): StrategySnapshot` — 현재 상태 스냅샷
+
+**고정 마일스톤 ID:**
+- `'tier{N}'` — 경지 N 돌파
+- `'stats{N}'` — 스탯합 N 도달 (50 단위)
+- `'{monsterId}_first'` — 해당 몬스터 첫 처치
+- `'mastery_{masteryId}'` — 마스터리 활성화
+- `'combat_qi_unlocked'` — 전투 qi 해금 (simbeop stage2)
+- `'simdeuk_cap_{artId}'` — 해당 무공 심득 캡 도달
+- `'simdeuk_decay_start'` — 심득 감쇠 최초 시작
 
 ## 작업 흐름
 
@@ -102,6 +141,19 @@ testAdapter로 게임을 실제로 돌리고 결과를 측정한다.
 ## 다음 단계
 [기획자에게 필요한 결정 + 다른 에이전트 의뢰 필요 시 안내]
 ```
+
+## 주의사항
+- 킬 카운트: 사이클 시작/종료 diff로 계산 (killCounts 누적값 직접 사용 금지)
+- craftEquip은 확률적 — 100% 성공을 원하면 maxUnits(50) 투입
+- explore 사망 시 explorePendingRewards 리셋 안 됨 (다음 startExplore 시 초기화)
+- HP 즉시 회복으로 사망 페널티 생략 — 보고서에 "사망 페널티 미반영" 명시
+- 심득 감쇠: diff = **maxArtGrade** - monsterGrade. maxArtGrade = max(장착된 모든 무공의 artGrade, **심법 포함**).
+  마스터리 활성화(sword든 simbeop이든) = maxArtGrade 상승 = 약몹 심득 감쇠 강화. 트레이드오프 존재.
+- 전투 qi는 기본 0. samjae_simbeop_combat(stage2, 300심득 필요, **tier 1 이후만 가능**) 활성화 후 생산 시작.
+  (tier 0 maxSimdeuk=200 → simbeop 300 축적 불가 → tier 1 돌파 필수)
+- ownedArts 구조: `{ id, totalSimdeuk }` (구 `grade` 필드 없음)
+- proficiencyGrade는 20,000 단위 — 60분 테스트 범위에서는 항상 grade 1
+- 비교 전략은 정확히 동일한 게임 시간 사용. `remaining = 3600 - ctx.elapsed` 패턴 필수.
 
 ## 금지
 - 기획자 승인 없이 데이터 수치를 변경하지 않는다
