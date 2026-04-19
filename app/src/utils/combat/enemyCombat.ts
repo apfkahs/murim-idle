@@ -154,32 +154,6 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
   }
 
   // ========================================
-  // 배화교 호위 — 성화 맹세 각성 턴 처리
-  // ========================================
-  if (!skillUsed && ctx.bossPatternState?.howiSacredOathState?.phase === 'awakening' && ctx.currentEnemy) {
-    const oath = ctx.bossPatternState.howiSacredOathState;
-    const nextTurns = oath.awakeningTurnsLeft - 1;
-    const oathSkill = BOSS_PATTERNS['baehwa_howi']?.skills.find(s => s.type === 'sacred_oath');
-    if (nextTurns <= 0) {
-      // 광화 전환: 같은 tick에 공격 재개(스펙 §4-2 "1 공격 타이밍" 준수) → skillUsed 세팅 X
-      ctx.bossPatternState.howiSacredOathState = {
-        ...oath,
-        phase: 'frenzy',
-        awakeningTurnsLeft: 0,
-        breathTurnCounter: 0,
-        frenzyEnterLogged: true,
-      };
-      ctx.bossPatternState.bossChargeStunImmune = true;
-      const msg = oathSkill?.sacredOathFrenzyEnterLogs?.[0] ?? '';
-      if (msg) ctx.logFlavor(msg, 'right', { actor: 'enemy' });
-      // skillUsed는 false 유지 — Sraosha sync + 공격 phase(frenzy)가 같은 tick에 실행
-    } else {
-      ctx.bossPatternState.howiSacredOathState = { ...oath, awakeningTurnsLeft: nextTurns };
-      skillUsed = true; // 각성 지속 tick은 공격 스킵
-    }
-  }
-
-  // ========================================
   // 6-B: 시퀀스 상태 처리 (bossChargeState 직후, sortedSkills 루프 직전)
   // ========================================
   if (!skillUsed && ctx.bossPatternState?.sequenceState != null && pattern) {
