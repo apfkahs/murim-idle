@@ -198,50 +198,6 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
   }
 
   // ========================================
-  // 배화교 호위 — Sraosha 단계 동기 (매 공격 tick)
-  // ========================================
-  if (!skillUsed && ctx.currentEnemy?.id === 'baehwa_howi' && ctx.bossPatternState) {
-    const hwowi = BOSS_PATTERNS['baehwa_howi'];
-    const sraoskill = hwowi?.skills.find(s => s.type === 'sraosha_response');
-    const tiers = sraoskill?.sraoshaTiers ?? [];
-    const stacks = getEmberStacks(ctx.bossPatternState.playerDotStacks);
-    const frenzy = ctx.bossPatternState.howiSacredOathState?.phase === 'frenzy';
-    let newTier = 0;
-    for (let i = tiers.length - 1; i >= 0; i--) {
-      if (stacks >= tiers[i].stackMin) { newTier = i; break; }
-    }
-    if (frenzy) newTier = 3;
-    const prev = ctx.bossPatternState.sraoshaLastLoggedTier ?? 0;
-    const frenzyEnterLogged = ctx.bossPatternState.howiSacredOathState?.frenzyEnterLogged ?? false;
-    // 광화 진입 로그가 이미 찍힌 경우 Sraosha 3단계 상승 중복 로그 방지
-    if (newTier !== prev && !(frenzy && frenzyEnterLogged)) {
-      const logsArr = newTier > prev ? sraoskill?.sraoshaRiseLogs : sraoskill?.sraoshaFallLogs;
-      const bucket = logsArr?.find(b => b.toTier === newTier);
-      if (bucket?.logs?.length) {
-        const msg = bucket.logs[Math.floor(Math.random() * bucket.logs.length)];
-        ctx.logFlavor(msg, 'right', { actor: 'enemy' });
-      }
-      ctx.bossPatternState.sraoshaLastLoggedTier = newTier;
-    } else if (frenzy && frenzyEnterLogged && prev !== newTier) {
-      // 광화 진입 이후엔 로그는 찍지 않되 lastLogged는 3으로 동기
-      ctx.bossPatternState.sraoshaLastLoggedTier = newTier;
-    }
-    // tier 변화 없으면 buff 재계산 skip
-    const oldTier = ctx.bossPatternState.sraoshaTier ?? -1;
-    if (newTier !== oldTier) {
-      ctx.bossPatternState.sraoshaTier = newTier;
-      const t = tiers[newTier] ?? { atkBonus: 0, aspdBonus: 0 };
-      const baseAtk = ctx.bossPatternState.baseAttackPower ?? ctx.currentEnemy.attackPower;
-      const baseIv = ctx.bossPatternState.baseAttackInterval ?? ctx.currentEnemy.attackInterval;
-      ctx.currentEnemy = {
-        ...ctx.currentEnemy,
-        attackPower: Math.floor(baseAtk * (1 + t.atkBonus)),
-        attackInterval: baseIv / (1 + t.aspdBonus),
-      };
-    }
-  }
-
-  // ========================================
   // sortedSkills 루프
   // ========================================
   if (pattern && ctx.bossPatternState && !skillUsed) {
