@@ -300,7 +300,10 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         if (skill.finalConditionalMultiplierChange) {
           const targetSkill = pattern.skills.find(s => s.type === 'conditional_passive' && s.activateAfterSkillId === skill.finalConditionalMultiplierChange!.targetSkillId);
           if (targetSkill) {
-            (targetSkill as any)._runtimeMultiplier = skill.finalConditionalMultiplierChange.newMultiplier;
+            ctx.bossPatternState.skillRuntimeMultipliers = {
+              ...(ctx.bossPatternState.skillRuntimeMultipliers ?? {}),
+              [targetSkill.id]: skill.finalConditionalMultiplierChange.newMultiplier,
+            };
           }
         }
         // 자해
@@ -580,7 +583,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
     if (condPassiveSkill && ctx.bossPatternState?.phaseFlags?.[condPassiveSkill.activateAfterSkillId ?? '']) {
       if (Math.random() < (condPassiveSkill.chance ?? 0)) {
         conditionalPassiveTriggered = true;
-        const runtimeMult = (condPassiveSkill as any)._runtimeMultiplier ?? condPassiveSkill.damageMultiplier ?? 1;
+        const runtimeMult = ctx.bossPatternState?.skillRuntimeMultipliers?.[condPassiveSkill.id] ?? condPassiveSkill.damageMultiplier ?? 1;
         monAttackMult *= runtimeMult;
       }
     }

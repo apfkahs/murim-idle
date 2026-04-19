@@ -247,6 +247,7 @@ export interface GameState {
       undodgeable?: boolean;
     } | null;
     usedOneTimeSkills?: string[];
+    skillRuntimeMultipliers?: Record<string, number>;  // final_phase 등에서 conditional_passive 배율을 런타임 오버라이드
     playerAtkDebuffMult?: number;
     playerAtkSpeedDebuffMult?: number;
     stackCount?: number;          // 흑영참 스택 (0~3)
