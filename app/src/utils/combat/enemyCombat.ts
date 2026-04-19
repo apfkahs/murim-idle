@@ -375,25 +375,6 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         continue;
       }
 
-      // ── 배화교: 아타르로의 귀의 (발동) ──
-      if (skill.type === 'baehwa_atar_sacrifice') {
-        ctx.bossPatternState.atarSacrificeState = {
-          skillId: skill.id,
-          turnsLeft: skill.sacrificeDurationTurns ?? 3,
-          perTurnHealPercent: skill.sacrificeHealPercentPerTurn ?? 0.08,
-          reflectStacks: skill.sacrificeReflectEmberOnHit ?? 1,
-          endDamageMultiplier: skill.sacrificeDamageMultiplier ?? 1.5,
-        };
-        if (skill.oneTime) {
-          ctx.bossPatternState.usedOneTimeSkills = [...(ctx.bossPatternState.usedOneTimeSkills ?? []), skill.id];
-        }
-        const logs = skill.sacrificeOnTriggerLogs ?? [];
-        const msg = logs.length > 0 ? logs[0] : '';
-        ctx.logFlavor(msg, 'right', { actor: 'enemy' });
-        skillUsed = true;
-        break;
-      }
-
       // ── 배화교 호위: 성화 맹세 (발동) ──
       if (skill.type === 'sacred_oath') {
         const heal = Math.floor(ctx.currentEnemy.maxHp * (skill.sacredOathHealPercent ?? 0.15));

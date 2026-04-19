@@ -46,6 +46,28 @@ function handleEmberSong(ctx: TickContext, skill: BossSkillDef, _pattern: BossPa
   return { consumed: true };
 }
 
+// 아타르로의 귀의 (발동): 3턴 카운트다운 상태 진입
+function handleAtarSacrifice(ctx: TickContext, skill: BossSkillDef, _pattern: BossPatternDef): SkillHandlerResult {
+  if (ctx.currentEnemy?.id !== HAENGJA_ID) return { consumed: false };
+  if (!ctx.bossPatternState) return { consumed: false };
+
+  ctx.bossPatternState.atarSacrificeState = {
+    skillId: skill.id,
+    turnsLeft: skill.sacrificeDurationTurns ?? 3,
+    perTurnHealPercent: skill.sacrificeHealPercentPerTurn ?? 0.08,
+    reflectStacks: skill.sacrificeReflectEmberOnHit ?? 1,
+    endDamageMultiplier: skill.sacrificeDamageMultiplier ?? 1.5,
+  };
+  if (skill.oneTime) {
+    ctx.bossPatternState.usedOneTimeSkills = [...(ctx.bossPatternState.usedOneTimeSkills ?? []), skill.id];
+  }
+  const logs = skill.sacrificeOnTriggerLogs ?? [];
+  const msg = logs.length > 0 ? logs[0] : '';
+  ctx.logFlavor(msg, 'right', { actor: 'enemy' });
+  return { consumed: true };
+}
+
 export function registerBaehwaHaengja(): void {
   SKILL_HANDLERS['baehwa_ember_song'] = handleEmberSong;
+  SKILL_HANDLERS['baehwa_atar_sacrifice'] = handleAtarSacrifice;
 }
