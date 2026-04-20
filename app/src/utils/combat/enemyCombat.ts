@@ -7,7 +7,7 @@ import { calcExternalDmgReduction } from '../combatCalc';
 import { getProfStarInfo } from '../artUtils';
 import { calcEnemyDamage, calcEnemyDamageWithBonus } from './damageCalc';
 import type { TickContext } from './tickContext';
-import { handleDodge } from './tickContext';
+import { handleDodge, applyIncomingDamage } from './tickContext';
 import type { DotStackEntry } from '../../store/types';
 import {
   getEmberStacks, getEmberAttackBonusMult, DEFAULT_EMBER_ATTACK_LOGS,
@@ -91,7 +91,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
   if (stackSmashSkill && ctx.bossPatternState && (ctx.bossPatternState.stackCount ?? 0) >= (stackSmashSkill.stackTriggerCount ?? 3)) {
     ctx.bossPatternState.stackCount = 0;
     const smashDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, stackSmashSkill.stackSmashMultiplier ?? 4, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0);
-    ctx.hp -= smashDmg;
+    applyIncomingDamage(ctx, smashDmg);
     const smashMsg = `${stackSmashSkill.logMessages[0]} ${smashDmg} 피해! 회피불가!`;
     ctx.logEvent({
       side: 'incoming', actor: 'enemy',
@@ -116,7 +116,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       if (!cs.undodgeable && Math.random() < ctx.dodgeRate) {
         handleDodge(ctx, eName);
       } else {
-        ctx.hp -= csDmg;
+        applyIncomingDamage(ctx, csDmg);
         if (cs.stunAfterHit) ctx.playerStunTimer = cs.stunAfterHit;
         const chargeLogMsg = chargeSkillDef?.logMessages[1] ?? chargeSkillDef?.logMessages[0] ?? '강력한 일격!';
         const chargeMsg = `${eName}: ${chargeLogMsg} ${csDmg} 피해!${cs.stunAfterHit ? ' 기절!' : ''}`;
@@ -454,7 +454,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       } else if (skill.type === 'freeze_attack') {
         const dmg = calcEnemyDamage(ctx.currentEnemy.attackPower, skill.damageMultiplier ?? 1, ctx.dmgReduction, skill.fixedDamage, ctx.equipStats.bonusFixedDmgReduction ?? 0);
         if (skill.undodgeable || Math.random() >= ctx.dodgeRate) {
-          ctx.hp -= dmg;
+          applyIncomingDamage(ctx, dmg);
           if (skill.freezeAttacks && ctx.bossPatternState) {
             ctx.bossPatternState.playerFreezeLeft = skill.freezeAttacks;
           }
@@ -518,7 +518,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         const skillDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, skill.damageMultiplier ?? 1, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0);
 
         if (skill.undodgeable || Math.random() >= ctx.dodgeRate) {
-          ctx.hp -= skillDmg;
+          applyIncomingDamage(ctx, skillDmg);
           ctx.logEvent({
             side: 'incoming', actor: 'enemy',
             name: skill.displayName ?? eName,
@@ -625,6 +625,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           ctx.logFlavor(vmhMsg, 'right', { actor: 'enemy' });
           for (let i = 0; i < tier.hitCount; i++) {
             if (Math.random() < ctx.dodgeRate) {
+              ctx.currentBattleDodgeCount += 1;
               ctx.logEvent({
                 side: 'incoming', actor: 'enemy',
                 name: `${i + 1}타`, tag: 'dodge', value: '—', valueTier: 'muted',
@@ -633,7 +634,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
             } else {
               let vmhDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, tier.hitMultipliers[i] * monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
               vmhDmg = Math.floor(vmhDmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-              ctx.hp -= vmhDmg;
+              applyIncomingDamage(ctx, vmhDmg);
               ctx.logEvent({
                 side: 'incoming', actor: 'enemy',
                 name: `${i + 1}타`, tag: 'hit', value: vmhDmg, valueTier: 'normal',
@@ -670,6 +671,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       for (let i = 0; i < hits; i++) {
         if (Math.random() < ctx.dodgeRate) {
           // 개별 회피
+          ctx.currentBattleDodgeCount += 1;
           damages.push(0);
           if (ctx.masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) {
             ctx.dodgeCounterActive = true;
@@ -677,7 +679,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         } else {
           let rfDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, rfMult * monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
           rfDmg = Math.floor(rfDmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-          ctx.hp -= rfDmg;
+          applyIncomingDamage(ctx, rfDmg);
           damages.push(rfDmg);
         }
       }
@@ -707,7 +709,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         // 임계치 충족: 회피불가 + 철포삼 무시
         csDmg = Math.floor(csDmg * (1 - ctx.dmgReduction / 100));
         csDmg = Math.floor(csDmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-        ctx.hp -= csDmg;
+        applyIncomingDamage(ctx, csDmg);
         const csMsg = `${eName}: ${condStrikeSkill.logMessages[0]} ${csDmg} 피해! (회피불가!)`;
         ctx.logEvent({
           side: 'incoming', actor: 'enemy',
@@ -727,7 +729,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           csDmg = Math.floor(csDmg * (1 - ctx.dmgReduction / 100) * (1 - effectiveExternalDmgRed));
           csDmg = Math.max(0, csDmg - (ctx.equipStats.bonusFixedDmgReduction ?? 0));
           csDmg = Math.floor(csDmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-          ctx.hp -= csDmg;
+          applyIncomingDamage(ctx, csDmg);
           const csMsg = `${eName}: ${condStrikeSkill.logMessages[0]} ${csDmg} 피해!`;
           ctx.logEvent({
             side: 'incoming', actor: 'enemy',
@@ -771,7 +773,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         const takenMult = 1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0);
         incomingDmg = Math.floor(incomingDmg * takenMult);
         emberExtra = Math.floor(emberExtra * takenMult);
-        ctx.hp -= incomingDmg;
+        applyIncomingDamage(ctx, incomingDmg);
         if (incomingDmg > 0 && monDef) {
           if (monCritLog) ctx.logFlavor(monCritLog, 'right', { actor: 'enemy', minor: true });
           if (conditionalPassiveTriggered && condPassiveSkill) {
@@ -937,7 +939,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           const dmsg = dblSkill.logMessages[Math.floor(Math.random() * dblSkill.logMessages.length)];
           if (Math.random() >= ctx.dodgeRate) {
             const dmg2 = calcEnemyDamage(ctx.currentEnemy.attackPower, dblSkill.hitMultiplier ?? 1, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0);
-            ctx.hp -= dmg2;
+            applyIncomingDamage(ctx, dmg2);
             ctx.logEvent({
               side: 'incoming', actor: 'enemy',
               name: dblSkill.displayName ?? '연격',
@@ -945,6 +947,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
             });
             ctx.logFlavor(dmsg, 'right', { actor: 'enemy', minor: true });
           } else {
+            ctx.currentBattleDodgeCount += 1;
             ctx.logEvent({
               side: 'incoming', actor: 'enemy',
               name: dblSkill.displayName ?? '연격',
@@ -969,12 +972,13 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           for (let i = 0; i < hitCount; i++) {
             if (Math.random() >= ctx.dodgeRate) {
               const tDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, tripleSkill.hitMultiplier ?? 1, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0);
-              ctx.hp -= tDmg;
+              applyIncomingDamage(ctx, tDmg);
               ctx.logEvent({
                 side: 'incoming', actor: 'enemy',
                 name: `연격 ${i + 1}타`, tag: 'hit', value: tDmg, valueTier: 'normal',
               });
             } else {
+              ctx.currentBattleDodgeCount += 1;
               ctx.logEvent({
                 side: 'incoming', actor: 'enemy',
                 name: `연격 ${i + 1}타`, tag: 'dodge', value: '—', valueTier: 'muted',

@@ -26,6 +26,19 @@
   --dot-magi: #f87171;
 
   --font-body: 'Noto Sans KR', sans-serif;
+
+  /* ── 전투 UI v2 (battle-v2.css) ── */
+  --hp: rgb(34, 197, 94);
+  --enemy-hp: rgb(239, 68, 68);
+  --mp: rgb(59, 130, 246);
+  --ember: rgb(251, 146, 60);
+  --warn: rgb(251, 191, 36);
+  --panel: rgb(20, 26, 39);
+  --panel-2: rgb(26, 33, 49);
+  --panel-3: rgb(35, 43, 63);
+  --border-soft: rgb(31, 38, 56);
+  --gold-warm: #c9a96e;
+  --gold-warm-bright: #e8c589;
 }
 
 * {

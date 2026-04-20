@@ -186,6 +186,26 @@ export interface GameState {
   ultCooldowns: Record<string, number>;
   currentBattleDuration: number;
   currentBattleDamageDealt: number;
+  currentBattleDamageTaken: number;
+  currentBattleCritCount: number;
+  currentBattleDodgeCount: number;
+  currentBattleHitTakenCount: number;
+  currentBattleMaxOutgoingHit: number;
+  currentBattleMaxIncomingHit: number;
+  currentBattleSkillUseCount: number;
+
+  // 사냥 세션 집계 (전장 변경 시 리셋, 온/오프라인 모두 누적)
+  sessionFieldId: string | null;
+  sessionStartedAt: number;
+  sessionKills: number;
+  sessionQiGained: number;
+  sessionTotalDamage: number;
+  sessionActiveTime: number;
+  sessionMaxDps: number;
+  sessionBattleWins: number;
+  sessionDeaths: number;
+  sessionDrops: Record<string, number>;
+  sessionProfGains: Partial<Record<ProficiencyType, number>>;
 
   equippedSimbeop: string | null;
   ownedArts: { id: string }[];
@@ -295,6 +315,7 @@ export interface GameState {
     artId: string;
     attackFirst: boolean;
     timeLeft: number;
+    chargeTotal: number;
   } | null;
   playerStunTimer: number;
   lastEnemyAttack: { enemyName: string; attackMessage: string } | null;

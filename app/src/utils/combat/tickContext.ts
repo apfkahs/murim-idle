@@ -68,6 +68,24 @@ export interface TickContext {
   stamina: number;
   currentBattleDuration: number;
   currentBattleDamageDealt: number;
+  currentBattleDamageTaken: number;
+  currentBattleCritCount: number;
+  currentBattleDodgeCount: number;
+  currentBattleHitTakenCount: number;
+  currentBattleMaxOutgoingHit: number;
+  currentBattleMaxIncomingHit: number;
+  currentBattleSkillUseCount: number;
+  sessionFieldId: string | null;
+  sessionStartedAt: number;
+  sessionKills: number;
+  sessionQiGained: number;
+  sessionTotalDamage: number;
+  sessionActiveTime: number;
+  sessionMaxDps: number;
+  sessionBattleWins: number;
+  sessionDeaths: number;
+  sessionDrops: Record<string, number>;
+  sessionProfGains: Partial<Record<ProficiencyType, number>>;
   bossPatternState: GameState['bossPatternState'];
   playerStunTimer: number;
   lastEnemyAttack: GameState['lastEnemyAttack'];
@@ -167,6 +185,24 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
     bossPatternState, playerStunTimer, lastEnemyAttack,
     pendingHuntRetry,
   } = state;
+  const currentBattleDamageTaken = state.currentBattleDamageTaken ?? 0;
+  const currentBattleCritCount = state.currentBattleCritCount ?? 0;
+  const currentBattleDodgeCount = state.currentBattleDodgeCount ?? 0;
+  const currentBattleHitTakenCount = state.currentBattleHitTakenCount ?? 0;
+  const currentBattleMaxOutgoingHit = state.currentBattleMaxOutgoingHit ?? 0;
+  const currentBattleMaxIncomingHit = state.currentBattleMaxIncomingHit ?? 0;
+  const currentBattleSkillUseCount = state.currentBattleSkillUseCount ?? 0;
+  let sessionFieldId = state.sessionFieldId ?? null;
+  let sessionStartedAt = state.sessionStartedAt ?? 0;
+  let sessionKills = state.sessionKills ?? 0;
+  let sessionQiGained = state.sessionQiGained ?? 0;
+  let sessionTotalDamage = state.sessionTotalDamage ?? 0;
+  let sessionActiveTime = state.sessionActiveTime ?? 0;
+  let sessionMaxDps = state.sessionMaxDps ?? 0;
+  let sessionBattleWins = state.sessionBattleWins ?? 0;
+  let sessionDeaths = state.sessionDeaths ?? 0;
+  const sessionDrops = { ...(state.sessionDrops ?? {}) };
+  const sessionProfGains = { ...(state.sessionProfGains ?? {}) };
   let pendingAutoExplore = state.pendingAutoExplore ?? false;
   let dodgeCounterActive = state.dodgeCounterActive ?? false;
   let playerFinisherCharge = state.playerFinisherCharge ?? null;
@@ -244,6 +280,12 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
     fieldUnlocks, inventory,
     discoveredMasteries, pendingEnlightenments,
     stamina, currentBattleDuration, currentBattleDamageDealt,
+    currentBattleDamageTaken, currentBattleCritCount, currentBattleDodgeCount,
+    currentBattleHitTakenCount, currentBattleMaxOutgoingHit, currentBattleMaxIncomingHit,
+    currentBattleSkillUseCount,
+    sessionFieldId, sessionStartedAt, sessionKills, sessionQiGained,
+    sessionTotalDamage, sessionActiveTime, sessionMaxDps,
+    sessionBattleWins, sessionDeaths, sessionDrops, sessionProfGains,
     bossPatternState, playerStunTimer, lastEnemyAttack,
     pendingHuntRetry, pendingAutoExplore, dodgeCounterActive, playerFinisherCharge,
     totalKills, hiddenRevealedInField,
@@ -370,6 +412,13 @@ export function applyBattleReset(ctx: TickContext): void {
   applyUltCooldownReset(ctx);
   ctx.currentBattleDuration = 0;
   ctx.currentBattleDamageDealt = 0;
+  ctx.currentBattleDamageTaken = 0;
+  ctx.currentBattleCritCount = 0;
+  ctx.currentBattleDodgeCount = 0;
+  ctx.currentBattleHitTakenCount = 0;
+  ctx.currentBattleMaxOutgoingHit = 0;
+  ctx.currentBattleMaxIncomingHit = 0;
+  ctx.currentBattleSkillUseCount = 0;
   ctx.bossPatternState = null;
   ctx.playerStunTimer = 0;
   ctx.dodgeCounterActive = false;
@@ -392,7 +441,15 @@ export function applyUltCooldownReset(ctx: TickContext): void {
   }
 }
 
+export function applyIncomingDamage(ctx: TickContext, damage: number): void {
+  ctx.hp -= damage;
+  ctx.currentBattleDamageTaken += damage;
+  ctx.currentBattleHitTakenCount += 1;
+  if (damage > ctx.currentBattleMaxIncomingHit) ctx.currentBattleMaxIncomingHit = damage;
+}
+
 export function handleDodge(ctx: TickContext, eName: string, customMsg?: string): void {
+  ctx.currentBattleDodgeCount += 1;
   ctx.logEvent({
     side: 'incoming', actor: 'enemy', name: `${eName}의 공격`,
     tag: 'dodge', value: '—', valueTier: 'muted',
@@ -535,6 +592,24 @@ export function buildResult(ctx: TickContext, extras: {
     discoveredMasteries: ctx.discoveredMasteries, pendingEnlightenments: ctx.pendingEnlightenments,
     stamina: ctx.stamina, ultCooldowns: ctx.ultCooldowns,
     currentBattleDuration: ctx.currentBattleDuration, currentBattleDamageDealt: ctx.currentBattleDamageDealt,
+    currentBattleDamageTaken: ctx.currentBattleDamageTaken,
+    currentBattleCritCount: ctx.currentBattleCritCount,
+    currentBattleDodgeCount: ctx.currentBattleDodgeCount,
+    currentBattleHitTakenCount: ctx.currentBattleHitTakenCount,
+    currentBattleMaxOutgoingHit: ctx.currentBattleMaxOutgoingHit,
+    currentBattleMaxIncomingHit: ctx.currentBattleMaxIncomingHit,
+    currentBattleSkillUseCount: ctx.currentBattleSkillUseCount,
+    sessionFieldId: ctx.sessionFieldId,
+    sessionStartedAt: ctx.sessionStartedAt,
+    sessionKills: ctx.sessionKills,
+    sessionQiGained: ctx.sessionQiGained,
+    sessionTotalDamage: ctx.sessionTotalDamage,
+    sessionActiveTime: ctx.sessionActiveTime,
+    sessionMaxDps: ctx.sessionMaxDps,
+    sessionBattleWins: ctx.sessionBattleWins,
+    sessionDeaths: ctx.sessionDeaths,
+    sessionDrops: ctx.sessionDrops,
+    sessionProfGains: ctx.sessionProfGains,
     equipment: ctx.equipment, equipmentInventory: ctx.equipmentInventory,
     equipmentDotOnEnemy: ctx.equipmentDotOnEnemy, materials: ctx.materials,
     obtainedMaterials: ctx.obtainedMaterials, knownEquipment: ctx.knownEquipment,

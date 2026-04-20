@@ -1,0 +1,748 @@
+/* battle-v2.css — 전투 UI 개편 (mockup combat-log-v2.html 기반)
+ *
+ * 이 파일의 모든 클래스는 신규 컴포넌트(CombatBars, CombatStatusCard,
+ * SkillTimeline, BattleLogTabs, CharacterInfoTab, CombatStatsTab 등)에서만 사용한다.
+ * 기존 battle.css / battle-log.css 와 충돌을 피하기 위해
+ *   mockup의 .card → .combat-card
+ *   mockup의 .bars → .combat-bars
+ *   mockup의 .side → .combat-side
+ * 로 접두사를 바꿔 정의한다.
+ */
+
+/* ============ Collapsible card ============ */
+.combat-card {
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.combat-card .card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px 6px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.combat-card .card-head:hover { background: var(--panel-2); }
+.combat-card .card-head-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+.combat-card .card-head-left b {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 12px;
+}
+.combat-card .chevron {
+  font-size: 10px;
+  color: var(--text-dim);
+  transition: transform 0.2s;
+  display: inline-block;
+}
+.combat-card.collapsed .chevron { transform: rotate(-90deg); }
+.combat-card.collapsed .card-body { display: none; }
+.combat-card .card-head-right {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.combat-card .card-body { padding: 10px 14px 14px; }
+.combat-card.no-head .card-body { padding-top: 14px; }
+.combat-card .card-body.combat-card-body-scene { padding: 0; }
+.combat-card .card-body.combat-card-body-flush { padding: 0; }
+
+/* ============ Dual face-off bars (CombatBars) ============ */
+.combat-bars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 12px 14px;
+}
+.combat-side {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.combat-side .side-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.combat-side-enemy .side-header { justify-content: flex-end; }
+.combat-side .side-name { font-weight: 700; font-size: 12px; }
+.combat-side-ally .side-name { color: var(--hp); }
+.combat-side-enemy .side-name { color: var(--enemy-hp); }
+
+.bar-wrap {
+  position: relative;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bar-hp { height: 20px; }
+.bar-mp { height: 14px; }
+.bar-wrap .fill { height: 100%; transition: width 0.4s ease; }
+.fill-hp {
+  background: linear-gradient(90deg, #15803d, var(--hp));
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+.fill-enemy-hp {
+  background: linear-gradient(270deg, #991b1b, var(--enemy-hp));
+  margin-left: auto;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+.fill-mp { background: linear-gradient(90deg, #1d4ed8, var(--mp)); }
+.fill-enemy-mp {
+  background: linear-gradient(270deg, #6d28d9, #8b5cf6);
+  margin-left: auto;
+}
+
+.bar-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 6px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+}
+.bar-text.rtl { flex-direction: row-reverse; }
+.bar-text .k {
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 600;
+  font-size: 9px;
+}
+.bar-text .v {
+  color: white;
+  font-size: 11px;
+  margin-left: auto;
+}
+.bar-text.rtl .v { margin-left: 0; margin-right: auto; }
+.bar-mp .bar-text .v { font-size: 9px; }
+
+.bar-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 9px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+.bar-empty.rtl { justify-content: flex-end; }
+
+.side-buffs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
+  min-height: 22px;
+}
+.combat-side-enemy .side-buffs { justify-content: flex-end; }
+.buff-chip {
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  padding: 3px 8px;
+  border-radius: 14px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.buff-chip b { color: var(--ember); font-weight: 600; }
+.buff-chip .dur { color: var(--text-dim); font-size: 9px; }
+
+/* ============ Combat status card ============ */
+/* DPS battle gauge */
+.dps-battle {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 4px 10px;
+}
+.dps-side { display: flex; flex-direction: column; min-width: 40px; }
+.dps-side.ally { align-items: flex-start; }
+.dps-side.enemy { align-items: flex-end; }
+.dps-label {
+  font-size: 9px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.dps-val {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.dps-side.ally .dps-val { color: var(--hp); }
+.dps-side.enemy .dps-val { color: var(--enemy-hp); }
+.dps-side.masked .dps-val { color: var(--text-dim); }
+
+.dps-gauge { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.dps-gauge-bar {
+  height: 7px;
+  background: var(--panel-2);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  border: 1px solid var(--border-soft);
+}
+.dps-gauge-bar .gauge-ally {
+  background: linear-gradient(90deg, #15803d, var(--hp));
+  height: 100%;
+  transition: width 0.3s;
+}
+.dps-gauge-bar .gauge-enemy {
+  background: linear-gradient(90deg, var(--enemy-hp), #991b1b);
+  height: 100%;
+  transition: width 0.3s;
+  margin-left: auto;
+}
+.dps-gauge-bar.masked .gauge-ally,
+.dps-gauge-bar.masked .gauge-enemy {
+  background: var(--text-dim);
+  opacity: 0.4;
+}
+.dps-balance {
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dps-balance .deltas { display: inline-flex; gap: 6px; }
+.dps-balance .sep { color: var(--text-dim); }
+.dps-balance .neg { color: var(--enemy-hp); font-weight: 700; }
+.dps-balance .pos { color: var(--hp); font-weight: 700; }
+
+.verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.verdict.bad {
+  background: rgba(248, 113, 113, 0.14);
+  color: var(--enemy-hp);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+}
+.verdict.good {
+  background: rgba(52, 211, 153, 0.14);
+  color: var(--hp);
+  border: 1px solid rgba(52, 211, 153, 0.45);
+}
+.verdict.neutral {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-secondary);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+/* Attack timing */
+.timing-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+}
+.timing-cell { display: flex; align-items: center; gap: 8px; }
+.timing-cell.enemy { flex-direction: row-reverse; }
+.timing-icon {
+  font-size: 13px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.timing-bar-wrap { flex: 1; min-width: 0; }
+.timing-bar {
+  height: 4px;
+  background: var(--panel-2);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 3px;
+}
+.timing-fill { height: 100%; transition: width 0.05s linear; }
+.timing-fill.ally { background: var(--hp); }
+.timing-fill.enemy-fill { background: var(--enemy-hp); }
+.timing-text {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.timing-text b {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+.timing-cell.enemy .timing-text { text-align: right; }
+
+/* Damage cards */
+.dmg-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid var(--border-soft);
+}
+.dmg-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 8px 6px;
+  text-align: center;
+}
+.dmg-card-label {
+  font-size: 9px;
+  color: var(--text-secondary);
+  letter-spacing: 0.3px;
+}
+.dmg-card-val {
+  font-size: 18px;
+  font-weight: 800;
+  margin-top: 3px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.dmg-card-val.pos { color: var(--hp); }
+.dmg-card-val.neg { color: var(--enemy-hp); }
+.dmg-card-val.ember { color: var(--ember); }
+.dmg-card-sub {
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.dmg-card-sub b { color: var(--text-secondary); font-weight: 700; }
+
+/* Skill lane */
+.skill-lane {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-soft);
+}
+.skill-lane .lane-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9px;
+  color: var(--text-secondary);
+  letter-spacing: 0.3px;
+  margin-bottom: 6px;
+}
+.skill-lane .lane-header .lane-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.skill-lane .lane-note { color: var(--text-dim); font-style: italic; }
+.skill-list { display: flex; flex-direction: column; gap: 4px; }
+
+.skill-row {
+  display: grid;
+  grid-template-columns: 14px 18px minmax(60px, auto) auto 1fr auto;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  padding: 4px 7px;
+  background: var(--panel-2);
+  border-radius: 5px;
+  border: 1px solid var(--border-soft);
+}
+.skill-row.warn {
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.05);
+}
+.skill-row.ready { border-color: rgba(34, 197, 94, 0.35); }
+
+.skill-row .skill-side {
+  font-size: 9px;
+  font-weight: 700;
+  text-align: center;
+}
+.skill-row.ally .skill-side { color: var(--hp); }
+.skill-row.enemy .skill-side { color: var(--enemy-hp); }
+.skill-row .skill-icon { font-size: 13px; text-align: center; }
+.skill-row .skill-name {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 11px;
+}
+.skill-row .skill-name.disabled {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.skill-tag {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.skill-tag.warn { background: rgba(251, 191, 36, 0.18); color: var(--warn); }
+.skill-tag.ready { background: rgba(34, 197, 94, 0.18); color: var(--hp); }
+
+.skill-progress {
+  height: 5px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+}
+.skill-progress-fill { height: 100%; transition: width 0.15s linear; }
+.skill-progress-fill.ally {
+  background: linear-gradient(90deg, #15803d, var(--hp));
+}
+.skill-progress-fill.enemy {
+  background: linear-gradient(90deg, #991b1b, var(--enemy-hp));
+}
+.skill-progress-fill.warn {
+  background: linear-gradient(90deg, #92400e, var(--warn));
+}
+
+.skill-time {
+  font-size: 9px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+  min-width: 52px;
+  text-align: right;
+}
+.skill-row.warn .skill-time { color: var(--warn); }
+.skill-row.ready .skill-time { color: var(--hp); }
+
+/* ============ Log tabs ============ */
+.log-tabs {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--panel-2);
+}
+.log-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 10px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.log-tab:hover { color: var(--text-primary); }
+.log-tab.active {
+  color: var(--gold-warm-bright);
+  border-bottom-color: var(--gold-warm);
+  font-weight: 700;
+  background: var(--panel);
+}
+.log-tab .badge {
+  background: var(--panel-3);
+  color: var(--text-secondary);
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  margin-left: 4px;
+  font-weight: 600;
+}
+
+.tab-view { display: none; padding: 12px 14px; }
+.tab-view.active { display: block; }
+
+/* 대결 카드(BattleScene) — 크기 2단계 */
+.combat-card-body-scene { padding: 0; position: relative; }
+
+/* 중간 크기 (기본) */
+.combat-card-body-scene--md .battle-scene {
+  min-height: 120px;
+  margin-bottom: 0;
+}
+.combat-card-body-scene--md .battle-scene-content { padding: 10px; }
+.combat-card-body-scene--md .battle-scene-content > div { min-height: 72px !important; }
+.combat-card-body-scene--md .battle-char { width: 64px; height: 64px; border-radius: 8px; }
+.combat-card-body-scene--md .battle-char-emoji { font-size: 36px; }
+
+/* 큰 크기 — battle.css 원본 크기 유지 (오버라이드 없음) */
+.combat-card-body-scene--lg .battle-scene { margin-bottom: 0; }
+
+/* 크기 토글 버튼 — 카드 body 우측 상단 */
+.scene-size-toggle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-soft);
+  color: var(--text-secondary);
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.scene-size-toggle:hover {
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--text-primary);
+  border-color: var(--gold-warm);
+}
+
+/* 무공별 숙련도 획득 리스트 */
+.prof-gain-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+}
+.prof-gain-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+}
+.prof-gain-name { color: var(--text-primary); }
+.prof-gain-val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.prof-gain-val.pos { color: var(--hp); }
+.prof-gain-val.dim { color: var(--text-dim); font-weight: 400; }
+
+/* 로그 출력량 토글 바 — 전투 로그 탭 바로 아래 */
+.density-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.02);
+}
+.density-bar .density-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  letter-spacing: 0.3px;
+}
+.density-bar .density-toggle {
+  margin-left: auto;
+}
+
+/* ============ Character info ============ */
+.char-grid { display: grid; gap: 10px; }
+.char-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--border-soft);
+}
+.char-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #3d2817, #1a1208);
+  color: var(--gold-warm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+}
+.char-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.char-name { font-size: 14px; font-weight: 700; color: var(--gold-warm-bright); }
+.char-tier {
+  font-size: 10px;
+  background: var(--panel-3);
+  padding: 1px 6px;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  margin-left: 6px;
+}
+
+.stat-section-title {
+  font-size: 10px;
+  color: var(--gold-warm);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  padding-left: 2px;
+}
+.stat-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 12px;
+}
+.stat-pair > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 8px;
+  border-bottom: 1px dashed var(--border-soft);
+  font-size: 11px;
+}
+.stat-pair .k { color: var(--text-secondary); }
+.stat-pair .v {
+  color: var(--text-primary);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.stat-pair .v.pos { color: var(--hp); }
+.stat-pair .v.warn { color: var(--warn); }
+
+.equip-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+}
+.equip {
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 10px;
+}
+.equip-slot {
+  color: var(--text-dim);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.equip-name {
+  color: var(--gold-warm-bright);
+  font-weight: 600;
+  margin-top: 1px;
+}
+.equip-name.empty {
+  color: var(--text-dim);
+  font-style: italic;
+  font-weight: 400;
+}
+.equip-grade {
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  display: inline-block;
+  margin-top: 2px;
+}
+.equip-grade.common { background: #1f2937; color: #9ca3af; }
+.equip-grade.refined { background: #1e3a8a; color: #93c5fd; }
+.equip-grade.superior { background: #5c3a0a; color: #fcd34d; }
+
+.art-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+}
+.art-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.art-card .art-slot {
+  font-size: 9px;
+  color: var(--gold-warm);
+  letter-spacing: 0.5px;
+  font-weight: 700;
+}
+.art-card .art-name {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-top: 2px;
+  font-size: 11px;
+}
+.art-card .art-name.empty {
+  color: var(--text-dim);
+  font-style: italic;
+  font-weight: 400;
+}
+.art-card .art-meta {
+  color: var(--text-secondary);
+  font-size: 9px;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============ Combat stats tab ============ */
+.cstats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.cstat {
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 8px;
+  text-align: center;
+}
+.cstat-k {
+  font-size: 9px;
+  color: var(--text-secondary);
+  letter-spacing: 0.3px;
+}
+.cstat-v {
+  font-size: 15px;
+  font-weight: 800;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.cstat-v.pos { color: var(--hp); }
+.cstat-v.neg { color: var(--enemy-hp); }
+.cstat-v.warn { color: var(--warn); }
+.cstat-v.gold { color: var(--gold-warm-bright); }
+.cstat-v.neutral { color: var(--text-secondary); }
+.cstat-sub {
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-top: 1px;
+  font-variant-numeric: tabular-nums;
+}
+.cstats-section-title {
+  font-size: 10px;
+  color: var(--gold-warm);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  margin: 10px 0 6px;
+  padding-left: 2px;
+}
+.cstats-section-title:first-child { margin-top: 0; }

@@ -9,6 +9,24 @@ import { createBossPatternState, applyBattleStartSkills } from '../../utils/comb
 
 const B = BALANCE_PARAMS;
 
+/** 사냥 세션 리셋 — 전장이 바뀌었을 때만 0으로 초기화, 같은 전장 재진입이면 유지 */
+function maybeResetSession(state: GameStore, fieldId: string): Partial<GameState> {
+  if (state.sessionFieldId === fieldId) return {};
+  return {
+    sessionFieldId: fieldId,
+    sessionStartedAt: Date.now(),
+    sessionKills: 0,
+    sessionQiGained: 0,
+    sessionTotalDamage: 0,
+    sessionActiveTime: 0,
+    sessionMaxDps: 0,
+    sessionBattleWins: 0,
+    sessionDeaths: 0,
+    sessionDrops: {},
+    sessionProfGains: {},
+  };
+}
+
 export type CombatSlice = {
   // ── state ──
   stamina: number;
@@ -152,6 +170,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
 
     set({
       ...CLEAR_BATTLE_STATE,
+      ...maybeResetSession(state, fieldId),
       battleMode: 'explore',
       currentEnemy: spawnEnemy(firstMon),
       bossPatternState: bps,
@@ -201,6 +220,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
 
     set({
       ...CLEAR_BATTLE_STATE,
+      ...maybeResetSession(state, fieldId),
       battleMode: 'hunt',
       currentEnemy: spawnEnemy(monDef),
       bossPatternState: bps,

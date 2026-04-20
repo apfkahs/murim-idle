@@ -97,6 +97,9 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           ctx.currentEnemy = { ...ctx.currentEnemy! };
           ctx.currentEnemy!.hp -= fcDmg;
           ctx.currentBattleDamageDealt += fcDmg;
+          ctx.sessionTotalDamage += fcDmg;
+          if (fcDmg > ctx.currentBattleMaxOutgoingHit) ctx.currentBattleMaxOutgoingHit = fcDmg;
+          if (fcCrit) ctx.currentBattleCritCount += 1;
           // stunOnUlt 처리 (격산타우 경로)
           {
             let fcStunDur = 0;
@@ -225,7 +228,8 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           // 차지 후 공격: 즉시 데미지 없음
           ctx.stamina -= effectiveUltCostFinal;
           ctx.ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
-          ctx.playerFinisherCharge = { artId: chosenId, attackFirst: false, timeLeft: ultChargeTime * effectiveInterval };
+          ctx.currentBattleSkillUseCount += 1;
+          ctx.playerFinisherCharge = { artId: chosenId, attackFirst: false, timeLeft: ultChargeTime * effectiveInterval, chargeTotal: ultChargeTime * effectiveInterval };
           ctx.logFlavor('기를 응집하기 시작했다...', 'left', { actor: 'player', minor: true });
           isUlt = false;
         } else {
@@ -236,11 +240,12 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           );
           ctx.stamina -= effectiveUltCostFinal;
           ctx.ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
+          ctx.currentBattleSkillUseCount += 1;
           attackName = ultChangeName ?? chosenDef.ultMessages?.[0] ?? '절초';
           artDefForBonuses = chosenDef;
           artMasteryIdsForBonuses = artMasteryIds;
           if (ultAtkFirst && ultChargeTime > 0) {
-            ctx.playerFinisherCharge = { artId: chosenId, attackFirst: true, timeLeft: ultChargeTime * effectiveInterval };
+            ctx.playerFinisherCharge = { artId: chosenId, attackFirst: true, timeLeft: ultChargeTime * effectiveInterval, chargeTotal: ultChargeTime * effectiveInterval };
           }
         }
       } else {
@@ -449,6 +454,9 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
 
         ctx.currentEnemy!.hp -= damage;
         ctx.currentBattleDamageDealt += damage;
+        ctx.sessionTotalDamage += damage;
+        if (damage > ctx.currentBattleMaxOutgoingHit) ctx.currentBattleMaxOutgoingHit = damage;
+        if (isCritical) ctx.currentBattleCritCount += 1;
 
         // 배화교 호위 — 성화 맹세 각성 턴: 플레이어 공격 시 공격당 반사 불씨
         if (damage > 0 && ctx.bossPatternState?.howiSacredOathState?.phase === 'awakening') {

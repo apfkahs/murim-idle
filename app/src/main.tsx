@@ -6,6 +6,7 @@ import './styles/layout.css';
 import './styles/components.css';
 import './styles/battle.css';
 import './styles/battle-log.css';
+import './styles/battle-v2.css';
 import './styles/field.css';
 import './styles/arts.css';
 import './styles/modals.css';

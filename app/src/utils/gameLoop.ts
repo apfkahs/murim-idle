@@ -27,12 +27,16 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
   // 1) 기운 생산 (비전투)
   if (!ctx.isBattling) {
-    ctx.qi += ctx.qiPerSec * dt * ctx.qiMult;
+    const natural = ctx.qiPerSec * dt * ctx.qiMult;
+    ctx.qi += natural;
+    if (ctx.sessionFieldId) ctx.sessionQiGained += natural;
   }
 
   // 1-1) 전투 중 기운 생산
   if (ctx.isBattling && ctx.combatQiRatio > 0) {
-    ctx.qi += ctx.qiPerSec * ctx.combatQiRatio * dt * ctx.qiMult;
+    const combatNatural = ctx.qiPerSec * ctx.combatQiRatio * dt * ctx.qiMult;
+    ctx.qi += combatNatural;
+    if (ctx.sessionFieldId) ctx.sessionQiGained += combatNatural;
   }
 
   // 2) HP 자동회복 (전투 외)
@@ -114,6 +118,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   if (ctx.isBattling && ctx.currentEnemy) {
     ctx.currentBattleDuration += dt;
     ctx.combatElapsed += dt;
+    ctx.sessionActiveTime += dt;
 
     // pre-combat: 적 HP회복
     if (ctx.currentEnemy.regen > 0) {
@@ -250,6 +255,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     // HP <= 0: 전투 종료
     if (ctx.hp <= 0) {
       ctx.hp = 1;
+      ctx.sessionDeaths += 1;
       const deathLog = ctx.lastEnemyAttack
         ? `${ctx.lastEnemyAttack.enemyName}의 공격을 받아 쓰러졌습니다...`
         : undefined;

@@ -35,6 +35,17 @@ export function processEnemyDeath(ctx: TickContext): void {
   ctx.killCounts[monDef.id] = (ctx.killCounts[monDef.id] ?? 0) + 1;
   ctx.totalKills++;
 
+  // 처치 실패 여부 — 행자 자폭 등으로 보상 없이 끝난 케이스는 세션 카운트에서도 제외
+  const killFailed = ctx.bossPatternState?.killFailureSkipRewards === true;
+  if (!killFailed) {
+    ctx.sessionKills += 1;
+    ctx.sessionBattleWins += 1;
+    if (ctx.currentBattleDuration >= 1) {
+      const dpsThisBattle = ctx.currentBattleDamageDealt / ctx.currentBattleDuration;
+      if (dpsThisBattle > ctx.sessionMaxDps) ctx.sessionMaxDps = dpsThisBattle;
+    }
+  }
+
   const yasanIds = ['squirrel', 'rabbit', 'fox', 'deer', 'boar', 'wolf', 'bear'];
   if (yasanIds.includes(monDef.id) || monDef.isHidden) {
     ctx.totalYasanKills++;
@@ -93,6 +104,7 @@ export function processEnemyDeath(ctx: TickContext): void {
     for (const [pType, gain] of Object.entries(profGainMap) as [ProficiencyType, number][]) {
       ctx.proficiency[pType] = Math.min((ctx.proficiency[pType] ?? 0) + gain, PROF_TABLE[PROF_TABLE.length - 1].cumExp);
       profGainParts.push(`${PROF_LABEL[pType] ?? pType} +${gain.toFixed(1)}`);
+      ctx.sessionProfGains[pType] = (ctx.sessionProfGains[pType] ?? 0) + gain;
     }
     if (ctx.battleMode === 'explore') {
       for (const [pType, gain] of Object.entries(profGainMap) as [ProficiencyType, number][]) {
@@ -160,6 +172,7 @@ export function processEnemyDeath(ctx: TickContext): void {
       if (Math.random() < Math.min(drop.chance * dropRateMultiplier, 1)) {
         if (!ctx.ownedArts.some(a => a.id === drop.artId) && !ctx.inventory.some(i => i.artId === drop.artId)) {
           drops.push(drop.artId);
+          ctx.sessionDrops[drop.artId] = (ctx.sessionDrops[drop.artId] ?? 0) + 1;
           ctx.inventory.push({
             id: `${Date.now()}_${drop.artId}`,
             itemType: 'art_scroll',
@@ -189,6 +202,7 @@ export function processEnemyDeath(ctx: TickContext): void {
             obtainedAt: Date.now(),
           };
           ctx.equipmentInventory.push(instance);
+          ctx.sessionDrops[eqDrop.equipId] = (ctx.sessionDrops[eqDrop.equipId] ?? 0) + 1;
           if (!ctx.knownEquipment.includes(eqDrop.equipId)) ctx.knownEquipment.push(eqDrop.equipId);
           ctx.logSystem(`${eqDef.name}을(를) 획득했다!`);
         }
@@ -201,12 +215,14 @@ export function processEnemyDeath(ctx: TickContext): void {
     // 처치 실패 — 재료 드롭 스킵
   } else if (monDef.id === 'training_wood' && ctx.killCounts[monDef.id] === 1) {
     ctx.materials['wood_fragment'] = (ctx.materials['wood_fragment'] ?? 0) + 1;
+    ctx.sessionDrops['wood_fragment'] = (ctx.sessionDrops['wood_fragment'] ?? 0) + 1;
     if (!ctx.obtainedMaterials.includes('wood_fragment')) ctx.obtainedMaterials.push('wood_fragment');
     ctx.logSystem('나무 조각 1개를 주웠다. 무언가를 만드는 데 쓸 수 있을 것 같다...');
   } else if (monDef.materialDrops) {
     for (const mDrop of monDef.materialDrops) {
       if (Math.random() < Math.min(mDrop.chance * dropRateMultiplier, 1)) {
         ctx.materials[mDrop.materialId] = (ctx.materials[mDrop.materialId] ?? 0) + 1;
+        ctx.sessionDrops[mDrop.materialId] = (ctx.sessionDrops[mDrop.materialId] ?? 0) + 1;
         if (!ctx.obtainedMaterials.includes(mDrop.materialId)) {
           ctx.obtainedMaterials.push(mDrop.materialId);
         }
@@ -236,6 +252,7 @@ export function processEnemyDeath(ctx: TickContext): void {
   // 폭혈단 복용 후 처치 시 demonic_note +5%
   if (!skipRewards && potionConsumedRage && Math.random() < 0.05) {
     ctx.materials['demonic_note'] = (ctx.materials['demonic_note'] ?? 0) + 1;
+    ctx.sessionDrops['demonic_note'] = (ctx.sessionDrops['demonic_note'] ?? 0) + 1;
     if (!ctx.obtainedMaterials.includes('demonic_note')) ctx.obtainedMaterials.push('demonic_note');
     ctx.logSystem('마기에 물든 쪽지를 발견했다!');
   }
@@ -244,7 +261,9 @@ export function processEnemyDeath(ctx: TickContext): void {
   if (!skipRewards && ctx.masteryEffects?.killBonusEnabled && ctx.combatQiRatio > 0) {
     const combatQiRate = ctx.qiPerSec * ctx.combatQiRatio;
     const bonusQi = combatQiRate * ctx.currentBattleDuration * B.KILL_BONUS_RATIO;
-    ctx.qi += bonusQi * ctx.qiMult;
+    const earned = bonusQi * ctx.qiMult;
+    ctx.qi += earned;
+    ctx.sessionQiGained += earned;
   }
 
   // 초(招) 발견 체크
@@ -356,6 +375,13 @@ function processExploreMode(
         ctx.exploreStep = nextStep;
         ctx.currentBattleDuration = 0;
         ctx.currentBattleDamageDealt = 0;
+        ctx.currentBattleDamageTaken = 0;
+        ctx.currentBattleCritCount = 0;
+        ctx.currentBattleDodgeCount = 0;
+        ctx.currentBattleHitTakenCount = 0;
+        ctx.currentBattleMaxOutgoingHit = 0;
+        ctx.currentBattleMaxIncomingHit = 0;
+        ctx.currentBattleSkillUseCount = 0;
         ctx.stamina = 0;
         applyUltCooldownReset(ctx);
         if (nextMon.isHidden && ctx.currentField) {
@@ -413,6 +439,13 @@ function processExploreMode(
           ctx.equipmentDotOnEnemy = [];
           ctx.currentBattleDuration = 0;
           ctx.currentBattleDamageDealt = 0;
+          ctx.currentBattleDamageTaken = 0;
+          ctx.currentBattleCritCount = 0;
+          ctx.currentBattleDodgeCount = 0;
+          ctx.currentBattleHitTakenCount = 0;
+          ctx.currentBattleMaxOutgoingHit = 0;
+          ctx.currentBattleMaxIncomingHit = 0;
+          ctx.currentBattleSkillUseCount = 0;
           ctx.stamina = 0;
           applyUltCooldownReset(ctx);
           if (spawnHiddenAtBoss) {
@@ -497,6 +530,13 @@ function processHuntMode(
       ctx.equipmentDotOnEnemy = [];
       ctx.currentBattleDuration = 0;
       ctx.currentBattleDamageDealt = 0;
+      ctx.currentBattleDamageTaken = 0;
+      ctx.currentBattleCritCount = 0;
+      ctx.currentBattleDodgeCount = 0;
+      ctx.currentBattleHitTakenCount = 0;
+      ctx.currentBattleMaxOutgoingHit = 0;
+      ctx.currentBattleMaxIncomingHit = 0;
+      ctx.currentBattleSkillUseCount = 0;
       ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
       ctx.enemyAttackTimer = nextMon.attackInterval;
       const newBps = createBossPatternState(ctx.huntTarget);
