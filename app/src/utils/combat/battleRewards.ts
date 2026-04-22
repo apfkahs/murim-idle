@@ -263,13 +263,15 @@ export function processEnemyDeath(ctx: TickContext): void {
     ctx.logSystem('나무 조각 1개를 주웠다. 무언가를 만드는 데 쓸 수 있을 것 같다...');
   } else if (monDef.materialDrops) {
     for (const mDrop of monDef.materialDrops) {
-      if (Math.random() < Math.min(mDrop.chance * dropRateMultiplier, 1)) {
+      const matDef = MATERIALS.find(m => m.id === mDrop.materialId);
+      const effectiveMultiplier = matDef?.excludeFromDropBonus ? 1 : dropRateMultiplier;
+      if (Math.random() < Math.min(mDrop.chance * effectiveMultiplier, 1)) {
         ctx.materials[mDrop.materialId] = (ctx.materials[mDrop.materialId] ?? 0) + 1;
         ctx.sessionDrops[mDrop.materialId] = (ctx.sessionDrops[mDrop.materialId] ?? 0) + 1;
         if (!ctx.obtainedMaterials.includes(mDrop.materialId)) {
           ctx.obtainedMaterials.push(mDrop.materialId);
         }
-        const matName = MATERIALS.find(m => m.id === mDrop.materialId)?.name ?? mDrop.materialId;
+        const matName = matDef?.name ?? mDrop.materialId;
         ctx.logSystem(`${matName}을(를) 주웠다! (${ctx.materials[mDrop.materialId]}개)`);
         if (ctx.battleMode === 'explore') {
           const md = ctx.explorePendingRewards.materialDrops ?? {};

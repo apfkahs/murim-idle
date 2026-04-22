@@ -6,6 +6,7 @@ export interface MaterialDef {
   id: string;
   name: string;
   description: string;
+  excludeFromDropBonus?: boolean;  // 숙련도 차이 드랍률 보정 제외 여부
 }
 
 export interface RecipeDef {
@@ -154,16 +155,19 @@ export const MATERIALS: MaterialDef[] = [
     id: 'huimihan_janbul',
     name: '희미한 잔불',
     description: '행자의 옷깃에서 떨어진 미세한 불씨. 아직 꺼지지 않은 성화의 숨결이 깃들어 있다.',
+    excludeFromDropBonus: true,
   },
   {
     id: 'taoreuneun_bulggot_pyeon',
     name: '타오르는 불꽃 파편',
     description: '배화교 내문 수좌의 손끝에서 타오르던 불꽃이 응결된 파편. 잔불보다 거칠고 깊은 열기를 품고 있다.',
+    excludeFromDropBonus: true,
   },
   {
     id: 'shinseonghan_bul_ui_jeongsu',
     name: '신성한 불의 정수',
     description: '배화교 사원 가장 안쪽, 성화가 스스로 응축된 한 점의 정수. 한 줌만으로도 일평생의 수련을 뒤흔든다.',
+    excludeFromDropBonus: true,
   },
   {
     id: 'baekji_mugongseo',
