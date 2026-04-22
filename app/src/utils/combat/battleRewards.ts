@@ -171,7 +171,7 @@ export function processEnemyDeath(ctx: TickContext): void {
     for (const artId of allEquippedArts) {
       const currentArtStar = getArtGradeInfo(ctx.artGradeExp[artId] ?? 0).starIndex;
       const artDiff = monsterGrade - currentArtStar;
-      const artGradeMultiplier = artDiff >= 0 ? Math.pow(3, artDiff) : Math.pow(1 / 9, -artDiff);
+      const artGradeMultiplier = artDiff >= 0 ? Math.pow(3, artDiff) : Math.pow(1 / 4, -artDiff);
       ctx.artGradeExp[artId] = (ctx.artGradeExp[artId] ?? 0) + baseProfGain * artGradeMultiplier;
     }
 

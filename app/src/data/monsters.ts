@@ -1787,7 +1787,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
       { materialId: 'huimihan_janbul', chance: 0.025 },
       { materialId: 'hayan_jae', chance: 0.05 },
     ],
-    grade: 10, imageKey: 'baehwa_haengja',
+    grade: 11, imageKey: 'baehwa_haengja',
     emberAttackBonus: true,
     attackMessages: [
       '행자가 성화를 향해 두 손을 모은다. 그 기도 끝에서 불꽃이 튀어올랐다!',
@@ -1803,13 +1803,13 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'baehwa_howi', name: '배화교 호위',
-    hp: 5000, attackPower: 220, attackInterval: 2.2, regen: 0, baseProficiency: 10,
+    hp: 5000, attackPower: 220, attackInterval: 2.2, regen: 0, baseProficiency: 4,
     drops: [],
     materialDrops: [
       { materialId: 'huimihan_janbul', chance: 0.035 },
       { materialId: 'hayan_jae', chance: 0.07 },
     ],
-    grade: 10, imageKey: 'baehwa_howi',
+    grade: 12, imageKey: 'baehwa_howi',
     attackMessages: [
       '호위가 창을 바로 세우고 빠르게 내뻗쳤다!',
       '호위의 창끝이 날카롭게 당신을 파고들었다!',
@@ -1819,14 +1819,14 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'baehwa_geombosa', name: '배화교 검보사',
-    hp: 7200, attackPower: 330, attackInterval: 2.5, regen: 0, baseProficiency: 5,
+    hp: 7200, attackPower: 330, attackInterval: 2.5, regen: 0, baseProficiency: 7,
     drops: [],
     materialDrops: [
       { materialId: 'huimihan_janbul', chance: 0.05 },
       { materialId: 'hayan_jae', chance: 0.10 },
       // 검법 비급 드랍은 검법 무공 정의 후 별도 추가
     ],
-    grade: 11, imageKey: 'baehwa_geombosa',
+    grade: 12, imageKey: 'baehwa_geombosa',
     attackMessages: [
       '검보사의 검이 섬광처럼 당신의 살갗을 스쳤다!',
       '검보사가 자세를 낮추며 검 끝을 내뻗쳤다!',
@@ -1837,13 +1837,13 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'baehwa_hwabosa', name: '배화교 화보사',
-    hp: 8500, attackPower: 350, attackInterval: 2.3, regen: 0, baseProficiency: 8,
+    hp: 8500, attackPower: 350, attackInterval: 2.3, regen: 0, baseProficiency: 4,
     drops: [],
     materialDrops: [
       { materialId: 'huimihan_janbul', chance: 0.05 },
       { materialId: 'hayan_jae', chance: 0.15 },
     ],
-    grade: 11, imageKey: 'baehwa_hwabosa',
+    grade: 13, imageKey: 'baehwa_hwabosa',
     attackMessages: [
       '*화보사가 왼손 위의 성화를 한 번 부드럽게 흔든다. 흩어진 불꽃이 당신의 몸을 스친다.*',
       '*「불꽃의 한 결을.」 화보사가 손등으로 허공을 쓸자, 그 궤적에 남은 잔열이 당신에게 닿는다.*',
@@ -1852,12 +1852,12 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'baehwa_gyeongbosa', name: '배화교 경보사',
-    hp: 9800, attackPower: 380, attackInterval: 2.4, regen: 0, baseProficiency: 4,
+    hp: 9800, attackPower: 380, attackInterval: 2.4, regen: 0, baseProficiency: 6,
     drops: [],
     materialDrops: [
       { materialId: 'hayan_jae', chance: 0.20 },
     ],
-    grade: 12, imageKey: 'baehwa_gyeongbosa',
+    grade: 13, imageKey: 'baehwa_gyeongbosa',
     attackMessages: [
       '*경보사가 경전을 한 손에 받친 채, 남은 손끝으로 허공에 짧은 구절을 쓴다. 그 획의 결이 당신의 몸을 한 번 베고 지나간다.*',
       '*경보사가 읊조리던 구절을 잠시 끊고, 손등으로 공기를 스친다. 경(經)의 무게가 그 궤적을 따라 당신에게 닿는다.*',
