@@ -285,8 +285,10 @@
 .battle-layout {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 120px);
-  height: calc(100dvh - 120px);
+  /* 헤더(48) + 탭바 + 여백 = 120px, + 모바일 safe-area */
+  height: calc(100vh - 120px - env(safe-area-inset-bottom, 0px));
+  height: calc(100dvh - 120px - env(safe-area-inset-bottom, 0px));
+  min-height: 0;
 }
 
 .battle-header {

@@ -1,9 +1,9 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 
 /**
  * 전투 UI v2 공통 접기/펼치기 카드.
  * mockup의 `.card` 구조를 네임스페이스 prefix `.combat-card` 로 이관.
- * 토글 상태는 로컬 useState — 페이지 새로고침 시 defaultCollapsed 값으로 복귀.
+ * storageKey 제공 시 localStorage에 접힘 상태를 영속 저장, 미제공 시 defaultCollapsed로 세션 로컬 동작.
  */
 export interface CollapsibleCardProps {
   /** 좌측 타이틀 (굵게 표시) */
@@ -20,6 +20,8 @@ export interface CollapsibleCardProps {
   className?: string;
   /** 본문에 적용할 추가 클래스 */
   bodyClassName?: string;
+  /** localStorage 키 — 지정 시 접힘 상태를 영속 저장 */
+  storageKey?: string;
 }
 
 export default function CollapsibleCard({
@@ -30,8 +32,21 @@ export default function CollapsibleCard({
   noHead = false,
   className = '',
   bodyClassName = '',
+  storageKey,
 }: CollapsibleCardProps) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (storageKey && typeof window !== 'undefined') {
+      const v = window.localStorage?.getItem(storageKey);
+      if (v === '1') return true;
+      if (v === '0') return false;
+    }
+    return defaultCollapsed;
+  });
+
+  useEffect(() => {
+    if (!storageKey || typeof window === 'undefined') return;
+    window.localStorage?.setItem(storageKey, collapsed ? '1' : '0');
+  }, [collapsed, storageKey]);
 
   if (noHead) {
     return (

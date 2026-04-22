@@ -3,7 +3,7 @@
  * 평탄한 BattleLogEntry[] 를 받아 2축 타임라인으로 표시.
  * density 상태는 부모(BattleScreen)에서 hoist 관리 — 이 컴포넌트는 presentational.
  */
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BattleLogEntry } from '../../store/types';
 import { getMonsterDef } from '../../data/monsters';
 import { adaptBattleLog, formatNumberCompact, type CombatBlock, type RenderItem, type TurnGroup } from './battleLogAdapter';
@@ -22,9 +22,25 @@ export default function BattleLog({
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const [userScrolled, setUserScrolled] = useState(false);
+
+  const handleScroll = useCallback(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+    setUserScrolled(!atBottom);
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
     if (rootRef.current) rootRef.current.scrollTop = rootRef.current.scrollHeight;
-  }, [entries]);
+    setUserScrolled(false);
+  }, []);
+
+  useEffect(() => {
+    if (!userScrolled && rootRef.current) {
+      rootRef.current.scrollTop = rootRef.current.scrollHeight;
+    }
+  }, [entries, userScrolled]);
 
   const items: RenderItem[] = useMemo(
     () => adaptBattleLog(entries, playerMaxHp),
@@ -32,19 +48,26 @@ export default function BattleLog({
   );
 
   return (
-    <div className={`battle-log-root mode-${density}`} ref={rootRef}>
-      <div className="log">
-        {items.map((item, i) => {
-          if (item.kind === 'divider') {
-            return (
-              <div key={`div-${item.entry.id}`} className="section-divider">
-                {item.entry.text ?? ''}
-              </div>
-            );
-          }
-          return <CombatView key={`combat-${item.combat.header.id}-${i}`} block={item.combat} />;
-        })}
+    <div className="battle-log-wrap">
+      <div className={`battle-log-root mode-${density}`} ref={rootRef} onScroll={handleScroll}>
+        <div className="log">
+          {items.map((item, i) => {
+            if (item.kind === 'divider') {
+              return (
+                <div key={`div-${item.entry.id}`} className="section-divider">
+                  {item.entry.text ?? ''}
+                </div>
+              );
+            }
+            return <CombatView key={`combat-${item.combat.header.id}-${i}`} block={item.combat} />;
+          })}
+        </div>
       </div>
+      {userScrolled && (
+        <button type="button" className="log-scroll-btn" onClick={scrollToBottom} title="최하단으로">
+          ↓
+        </button>
+      )}
     </div>
   );
 }

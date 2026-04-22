@@ -38,6 +38,7 @@ export default function BattleScene() {
       title="대결"
       headerRight={`나 vs ${enemyName}`}
       bodyClassName={`combat-card-body-scene combat-card-body-scene--${size}`}
+      storageKey="battleui.scene.collapsed"
     >
       <button
         type="button"

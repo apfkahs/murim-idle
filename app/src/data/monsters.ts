@@ -1834,7 +1834,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'baehwa_hwabosa', name: '배화교 화보사',
-    hp: 8500, attackPower: 350, attackInterval: 2.3, regen: 0, baseProficiency: 6.5,
+    hp: 8500, attackPower: 350, attackInterval: 2.3, regen: 0, baseProficiency: 8,
     drops: [],
     materialDrops: [
       { materialId: 'huimihan_janbul', chance: 0.05 },
@@ -1848,10 +1848,10 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
   },
   {
     id: 'baehwa_gyeongbosa', name: '배화교 경보사',
-    hp: 9800, attackPower: 380, attackInterval: 2.4, regen: 0, baseProficiency: 7.5,
+    hp: 9800, attackPower: 380, attackInterval: 2.4, regen: 0, baseProficiency: 4,
     drops: [],
     materialDrops: [],
-    grade: 11, imageKey: 'baehwa_gyeongbosa',
+    grade: 12, imageKey: 'baehwa_gyeongbosa',
     attackMessages: [
       '*경보사가 경전을 한 손에 받친 채, 남은 손끝으로 허공에 짧은 구절을 쓴다. 그 획의 결이 당신의 몸을 한 번 베고 지나간다.*',
       '*경보사가 읊조리던 구절을 잠시 끊고, 손등으로 공기를 스친다. 경(經)의 무게가 그 궤적을 따라 당신에게 닿는다.*',

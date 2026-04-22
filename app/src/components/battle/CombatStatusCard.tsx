@@ -78,7 +78,7 @@ export default function CombatStatusCard() {
   const headerRight = `${currentBattleDuration.toFixed(1)}s 진행중`;
 
   return (
-    <CollapsibleCard title="전투 현황" headerRight={headerRight}>
+    <CollapsibleCard title="전투 현황" headerRight={headerRight} storageKey="battleui.status.collapsed">
       {/* 1) DPS 대결 */}
       <div className="dps-battle">
         <div className={`dps-side ally ${enemyDps == null ? 'masked' : ''}`}>

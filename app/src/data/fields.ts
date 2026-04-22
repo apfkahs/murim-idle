@@ -116,14 +116,6 @@ export const FIELDS: FieldDef[] = [
     canExplore: true,
     unlockCondition: { materialOwned: 'heugpungchae_map' },
   },
-  {
-    id: 'gongdong',
-    name: '공동파',
-    monsters: [],
-    hiddenMonsters: [],
-    canExplore: false,
-    unlockCondition: { materialOwned: 'gongdong_map' },
-  },
   // ── 배화교(拜火敎) — 4단계 다층 구조 ──
   {
     id: 'baehwagyo_oemun',
