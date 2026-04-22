@@ -285,10 +285,9 @@
 .battle-layout {
   display: flex;
   flex-direction: column;
-  /* 헤더(48) + 탭바 + 여백 = 120px, + 모바일 safe-area */
-  height: calc(100vh - 120px - env(safe-area-inset-bottom, 0px));
-  height: calc(100dvh - 120px - env(safe-area-inset-bottom, 0px));
-  min-height: 0;
+  /* 고정 height 대신 min-height — 상단 카드가 길어지면 자연 증가해 outer .app-content 스크롤이 끝까지 도달 */
+  min-height: calc(100vh - 120px - env(safe-area-inset-bottom, 0px));
+  min-height: calc(100dvh - 120px - env(safe-area-inset-bottom, 0px));
 }
 
 .battle-header {

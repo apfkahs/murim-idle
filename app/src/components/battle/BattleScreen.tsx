@@ -80,7 +80,7 @@ export default function BattleScreen() {
       )}
 
       {/* 5) 로그 3탭 컨테이너 */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, minHeight: 500, display: 'flex', flexDirection: 'column' }}>
         <BattleLogTabs entries={battleLog} playerMaxHp={maxHp} density={density} onDensityChange={setDensity} />
       </div>
     </div>
