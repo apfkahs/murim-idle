@@ -1,7 +1,7 @@
 /**
  * 전낭 (인벤토리) 탭 — Phase 3
  */
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { getArtDef } from '../data/arts';
 import { getMonsterDef } from '../data/monsters';
@@ -31,6 +31,29 @@ export default function InventoryTab() {
   const [craftResults, setCraftResults] = useState<Record<string, 'success' | 'fail' | null>>({});
   const [consumableTimes, setConsumableTimes] = useState<Record<string, number>>({});
   const [consumableCraftResults, setConsumableCraftResults] = useState<Record<string, boolean | null>>({});
+
+  // 소비 아이템 결과 토스트 큐 (장비/잔불 구분 스타일, 3초 후 자동 제거)
+  const [toasts, setToasts] = useState<{ id: number; message: string; tone: 'gold' | 'muted' }[]>([]);
+  const lastSeenTimestampRef = useRef<number>(lastConsumableResult?.timestamp ?? 0);
+  const toastTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => {
+    const ts = lastConsumableResult?.timestamp ?? 0;
+    if (!lastConsumableResult || ts <= lastSeenTimestampRef.current) return;
+    lastSeenTimestampRef.current = ts;
+    const id = ts;
+    const message = lastConsumableResult.summary;
+    const tone = lastConsumableResult.tone ?? 'muted';
+    setToasts(prev => [...prev, { id, message, tone }]);
+    const timer = setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+    toastTimersRef.current.push(timer);
+  }, [lastConsumableResult]);
+  useEffect(() => {
+    return () => {
+      toastTimersRef.current.forEach(t => clearTimeout(t));
+    };
+  }, []);
 
   function getDCount(id: string, have: number) {
     const v = discardCounts[id];
@@ -482,6 +505,18 @@ export default function InventoryTab() {
   // ─── 메인 뷰 ───────────────────────────────────────────
   return (
     <div>
+      {toasts.length > 0 && (
+        <div className="achievement-toast-stack">
+          {toasts.map(t => (
+            <div
+              key={t.id}
+              className={`achievement-toast${t.tone === 'muted' ? ' toast-muted' : ''}`}
+            >
+              {t.message}
+            </div>
+          ))}
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <span className="card-label" style={{ marginBottom: 0 }}>전낭</span>
         <div style={{ display: 'flex', gap: 6 }}>

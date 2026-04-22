@@ -434,8 +434,10 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
     let newKnownEquipment = state.knownEquipment;
     let newObtained = state.obtainedMaterials;
     let summary = '';
+    let tone: 'gold' | 'muted' = 'muted';
 
     if (picked.equipId) {
+      tone = 'gold';
       const alreadyOwned =
         Object.values(state.equipment).some(e => e?.defId === picked!.equipId) ||
         state.equipmentInventory.some(e => e.defId === picked!.equipId);
@@ -483,6 +485,7 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
         itemId: materialId,
         summary,
         timestamp: Date.now(),
+        tone,
       },
     });
     return true;

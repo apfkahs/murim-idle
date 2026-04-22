@@ -318,7 +318,7 @@ export interface GameState {
   sarajinunBulggotTimer: number;
   tamsikKillStacks: Record<string, number>;
   tamsikEmberStacks: number;
-  lastConsumableResult: { itemId: string; summary: string; timestamp: number } | null;
+  lastConsumableResult: { itemId: string; summary: string; timestamp: number; tone?: 'gold' | 'muted' } | null;
   autoExploreFields: Record<string, boolean>;
 
   tutorialFlags: {

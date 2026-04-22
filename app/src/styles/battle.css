@@ -145,6 +145,44 @@
   animation: toastSlide 0.3s ease-out, toastOut 0.3s 2.7s forwards;
 }
 
+.achievement-toast.toast-muted {
+  border-color: rgba(180,180,190,0.25);
+  color: rgba(210,210,220,0.95);
+  background: rgba(20,20,28,0.92);
+}
+
+.achievement-toast-stack {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 200;
+  pointer-events: none;
+}
+
+.achievement-toast-stack .achievement-toast {
+  position: static;
+  transform: none;
+}
+
+.achievement-toast-stack .achievement-toast {
+  animation: toastSlideStack 0.3s ease-out, toastOutStack 0.3s 2.7s forwards;
+}
+
+@keyframes toastSlideStack {
+  from { opacity: 0; transform: translateY(-100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toastOutStack {
+  from { opacity: 1; }
+  to { opacity: 0; transform: translateY(-100%); }
+}
+
 @keyframes toastSlide {
   from { opacity: 0; transform: translateX(-50%) translateY(-100%); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
