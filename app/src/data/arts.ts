@@ -711,7 +711,7 @@ export const ARTS: ArtDef[] = [
     growth: {
       baseQiPerSec: 2.0,
       maxQiPerSec: 100_000_000,
-      baseCombatQiRatio: 0.35,
+      baseCombatQiRatio: 0.50,
       gradeMaxStars: 12,
       proficiencyCoefficientByGrade: [
         0.0667, 0.0727, 0.0788, 0.0848, 0.0909, 0.0970,
@@ -723,7 +723,7 @@ export const ARTS: ArtDef[] = [
         stage: 1,
         id: 'maryeong_combat',
         name: '마령 전투 수련',
-        description: '전투 중에도 자연의 기운을 생산할 수 있게 된다.',
+        description: '전투의 소용돌이 속에서도 자연의 기운을 긁어모아 축적한다. 평시 생산량의 50%가 전투 중에도 꾸준히 채워진다.',
         flavorText: '마기를 삼켜 자신의 것으로 만들면, 싸우는 순간에도 기운이 샘솟는다.',
         requiredTier: 0,
         pointCost: 0,
