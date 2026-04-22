@@ -7,6 +7,7 @@ import { getArtDef, type MasteryEffects } from '../data/arts';
 import { getEquipmentDef, type EquipSlot, type EquipStats } from '../data/equipment';
 import { type MonsterDef } from '../data/monsters';
 import { getProfDamageValue, getGradeTableForArt, getArtGradeInfoFromTable } from './artUtils';
+import { applyBaehwagyoArtEffects, isSikhwaEquipped, getSikhwaQiCoeff, SIKHWA_NODES } from './combat/baehwagyoEffects';
 import type { GameState } from '../store/types';
 
 
@@ -35,6 +36,8 @@ export const CLEAR_BATTLE_STATE = {
   dodgeCounterActive: false,
   playerFinisherCharge: null,
   equipmentDotOnEnemy: [] as import('../store/types').EquipmentDotEntry[],
+  baehwagyoEmberTimer: 0,
+  baehwagyoAshOathBuffs: [] as { expiresAtSec: number; atkMult: number }[],
 };
 
 // ============================================================
@@ -166,12 +169,25 @@ export function gatherMasteryEffects(state: GameState): MasteryEffects {
       if (eff.killBonusEnabled) result.killBonusEnabled = true;
       if (eff.dodgeCounterEnabled) result.dodgeCounterEnabled = true;
       if (eff.dodgeCounterMultiplier) result.dodgeCounterMultiplier = Math.max(result.dodgeCounterMultiplier ?? 1.2, eff.dodgeCounterMultiplier);
+      if (eff.dodgeCounterChance !== undefined) {
+        result.dodgeCounterChance = result.dodgeCounterChance === undefined
+          ? eff.dodgeCounterChance
+          : Math.max(result.dodgeCounterChance, eff.dodgeCounterChance);
+      }
+      if (eff.minAtkSpeedOverride !== undefined) {
+        result.minAtkSpeedOverride = result.minAtkSpeedOverride === undefined
+          ? eff.minAtkSpeedOverride
+          : Math.min(result.minAtkSpeedOverride, eff.minAtkSpeedOverride);
+      }
       if (eff.bonusHpPercent) result.bonusHpPercent = (result.bonusHpPercent ?? 0) + eff.bonusHpPercent;
       if (eff.bonusCombatQiRatioFlat) result.bonusCombatQiRatioFlat = (result.bonusCombatQiRatioFlat ?? 0) + eff.bonusCombatQiRatioFlat;
       if (eff.dodgeHealPercent) result.dodgeHealPercent = (result.dodgeHealPercent ?? 0) + eff.dodgeHealPercent;
       // simbeopQiMultiplier는 calcQiPerSec 내부에서 심법 기여분에 직접 적용 — 여기서 집계하지 않음
     }
   }
+
+  // 배화교 식화심법 / 성화보법: arts.ts masteries 대신 bahwagyoSlice.nodeLevels 기반으로 동적 생성
+  applyBaehwagyoArtEffects(result, state);
   return result;
 }
 
@@ -228,7 +244,11 @@ export function calcQiPerSec(state: GameState): number {
       const mentalProf = state.proficiency?.mental ?? 1;
       const mentalProfDamage = getProfDamageValue(mentalProf);
       let coeff = artDef.proficiencyCoefficient;
-      if (artDef.growth.proficiencyCoefficientByGrade) {
+      if (isSikhwaEquipped(state.equippedSimbeop)) {
+        // 식화심법: 심법 개방 노드 Lv → coeff 테이블. openLv === 0 이면 coeff 0 (심법 기여 없음)
+        const openLv = state.bahwagyo?.nodeLevels[SIKHWA_NODES.open] ?? 0;
+        coeff = openLv < 1 ? 0 : getSikhwaQiCoeff(openLv);
+      } else if (artDef.growth.proficiencyCoefficientByGrade) {
         const gradeExp = state.artGradeExp?.[state.equippedSimbeop!] ?? 0;
         const table = getGradeTableForArt(artDef);
         const { stageIndex } = getArtGradeInfoFromTable(gradeExp, table);
@@ -264,6 +284,14 @@ export function calcCombatQiRatio(state: GameState): number {
   const artDef = state.equippedSimbeop ? getArtDef(state.equippedSimbeop) : null;
   const eff = gatherMasteryEffects(state);
 
+  // 식화심법: 심법 개방 Lv 에 따른 qiRatioOverride 우선 적용 (25/35/50%)
+  if (eff.qiRatioOverride !== undefined) {
+    return Math.min(
+      eff.qiRatioOverride + (eff.bonusCombatQiRatioFlat ?? 0),
+      artDef?.growth.maxCombatQiRatio ?? B.COMBAT_QI_CAP,
+    );
+  }
+
   const ratio = Math.min(
     (artDef?.growth.baseCombatQiRatio ?? B.COMBAT_QI_BASE) + (eff.bonusCombatQiRatioFlat ?? 0),
     artDef?.growth.maxCombatQiRatio ?? B.COMBAT_QI_CAP,
@@ -298,7 +326,11 @@ export function calcPlayerAttackInterval(state: GameState): number {
     const penalty = Math.min(cap, emberEntry.stacks * per);
     emberPenalty = 1 + penalty;
   }
-  return Math.max((B.BASE_ATTACK_INTERVAL - atkSpeedBonus + slowPenalty) * atkSpeedDebuffMult * emberPenalty, B.ATK_SPEED_MIN);
+  const floor = effects.minAtkSpeedOverride !== undefined
+    ? Math.min(effects.minAtkSpeedOverride, B.ATK_SPEED_MIN)
+    : B.ATK_SPEED_MIN;
+  const base = Math.max((B.BASE_ATTACK_INTERVAL - atkSpeedBonus + slowPenalty) * atkSpeedDebuffMult, floor);
+  return base * emberPenalty;
 }
 
 /** 장착된 무공 중 ult 가능한 첫 번째의 절초 이름 (ultChange 반영) */

@@ -133,21 +133,6 @@ function FieldListScreen({
         </div>
       )}
 
-      {/* 공동파 */}
-      {fieldUnlocks.gongdong && (
-        <div className="card field-card" onClick={() => onSelectField('gongdong')}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <span style={{ fontWeight: 500, fontSize: 13 }}>공동파(崆峒派)</span>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
-                서역의 명문 무파 · 준비 중
-              </div>
-            </div>
-            <span style={{ fontSize: 14, opacity: 0.3 }}>→</span>
-          </div>
-        </div>
-      )}
-
       {/* 배화교 */}
       {fieldUnlocks.baehwagyo_oemun && (
         <div className="card field-card" onClick={() => onSelectLocation('baehwagyo')}>
@@ -197,10 +182,10 @@ const CHEONSAN_STAGES = [
 ] as const;
 
 const BAEHWAGYO_STAGES = [
-  { id: 'baehwagyo_oemun', name: '외문' },
-  { id: 'baehwagyo_naemun', name: '내문' },
-  { id: 'baehwagyo_sawon', name: '사원' },
-  { id: 'baehwagyo_simcheo', name: '심처' },
+  { id: 'baehwagyo_oemun', name: '배화교 외문' },
+  { id: 'baehwagyo_naemun', name: '배화교 내문' },
+  { id: 'baehwagyo_sawon', name: '배화교 사원' },
+  { id: 'baehwagyo_simcheo', name: '배화교 심처' },
 ] as const;
 
 function CheonsanDetailScreen({

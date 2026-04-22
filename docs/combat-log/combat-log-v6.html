@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전투 로그 v6</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+    background: #0a0a0d;
+    color: #e4e4e6;
+    padding: 32px 16px 60px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  h1 { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 6px; color: #f4f4f6; }
+  .subtitle { text-align: center; color: #7a7a80; font-size: 13px; margin-bottom: 22px; }
+
+  /* Controls */
+  .controls {
+    max-width: 860px; margin: 0 auto 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 18px;
+    background: #121216; border: 1px solid #26262c; border-radius: 8px;
+  }
+  .controls-label { font-size: 11px; color: #888; letter-spacing: 1.5px; font-weight: 700; }
+  .density-toggle { display: flex; gap: 2px; background: #1c1c22; padding: 3px; border-radius: 5px; }
+  .density-btn {
+    background: transparent; border: none; color: #9a9aa0;
+    padding: 6px 14px; font-size: 12px; font-weight: 600;
+    border-radius: 4px; cursor: pointer; font-family: inherit;
+    letter-spacing: 0.3px; transition: all 0.15s;
+  }
+  .density-btn:hover { color: #ddd; }
+  .density-btn.active {
+    background: #2d2d36; color: #f0f0f2;
+    box-shadow: inset 0 0 0 1px #3e3e4a;
+  }
+
+  /* Log container */
+  .log {
+    max-width: 860px; margin: 0 auto;
+    background: #15151a; border: 1px solid #26262c;
+    border-radius: 8px; overflow: hidden;
+  }
+
+  /* Combat header */
+  .combat-header {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 16px; padding: 12px 20px; flex-wrap: wrap;
+    background: #101014; border-bottom: 1px solid #26262c;
+  }
+  .combat-target { font-size: 14px; font-weight: 700; color: #f0f0f2; letter-spacing: 0.3px; }
+  .combat-target .turn-count {
+    font-size: 11px; color: #787880; font-weight: 500;
+    margin-left: 8px; font-variant-numeric: tabular-nums;
+  }
+  .combat-target .speeds {
+    display: inline-block; margin-left: 10px;
+    font-size: 10.5px; color: #6a6a72; font-weight: 500;
+    letter-spacing: 0.3px; font-variant-numeric: tabular-nums;
+  }
+  .combat-target .speeds code {
+    font-family: 'JetBrains Mono', monospace;
+    color: #9a9aa0; margin: 0 2px;
+  }
+  .combat-stats { display: flex; gap: 18px; font-size: 11px; color: #8a8a90; align-items: center; }
+  .combat-stats .stat { display: flex; align-items: baseline; gap: 5px; }
+  .combat-stats .stat .num {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px; font-weight: 700; color: #e4e4e6;
+  }
+  .stat-sparkline { display: flex; align-items: center; gap: 6px; }
+  .stat-sparkline .label { font-size: 10px; color: #6a6a72; letter-spacing: 0.4px; font-weight: 600; }
+  .sparkline {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    font-size: 14px; color: #c0c0c4; letter-spacing: 1px;
+    padding: 2px 7px; background: #1c1c22; border-radius: 3px; line-height: 1;
+  }
+
+  /* Law / declaration banner (spell announcement) */
+  .law-banner {
+    margin: 12px 20px;
+    padding: 12px 18px 14px;
+    background: linear-gradient(180deg, #1e1a12 0%, #16120c 100%);
+    border: 1px solid #3c3220;
+    border-top: 2px solid #7e6538;
+    border-radius: 4px;
+    text-align: center;
+  }
+  .law-banner .law-flavor {
+    font-size: 11.5px; font-style: italic;
+    color: #9a8c6c;
+    margin-bottom: 7px;
+    line-height: 1.5;
+  }
+  .law-banner .law-name {
+    font-size: 12px; font-weight: 800;
+    color: #d8bc80;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+  .law-banner .law-name::before {
+    content: '◈ ';
+    font-size: 12px;
+  }
+  .law-banner .law-text {
+    font-size: 13px; font-style: italic;
+    color: #e4ccaa;
+    line-height: 1.55;
+  }
+
+  /* Turn + events layout */
+  .combat-body { padding: 6px 0; }
+
+  .turn-group {
+    display: grid;
+    grid-template-columns: 68px 1fr;
+    align-items: stretch;
+  }
+  .turn-label {
+    text-align: right;
+    padding: 10px 12px 10px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 700;
+    color: #7a7a82;
+    border-right: 1px solid #262630;
+    letter-spacing: 0.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .turn-label .unit {
+    font-size: 10px; color: #55555c;
+    font-weight: 600;
+    margin-left: 1px;
+  }
+  .turn-label .marker {
+    color: #d29472; font-size: 13px; margin-left: 3px; font-weight: 900;
+  }
+
+  /* Danger turn (big incoming damage) */
+  .turn-group.danger {
+    background: linear-gradient(90deg,
+      rgba(148, 84, 48, 0.09) 0%,
+      rgba(148, 84, 48, 0.035) 40%,
+      transparent 80%);
+  }
+  .turn-group.danger .turn-label {
+    color: #d29472;
+    border-right: 2px solid #8a5438;
+    padding-right: 11px;
+  }
+
+  .turn-events {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    row-gap: 2px;
+    padding: 5px 0;
+    position: relative;
+  }
+  .turn-events::before {
+    content: '';
+    position: absolute; left: 50%; top: 4px; bottom: 4px;
+    width: 1px; background: #282832;
+    transform: translateX(-0.5px);
+  }
+
+  .event {
+    grid-column: 1 / 3;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 26px;
+    align-items: center;
+  }
+  .event .side {
+    display: flex;
+    gap: 9px;
+    align-items: baseline;
+    padding: 5px 12px;
+    min-width: 0; line-height: 1.2;
+  }
+  .event.outgoing .side {
+    grid-column: 1;
+    justify-content: flex-end;
+    padding-right: 10px;
+  }
+  .event.incoming .side {
+    grid-column: 2;
+    padding-left: 10px;
+  }
+
+  /* Heavy hit emphasis (big incoming damage) */
+  .event.hit-heavy-row { margin: 6px 0; }
+  .event.hit-heavy-row .side {
+    background: linear-gradient(90deg,
+      rgba(148, 84, 48, 0.24),
+      rgba(148, 84, 48, 0.06));
+    border-left: 3px solid #a86044;
+    border-radius: 0 3px 3px 0;
+    padding: 10px 14px 10px 14px;
+  }
+
+  /* Status-only row (debuff application, no damage) */
+  .event.status-row .side {
+    padding: 3px 12px;
+  }
+
+  /* Tags (color accent) — improved readability */
+  .tag {
+    font-family: 'Pretendard', -apple-system, 'Malgun Gothic', sans-serif;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.2px;
+    padding: 3px 9px; border-radius: 3px;
+    white-space: nowrap; line-height: 1.3;
+    background: #3a3a44; color: #dadade;
+  }
+  .tag.crit    { background: #8a3440; color: #ffe4e6; }
+  .tag.special { background: #4a3e84; color: #ece4ff; box-shadow: 0 0 0 1px #6a5eaa inset; }
+  .tag.hit     { background: #8a5430; color: #ffe6c8; }
+  .tag.heal    { background: #2e6448; color: #dcf0e0; }
+  .tag.dodge,
+  .tag.block   { background: #3a3a46; color: #b4b4b8; }
+
+  /* Names */
+  .name { font-size: 13px; color: #dadade; white-space: nowrap; line-height: 1.2; }
+  .name .sub { color: #80808a; font-size: 11px; margin-left: 4px; }
+
+  /* Status chip — 무뎌짐 (dulled / my-side debuff from law) */
+  .status-chip {
+    font-family: 'Pretendard', -apple-system, 'Malgun Gothic', sans-serif;
+    font-size: 11px; font-weight: 700;
+    color: #a8a4b4;
+    padding: 2px 8px;
+    background: #222028;
+    border: 1px solid #3a3644;
+    border-radius: 3px;
+    white-space: nowrap; line-height: 1.3;
+    letter-spacing: 0.2px;
+  }
+  .status-chip::before { content: '▽ '; opacity: 0.7; }
+
+  /* Fire chip — 불씨 stacks (burn debuff on me) */
+  .fire-chip {
+    font-family: 'Pretendard', -apple-system, 'Malgun Gothic', sans-serif;
+    font-size: 11px; font-weight: 700;
+    color: #d8a878;
+    padding: 2px 8px;
+    background: #241d14;
+    border: 1px solid #3c2e1e;
+    border-radius: 3px;
+    white-space: nowrap; line-height: 1.3;
+    letter-spacing: 0.2px;
+  }
+  .fire-chip .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    margin-left: 2px; color: #f0c090;
+  }
+
+  /* Value — 4-tier hierarchy, monochrome */
+  .value {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700; color: #f4f4f6;
+    white-space: nowrap; letter-spacing: -0.3px; line-height: 1;
+  }
+  .value.normal    { font-size: 14px; font-weight: 600; color: #c8c8cc; }
+  .value.special   { font-size: 20px; font-weight: 700; }
+  .value.crit      { font-size: 26px; font-weight: 800; }
+  .value.hit-heavy { font-size: 24px; font-weight: 800; }
+  .value.heal      { font-size: 14px; font-weight: 600; color: #b8c8be; }
+  .value.muted     { font-size: 13px; color: #6a6a72; font-weight: 500; }
+
+  /* Flavor (italic prose narration) */
+  .flavor {
+    font-size: 11.5px; font-style: italic;
+    color: #787880;
+    line-height: 1.6;
+    padding: 2px 14px 4px;
+  }
+  .flavor.side-left  { grid-column: 1; text-align: right; padding-right: 14px; padding-left: 28px; }
+  .flavor.side-right { grid-column: 2; padding-left: 14px; padding-right: 28px; }
+  .flavor.both       { grid-column: 1 / 3; text-align: center; padding: 3px 20%; }
+
+  /* Dialogue (NPC speech) */
+  .dialogue {
+    font-size: 12.5px; font-style: italic;
+    color: #a8a8ae;
+    line-height: 1.55;
+    padding: 5px 12px;
+    margin: 3px 0;
+  }
+  .dialogue.side-left {
+    grid-column: 1;
+    text-align: right;
+    margin: 3px 14px 3px 28px;
+    border-right: 2px solid #42424c;
+    padding-right: 12px; padding-left: 14px;
+  }
+  .dialogue.side-right {
+    grid-column: 2;
+    margin: 3px 28px 3px 14px;
+    border-left: 2px solid #42424c;
+    padding-left: 12px; padding-right: 14px;
+  }
+
+  /* Density modes */
+  body.mode-full .flavor,
+  body.mode-full .dialogue { display: block; }
+  body.mode-compact .flavor.minor,
+  body.mode-compact .dialogue.minor { display: none; }
+  body.mode-minimal .flavor,
+  body.mode-minimal .dialogue { display: none; }
+
+  /* Kill banner */
+  .kill-banner {
+    margin: 14px 20px;
+    padding: 14px 18px 16px;
+    background: linear-gradient(180deg, #20202a 0%, #181820 100%);
+    border: 1px solid #3a3a48;
+    border-radius: 5px;
+    position: relative;
+  }
+  .kill-banner::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, #8a8aa0, transparent);
+  }
+  .kill-banner .title {
+    font-family: 'Pretendard', -apple-system, 'Malgun Gothic', sans-serif;
+    font-size: 13px; font-weight: 800;
+    color: #f4f4f6; letter-spacing: 0.8px;
+    margin-bottom: 11px;
+  }
+  .kill-banner .title::before { content: '★ '; color: #d4b060; letter-spacing: 0; }
+  .rewards { display: flex; gap: 6px; flex-wrap: wrap; }
+  .reward-chip {
+    background: #25252e; border: 1px solid #3a3a48;
+    padding: 5px 11px; font-size: 12px; color: #e4e4e6;
+    border-radius: 3px;
+    font-family: 'Pretendard', -apple-system, 'Malgun Gothic', sans-serif;
+    font-weight: 700;
+    display: inline-flex; align-items: baseline; gap: 4px;
+  }
+  .reward-chip .label { color: #b8b8c0; font-weight: 600; letter-spacing: 0.2px; }
+  .reward-chip .val {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700; color: #f4f4f6;
+  }
+
+  /* Section divider */
+  .section-divider {
+    padding: 18px 20px 16px;
+    font-size: 10px; font-weight: 800;
+    letter-spacing: 3px; color: #66666e;
+    background: #101014; text-align: center;
+    border-top: 1px solid #26262c;
+    border-bottom: 1px solid #26262c;
+  }
+  .combat + .section-divider { margin-top: 4px; }
+
+  /* Note */
+  .note {
+    max-width: 860px; margin: 24px auto 0;
+    padding: 18px 22px;
+    background: #121216; border: 1px solid #26262c;
+    border-radius: 6px;
+    font-size: 12.5px; color: #a0a0a4;
+    line-height: 1.75;
+  }
+  .note .title { color: #e4e4e6; font-weight: 700; margin-bottom: 10px; font-size: 13px; }
+  .note ul { padding-left: 20px; }
+  .note li { margin-bottom: 5px; }
+  .note strong { color: #e8e8ea; font-weight: 700; }
+  .note code {
+    background: #1f1f26; padding: 1px 6px; border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #c6c6c8;
+  }
+
+  @media (max-width: 640px) {
+    .event { grid-template-columns: 1fr; }
+    .event.outgoing .side { grid-column: 1; justify-content: flex-start; }
+    .event.incoming .side { grid-column: 1; }
+    .turn-events::before { display: none; }
+    .flavor.side-left, .flavor.side-right { grid-column: 1; text-align: left; padding: 2px 14px; }
+    .dialogue.side-left, .dialogue.side-right {
+      grid-column: 1; text-align: left;
+      margin: 3px 14px; border-left: 2px solid #42424c; border-right: none;
+      padding-left: 12px;
+    }
+  }
+</style>
+</head>
+<body class="mode-compact">
+  <h1>전투 로그 v6</h1>
+  <p class="subtitle">상태이상 태그 제거 · 턴 → 실시간 타임스탬프 (공속 반영)</p>
+
+  <div class="controls">
+    <span class="controls-label">밀도</span>
+    <div class="density-toggle">
+      <button class="density-btn" data-mode="full">Full</button>
+      <button class="density-btn active" data-mode="compact">Compact</button>
+      <button class="density-btn" data-mode="minimal">Numbers Only</button>
+    </div>
+  </div>
+
+  <div class="log">
+    <!-- ========== Combat 1 ========== -->
+    <div class="combat">
+      <div class="combat-header">
+        <span class="combat-target">
+          배화교 행자<span class="turn-count">· 7.2초 전투</span>
+          <span class="speeds">내 공속 <code>1.2s</code> · 적 회복 <code>2.4s</code></span>
+        </span>
+        <div class="combat-stats">
+          <span class="stat">피해 <span class="num">2,298</span></span>
+          <span class="stat">피격 <span class="num">1,243</span></span>
+          <span class="stat">불씨 <span class="num">+7</span></span>
+          <span class="stat-sparkline">
+            <span class="label">1.2s 간격 피해</span>
+            <span class="sparkline">█▆▅▅▄▇</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="combat-body">
+        <!-- 1.2s -->
+        <div class="turn-group">
+          <div class="turn-label">1.2<span class="unit">s</span></div>
+          <div class="turn-events">
+            <div class="event outgoing">
+              <div class="side">
+                <span class="tag crit">치명</span>
+                <span class="name">녹림권 일격</span>
+                <span class="value crit">555</span>
+              </div>
+            </div>
+            <div class="flavor side-right major">행자가 피 묻은 입가로 미소짓는다. 두 팔을 벌리고 성화를 향해 몸을 내민다.</div>
+            <div class="dialogue side-right major">「아타르여, 이 미천한 몸을 받으소서.」</div>
+            <div class="flavor side-right minor">행자가 눈을 감은 채 흔들린다. 그의 몸에서 번진 불꽃이 당신의 옷자락을 물들인다.</div>
+            <div class="event incoming status-row">
+              <div class="side">
+                <span class="fire-chip">불씨<span class="count">+1</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2.4s -->
+        <div class="turn-group">
+          <div class="turn-label">2.4<span class="unit">s</span></div>
+          <div class="turn-events">
+            <div class="event outgoing">
+              <div class="side">
+                <span class="tag special">비기</span>
+                <span class="name">태산압정</span>
+                <span class="value special">391</span>
+              </div>
+            </div>
+            <div class="event incoming">
+              <div class="side">
+                <span class="value heal">+304</span>
+                <span class="name">배화교 행자</span>
+                <span class="tag heal">적회복</span>
+              </div>
+            </div>
+            <div class="flavor side-right minor">행자의 상처가 흰 재로 덮이며 아물어간다.</div>
+            <div class="flavor side-left minor">당신의 칼이 행자의 살갗을 가른다. 그 자리에서 흰 불꽃이 튀어 당신에게 옮겨 붙는다.</div>
+            <div class="event incoming status-row">
+              <div class="side">
+                <span class="fire-chip">불씨<span class="count">+1</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3.6s -->
+        <div class="turn-group">
+          <div class="turn-label">3.6<span class="unit">s</span></div>
+          <div class="turn-events">
+            <div class="event outgoing">
+              <div class="side">
+                <span class="name">거친 권풍</span>
+                <span class="value normal">319</span>
+              </div>
+            </div>
+            <div class="flavor side-right minor">행자는 피하지 않는다. 상처에 새어나온 불티가 당신의 손등에 내려앉는다.</div>
+            <div class="event incoming status-row">
+              <div class="side">
+                <span class="fire-chip">불씨<span class="count">+1</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4.8s -->
+        <div class="turn-group">
+          <div class="turn-label">4.8<span class="unit">s</span></div>
+          <div class="turn-events">
+            <div class="event outgoing">
+              <div class="side">
+                <span class="name">거친 권풍</span>
+                <span class="value normal">318</span>
+              </div>
+            </div>
+            <div class="event incoming">
+              <div class="side">
+                <span class="value heal">+304</span>
+                <span class="name">배화교 행자</span>
+                <span class="tag heal">적회복</span>
+              </div>
+            </div>
+            <div class="flavor side-right minor">행자의 상처가 흰 재로 덮이며 아물어간다.</div>
+            <div class="flavor side-right minor">행자가 눈을 감은 채 흔들린다. 그의 몸에서 번진 불꽃이 당신의 옷자락을 물들인다.</div>
+            <div class="event incoming status-row">
+              <div class="side">
+                <span class="fire-chip">불씨<span class="count">+1</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6.0s · DANGER -->
+        <div class="turn-group danger">
+          <div class="turn-label">6.0<span class="unit">s</span><span class="marker">▲</span></div>
+          <div class="turn-events">
+            <div class="event outgoing">
+              <div class="side">
+                <span class="name">거친 권풍</span>
+                <span class="value normal">280</span>
+              </div>
+            </div>
+            <div class="event incoming">
+              <div class="side">
+                <span class="value heal">+304</span>
+                <span class="name">배화교 행자</span>
+                <span class="tag heal">적회복</span>
+              </div>
+            </div>
+            <div class="flavor side-right minor">행자의 상처가 흰 재로 덮이며 아물어간다.</div>
+
+            <!-- Pre-explosion narration -->
+            <div class="flavor side-right major">행자가 두 눈을 크게 뜬다. 그의 몸이 안에서부터 하얗게 타오른다.</div>
+            <div class="dialogue side-right major">「아타르…… 아타르에게로……!」</div>
+            <div class="flavor side-right major">행자의 몸이 흰 불기둥이 되어 폭발한다.</div>
+
+            <!-- Heavy hit incoming -->
+            <div class="event incoming hit-heavy-row">
+              <div class="side">
+                <span class="value hit-heavy">1,243</span>
+                <span class="name">행자의 폭발</span>
+                <span class="fire-chip">불씨<span class="count">+3</span></span>
+                <span class="tag hit">피격</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7.2s -->
+        <div class="turn-group">
+          <div class="turn-label">7.2<span class="unit">s</span></div>
+          <div class="turn-events">
+            <div class="event outgoing">
+              <div class="side">
+                <span class="tag crit">치명</span>
+                <span class="name">녹림권 일격</span>
+                <span class="value crit">435</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kill banner -->
+      <div class="kill-banner">
+        <div class="title">처치 · 배화교 행자</div>
+        <div class="rewards">
+          <span class="reward-chip"><span class="label">검법</span><span class="val">+21.0</span></span>
+          <span class="reward-chip"><span class="label">보법</span><span class="val">+21.0</span></span>
+          <span class="reward-chip"><span class="label">권법</span><span class="val">+21.0</span></span>
+          <span class="reward-chip"><span class="label">심법</span><span class="val">+31.5</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="section-divider">다음 행자 조우</div>
+
+    <!-- ========== Combat 2 ========== -->
+    <div class="combat">
+      <div class="combat-header">
+        <span class="combat-target">
+          배화교 행자<span class="turn-count">· 2.4초 진행중</span>
+          <span class="speeds">내 공속 <code>1.2s</code></span>
+        </span>
+        <div class="combat-stats">
+          <span class="stat">피해 <span class="num">286</span></span>
+          <span class="stat">피격 <span class="num">0</span></span>
+          <span class="stat-sparkline">
+            <span class="label">1.2s 간격 피해</span>
+            <span class="sparkline">▁█</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Law declaration banner (setup flavor + dialogue declaration, centered) -->
+      <div class="law-banner">
+        <div class="law-flavor">행자가 성화를 향해 두 손을 모은다.</div>
+        <div class="law-name">삼행(三行)의 율법 · 발동</div>
+        <div class="law-text">「삼행이 흐르지 않는 손은 우리의 살갗을 스치지 못하리라.」</div>
+      </div>
+
+      <div class="combat-body">
+        <!-- 1.2s — my attack blunted under law -->
+        <div class="turn-group">
+          <div class="turn-label">1.2<span class="unit">s</span></div>
+          <div class="turn-events">
+            <div class="event outgoing">
+              <div class="side">
+                <span class="tag block">차단</span>
+                <span class="name">성화의 결</span>
+                <span class="status-chip">무뎌짐</span>
+                <span class="value muted">—</span>
+              </div>
+            </div>
+            <div class="flavor side-left minor">당신의 공격이 성화의 결 앞에서 무뎌진다.</div>
+            <div class="dialogue side-right major">「길을 아직 걷지 않은 자의 것이군요.」</div>
+          </div>
+        </div>
+
+        <!-- 2.4s — crit through + my dodge -->
+        <div class="turn-group">
+          <div class="turn-label">2.4<span class="unit">s</span></div>
+          <div class="turn-events">
+            <div class="event outgoing">
+              <div class="side">
+                <span class="tag crit">치명</span>
+                <span class="name">삼재검법<span class="sub">· 검기</span></span>
+                <span class="status-chip">무뎌짐</span>
+                <span class="value crit">286</span>
+              </div>
+            </div>
+            <div class="event incoming">
+              <div class="side">
+                <span class="value muted">—</span>
+                <span class="name">행자의 공격</span>
+                <span class="tag dodge">회피</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <div class="title">v6 변경 사항 (v5 기준)</div>
+    <ul>
+      <li><strong>상태이상 태그 제거</strong> — 불씨 칩 옆에 붙던 <code>[상태이상]</code> 태그 삭제. 불씨 칩 자체의 갈색 톤·▽ 프리픽스만으로 "이것은 디버프 적용"이 충분히 읽힘.</li>
+      <li><strong>턴 레일 → 실시간 타임스탬프</strong> — <code>T1/T2/...</code> 대신 실제 경과 초(<code>1.2s</code> / <code>2.4s</code> / ...). 공속이 직접 드러나서 "몇 초에 어떤 공격이 나갔는지"가 바로 읽힘. 단위(<code>s</code>)는 더 흐리고 작게 찍어서 숫자 자체가 눈에 먼저 들어오게.</li>
+      <li><strong>공속 설정 명시</strong> — 전투 헤더에 <code>내 공속 1.2s · 적 회복 2.4s</code>를 부제로 노출. 로그 속 타임스탬프가 랜덤하지 않고 규칙에서 나오는 것임을 바로 인지. 스파크라인 라벨도 <code>1.2s 간격 피해</code>로 수정해서 6개 블록이 내 공격 1회 간격임을 명시.</li>
+      <li><strong>타임라인 설계</strong>
+        <ul style="margin-top:4px;">
+          <li><code>1.2s</code> 크리 555 / 불씨+1</li>
+          <li><code>2.4s</code> 비기 391 + 적회복 304 / 불씨+1 <em>(적 회복이 2.4s 간격이므로 여기 첫 회복)</em></li>
+          <li><code>3.6s</code> 권풍 319 / 불씨+1</li>
+          <li><code>4.8s</code> 권풍 318 + 적회복 304 / 불씨+1 <em>(두번째 회복)</em></li>
+          <li><code>6.0s</code> 권풍 280 + 적회복 304 + 폭발 1,243(불씨+3) <strong>▲ 위험</strong> <em>(세번째 회복과 동시 폭발)</em></li>
+          <li><code>7.2s</code> 크리 435 (마무리)</li>
+        </ul>
+      </li>
+      <li><strong>세부</strong> — 턴레일 폭 56px → 68px로 확장해서 <code>7.2s</code>도 쾌적. letter-spacing은 0.5px로 줄여서 4자리여도 빡빡하지 않게. 폰트는 그대로 JetBrains Mono, tabular-nums로 수직 정렬.</li>
+    </ul>
+  </div>
+
+  <script>
+    const btns = document.querySelectorAll('.density-btn');
+    btns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.mode;
+        document.body.classList.remove('mode-full','mode-compact','mode-minimal');
+        document.body.classList.add('mode-' + mode);
+        btns.forEach(b => b.classList.toggle('active', b === btn));
+      });
+    });
+  </script>
+</body>
+</html>

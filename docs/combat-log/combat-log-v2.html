@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>무림 방치록 — 정보창 개선안</title>
+<style>
+  :root {
+    --bg: #0a0d14;
+    --panel: #141a27;
+    --panel-2: #1a2131;
+    --panel-3: #232b3f;
+    --border: #2a3348;
+    --border-soft: #1f2638;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --dim: #64748b;
+
+    --gold: #c9a96e;
+    --gold-2: #e8c589;
+
+    --hp: #22c55e;
+    --hp-bg: #0f3d20;
+    --enemy-hp: #ef4444;
+    --enemy-hp-bg: #3d1414;
+    --mp: #3b82f6;
+    --mp-bg: #152445;
+
+    --dmg: #e5e7eb;
+    --dmg-high: #fbbf24;
+    --crit: #f87171;
+    --heal: #4ade80;
+    --ember: #fb923c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, 'Noto Sans KR', sans-serif;
+    background: #050710;
+    color: var(--text);
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--bg);
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border-soft);
+  }
+
+  /* ============ Header ============ */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+  }
+  .title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 1px;
+  }
+  .header-right { display: flex; gap: 8px; align-items: center; }
+  .speed-btn {
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .icon-btn {
+    background: var(--panel);
+    border: 1px solid var(--border-soft);
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--gold); }
+
+  /* ============ Sub header / mode tabs ============ */
+  .sub-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px 10px;
+    gap: 8px;
+  }
+  .hunt-info { font-size: 11px; color: var(--muted); }
+  .hunt-info b { color: var(--text); font-weight: 600; }
+  .hunt-info .tag { color: var(--dim); margin-left: 4px; }
+
+  .mode-tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--panel);
+    padding: 2px;
+    border-radius: 6px;
+    border: 1px solid var(--border-soft);
+  }
+  .mode-tab {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .mode-tab.active {
+    background: var(--panel-3);
+    color: var(--text);
+    font-weight: 700;
+  }
+  .give-up-btn {
+    background: transparent;
+    border: 1px solid #7f1d1d;
+    color: #fca5a5;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    margin-left: 4px;
+  }
+
+  /* ============ Card / Section ============ */
+  .card {
+    margin: 0 12px 8px;
+    background: var(--panel);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px 6px 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .card-head:hover { background: var(--panel-2); }
+  .card-head-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+  .card-head-left b { color: var(--text); font-weight: 600; font-size: 12px; }
+  .chevron {
+    font-size: 10px;
+    color: var(--dim);
+    transition: transform 0.2s;
+    display: inline-block;
+  }
+  .card.collapsed .chevron { transform: rotate(-90deg); }
+  .card.collapsed .card-body { display: none; }
+  .card-head-right { font-size: 10px; color: var(--dim); }
+
+  .card-body { padding: 10px 14px 14px; }
+  .card.no-head .card-body { padding-top: 14px; }
+
+  /* ============ Scene (portraits) ============ */
+  .scene {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    gap: 10px;
+  }
+  .portrait {
+    width: 80px; height: 80px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 42px;
+    border: 1px solid var(--border);
+  }
+  .portrait-ally {
+    background: linear-gradient(135deg, #3d2817, #1a1208);
+    color: var(--gold);
+  }
+  .portrait-enemy {
+    background: linear-gradient(135deg, #3d1414, #1a0606);
+  }
+  .scene-vs {
+    font-size: 18px;
+    color: var(--dim);
+    letter-spacing: 2px;
+  }
+
+  /* ============ Dual face-off bars ============ */
+  .bars {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding: 12px 14px 12px;
+  }
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+  }
+  .side-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    margin-bottom: 2px;
+  }
+  .side-enemy .side-header { justify-content: flex-end; }
+  .side-name { font-weight: 700; font-size: 12px; }
+  .side-ally .side-name { color: var(--hp); }
+  .side-enemy .side-name { color: var(--enemy-hp); }
+  .side-lv {
+    font-size: 10px;
+    color: var(--muted);
+    background: rgba(255,255,255,0.06);
+    padding: 1px 6px;
+    border-radius: 10px;
+  }
+
+  .bar-wrap {
+    position: relative;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-soft);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bar-hp { height: 20px; }
+  .bar-mp { height: 14px; }
+
+  .bar-wrap .fill { height: 100%; transition: width 0.4s ease; }
+  .fill-hp {
+    background: linear-gradient(90deg, #15803d, var(--hp));
+    box-shadow: inset 0 -1px 0 rgba(0,0,0,0.3);
+  }
+  .fill-enemy-hp {
+    background: linear-gradient(270deg, #991b1b, var(--enemy-hp));
+    margin-left: auto;
+    box-shadow: inset 0 -1px 0 rgba(0,0,0,0.3);
+  }
+  .fill-mp { background: linear-gradient(90deg, #1d4ed8, var(--mp)); }
+  .fill-enemy-mp {
+    background: linear-gradient(270deg, #6d28d9, #8b5cf6);
+    margin-left: auto;
+  }
+
+  .bar-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    gap: 6px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+  }
+  .bar-text.rtl { flex-direction: row-reverse; }
+  .bar-text .k {
+    color: rgba(255,255,255,0.78);
+    font-weight: 600;
+    font-size: 9px;
+  }
+  .bar-text .v {
+    color: white;
+    font-size: 11px;
+    margin-left: auto;
+  }
+  .bar-text.rtl .v { margin-left: 0; margin-right: auto; }
+  .bar-mp .bar-text .v { font-size: 9px; }
+
+  .bar-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    font-size: 9px;
+    color: var(--dim);
+    font-style: italic;
+  }
+  .bar-empty.rtl { justify-content: flex-end; }
+
+  .side-buffs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 3px;
+    min-height: 22px;
+  }
+  .side-enemy .side-buffs { justify-content: flex-end; }
+  .buff-chip {
+    background: var(--panel-2);
+    border: 1px solid var(--border-soft);
+    padding: 3px 8px;
+    border-radius: 14px;
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .buff-chip b { color: var(--ember); font-weight: 600; }
+  .buff-chip .dur { color: var(--dim); font-size: 9px; }
+
+  /* ============ Combat status (improved) ============ */
+  /* DPS battle with balance gauge */
+  .dps-battle {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 6px 4px 10px;
+  }
+  .dps-side { display: flex; flex-direction: column; min-width: 40px; }
+  .dps-side.ally { align-items: flex-start; }
+  .dps-side.enemy { align-items: flex-end; }
+  .dps-label {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .dps-val {
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1;
+    margin-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .dps-side.ally .dps-val { color: var(--hp); }
+  .dps-side.enemy .dps-val { color: var(--enemy-hp); }
+
+  .dps-gauge { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+  .dps-gauge-bar {
+    height: 7px;
+    background: var(--panel-2);
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    border: 1px solid var(--border-soft);
+  }
+  .dps-gauge-bar .gauge-ally {
+    background: linear-gradient(90deg, #15803d, var(--hp));
+    height: 100%;
+    transition: width 0.3s;
+  }
+  .dps-gauge-bar .gauge-enemy {
+    background: linear-gradient(90deg, var(--enemy-hp), #991b1b);
+    height: 100%;
+    transition: width 0.3s;
+    margin-left: auto;
+  }
+  .dps-balance {
+    text-align: center;
+    font-size: 10px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .dps-balance .deltas { display: inline-flex; gap: 6px; }
+  .dps-balance .sep { color: var(--dim); }
+  .dps-balance .neg { color: var(--enemy-hp); font-weight: 700; }
+  .dps-balance .pos { color: var(--hp); font-weight: 700; }
+
+  .verdict {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .verdict.bad {
+    background: rgba(248, 113, 113, 0.14);
+    color: var(--enemy-hp);
+    border: 1px solid rgba(248, 113, 113, 0.45);
+  }
+  .verdict.good {
+    background: rgba(52, 211, 153, 0.14);
+    color: var(--hp);
+    border: 1px solid rgba(52, 211, 153, 0.45);
+  }
+  .verdict.neutral {
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--muted);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+  }
+
+  /* Attack timing */
+  .timing-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-soft);
+  }
+  .timing-cell { display: flex; align-items: center; gap: 8px; }
+  .timing-cell.enemy { flex-direction: row-reverse; }
+  .timing-icon {
+    font-size: 13px;
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+    opacity: 0.85;
+  }
+  .timing-bar-wrap { flex: 1; min-width: 0; }
+  .timing-bar {
+    height: 4px;
+    background: var(--panel-2);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 3px;
+  }
+  .timing-fill { height: 100%; transition: width 0.05s linear; }
+  .timing-fill.ally { background: var(--hp); }
+  .timing-fill.enemy-fill { background: var(--enemy-hp); }
+  .timing-text { font-size: 10px; color: var(--muted); }
+  .timing-text b { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 700; }
+  .timing-cell.enemy .timing-text { text-align: right; }
+
+  /* Damage cards */
+  .dmg-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding-top: 10px;
+    margin-top: 10px;
+    border-top: 1px solid var(--border-soft);
+  }
+  .dmg-card {
+    background: var(--panel-2);
+    border: 1px solid var(--border-soft);
+    border-radius: 6px;
+    padding: 8px 6px;
+    text-align: center;
+  }
+  .dmg-card-label {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+  }
+  .dmg-card-val {
+    font-size: 18px;
+    font-weight: 800;
+    margin-top: 3px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .dmg-card-val.pos { color: var(--hp); }
+  .dmg-card-val.neg { color: var(--enemy-hp); }
+  .dmg-card-val.ember { color: var(--ember); }
+  .dmg-card-sub {
+    font-size: 9px;
+    color: var(--dim);
+    margin-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .dmg-card-sub b { color: var(--muted); font-weight: 700; }
+
+  /* Skill lane (쿨다운 · 예정 발동) */
+  .skill-lane {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-soft);
+  }
+  .lane-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+    margin-bottom: 6px;
+  }
+  .lane-header .lane-title { font-weight: 600; color: var(--text); }
+  .lane-note { color: var(--dim); font-style: italic; }
+
+  .skill-list { display: flex; flex-direction: column; gap: 4px; }
+
+  .skill-row {
+    display: grid;
+    grid-template-columns: 14px 18px minmax(60px, auto) auto 1fr auto;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    padding: 4px 7px;
+    background: var(--panel-2);
+    border-radius: 5px;
+    border: 1px solid var(--border-soft);
+  }
+  .skill-row.warn {
+    border-color: rgba(251, 191, 36, 0.4);
+    background: rgba(251, 191, 36, 0.05);
+  }
+  .skill-row.ready { border-color: rgba(34, 197, 94, 0.35); }
+
+  .skill-side {
+    font-size: 9px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .skill-row.ally .skill-side { color: var(--hp); }
+  .skill-row.enemy .skill-side { color: var(--enemy-hp); }
+
+  .skill-icon { font-size: 13px; text-align: center; }
+
+  .skill-name { color: var(--text); font-weight: 600; font-size: 11px; }
+
+  .skill-tag {
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .skill-tag.warn { background: rgba(251, 191, 36, 0.18); color: var(--warn); }
+  .skill-tag.ready { background: rgba(34, 197, 94, 0.18); color: var(--hp); }
+
+  .skill-progress {
+    height: 5px;
+    background: rgba(0,0,0,0.35);
+    border-radius: 2px;
+    overflow: hidden;
+    border: 1px solid var(--border-soft);
+  }
+  .skill-progress-fill { height: 100%; transition: width 0.15s linear; }
+  .skill-progress-fill.ally { background: linear-gradient(90deg, #15803d, var(--hp)); }
+  .skill-progress-fill.enemy { background: linear-gradient(90deg, #991b1b, var(--enemy-hp)); }
+  .skill-progress-fill.warn { background: linear-gradient(90deg, #92400e, var(--warn)); }
+
+  .skill-time {
+    font-size: 9px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    white-space: nowrap;
+    min-width: 52px;
+    text-align: right;
+  }
+  .skill-row.warn .skill-time { color: var(--warn); }
+  .skill-row.ready .skill-time { color: var(--hp); }
+
+  /* ============ Log area with tabs ============ */
+  .log-area {
+    margin: 0 12px 12px;
+    background: var(--panel);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .log-tabs {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--panel-2);
+  }
+  .log-tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    padding: 10px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .log-tab:hover { color: var(--text); }
+  .log-tab.active {
+    color: var(--gold-2);
+    border-bottom-color: var(--gold);
+    font-weight: 700;
+    background: var(--panel);
+  }
+  .log-tab .badge {
+    background: var(--panel-3);
+    color: var(--muted);
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 6px;
+    margin-left: 4px;
+    font-weight: 600;
+  }
+
+  .tab-view { display: none; padding: 12px 14px; }
+  .tab-view.active { display: block; }
+
+  /* ============ Log entries ============ */
+  .log {
+    position: relative;
+  }
+  .log::before {
+    content: '';
+    position: absolute;
+    left: 40px;
+    top: 4px;
+    bottom: 4px;
+    width: 1px;
+    background: var(--border-soft);
+  }
+  .log-event {
+    display: grid;
+    grid-template-columns: 36px 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+    position: relative;
+  }
+  .log-event:last-child { margin-bottom: 0; }
+  .log-time {
+    font-size: 10px;
+    color: var(--dim);
+    font-variant-numeric: tabular-nums;
+    padding-top: 2px;
+  }
+  .log-time.warn { color: var(--dmg-high); }
+
+  .log-side { font-size: 11px; color: var(--muted); }
+  .log-side.right { text-align: left; padding-left: 12px; }
+  .log-side.left { text-align: right; padding-right: 12px; }
+
+  .log-dmg {
+    font-size: 13px;
+    font-weight: 700;
+    margin-right: 4px;
+  }
+  .log-dmg.ally { color: var(--heal); }
+  .log-dmg.enemy { color: var(--enemy-hp); }
+
+  .log-tag {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 2px;
+    vertical-align: middle;
+  }
+  .log-tag.hit { background: #14532d; color: #86efac; }
+  .log-tag.taken { background: #7f1d1d; color: #fca5a5; }
+  .log-tag.ember { background: #7c2d12; color: #fdba74; }
+
+  .log-narrative {
+    font-style: italic;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.5;
+    margin-top: 4px;
+  }
+
+  .log-action {
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .log-skill-icon { color: var(--gold); margin-right: 3px; }
+
+  /* Special event box */
+  .log-special {
+    grid-column: 2 / 4;
+    background: linear-gradient(135deg, rgba(201,169,110,0.08), rgba(201,169,110,0.02));
+    border: 1px solid rgba(201,169,110,0.3);
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-align: center;
+    font-size: 11px;
+  }
+  .log-special .sp-title {
+    color: var(--gold-2);
+    font-weight: 700;
+    margin: 4px 0;
+    font-size: 12px;
+  }
+  .log-special .sp-text {
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* ============ Character info tab ============ */
+  .char-grid {
+    display: grid;
+    gap: 10px;
+  }
+  .char-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--border-soft);
+  }
+  .char-avatar {
+    width: 48px; height: 48px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #3d2817, #1a1208);
+    color: var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    border: 1px solid var(--border);
+  }
+  .char-name { font-size: 14px; font-weight: 700; color: var(--gold-2); }
+  .char-title { font-size: 11px; color: var(--muted); }
+  .char-lv {
+    font-size: 10px;
+    background: var(--panel-3);
+    padding: 1px 6px;
+    border-radius: 10px;
+    color: var(--muted);
+    margin-left: 6px;
+  }
+
+  .stat-section { }
+  .stat-section-title {
+    font-size: 10px;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    padding-left: 2px;
+  }
+  .stat-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 12px;
+  }
+  .stat-pair > div {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 8px;
+    border-bottom: 1px dashed var(--border-soft);
+    font-size: 11px;
+  }
+  .stat-pair .k { color: var(--muted); }
+  .stat-pair .v { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat-pair .v.pos { color: var(--heal); }
+  .stat-pair .v.warn { color: var(--dmg-high); }
+
+  .element-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+  }
+  .element {
+    background: var(--panel-2);
+    border: 1px solid var(--border-soft);
+    padding: 6px 4px;
+    border-radius: 6px;
+    text-align: center;
+  }
+  .element-name { font-size: 11px; font-weight: 700; margin-bottom: 2px; }
+  .element-val { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .el-fire { color: #fb923c; }
+  .el-water { color: #60a5fa; }
+  .el-wood { color: #4ade80; }
+  .el-metal { color: #cbd5e1; }
+  .el-earth { color: #d6a364; }
+
+  .equip-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
+  .equip {
+    background: var(--panel-2);
+    border: 1px solid var(--border-soft);
+    padding: 6px;
+    border-radius: 6px;
+    font-size: 10px;
+  }
+  .equip-slot { color: var(--dim); font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .equip-name { color: var(--gold-2); font-weight: 600; margin-top: 1px; }
+  .equip-name.empty { color: var(--dim); font-style: italic; font-weight: 400; }
+  .equip-grade {
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-top: 2px;
+  }
+  .grade-rare { background: #1e3a8a; color: #93c5fd; }
+  .grade-epic { background: #581c87; color: #d8b4fe; }
+  .grade-common { background: #1f2937; color: #9ca3af; }
+
+  .skill-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
+  .skill {
+    background: var(--panel-2);
+    border: 1px solid var(--border-soft);
+    padding: 6px 8px;
+    border-radius: 6px;
+  }
+  .skill-slot {
+    font-size: 9px;
+    color: var(--gold);
+    letter-spacing: 0.5px;
+    font-weight: 700;
+  }
+  .skill-name { color: var(--text); font-weight: 600; margin-top: 2px; font-size: 11px; }
+  .skill-name.empty { color: var(--dim); font-style: italic; font-weight: 400; }
+  .skill-meta { color: var(--muted); font-size: 9px; margin-top: 2px; }
+
+  .placeholder-note {
+    font-size: 10px;
+    color: var(--dim);
+    margin-top: 6px;
+    font-style: italic;
+  }
+
+  /* ============ Combat stats tab ============ */
+  .cstats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .cstat {
+    background: var(--panel-2);
+    border: 1px solid var(--border-soft);
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+  }
+  .cstat-k { font-size: 9px; color: var(--muted); letter-spacing: 0.3px; }
+  .cstat-v { font-size: 15px; font-weight: 800; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .cstat-v.pos { color: var(--heal); }
+  .cstat-v.neg { color: var(--enemy-hp); }
+  .cstat-v.warn { color: var(--dmg-high); }
+  .cstat-v.gold { color: var(--gold-2); }
+  .cstat-sub { font-size: 9px; color: var(--dim); margin-top: 1px; }
+
+  .cstats-section-title {
+    font-size: 10px;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    margin: 10px 0 6px;
+    padding-left: 2px;
+  }
+  .cstats-section-title:first-child { margin-top: 0; }
+
+  /* ============ Note ============ */
+  .note {
+    margin: 16px 12px 0;
+    padding: 12px 14px;
+    background: var(--panel);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .note h3 { color: var(--gold-2); font-size: 11px; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.5px; }
+  .note ul { padding-left: 14px; }
+  .note li { margin-bottom: 2px; }
+  .note b { color: var(--text); font-weight: 600; }
+  .note kbd {
+    background: var(--panel-3);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--gold-2);
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="title">무림 방치록</div>
+    <div class="header-right">
+      <button class="speed-btn">▶▶ 2x</button>
+      <button class="icon-btn" title="설정">⚙</button>
+    </div>
+  </div>
+
+  <!-- Sub header: hunt + mode tabs -->
+  <div class="sub-header">
+    <div class="hunt-info"><b>배화교 외문</b><span class="tag">지정 사냥</span></div>
+    <div style="display:flex; align-items:center;">
+      <div class="mode-tabs">
+        <button class="mode-tab active">Full</button>
+        <button class="mode-tab">Compact</button>
+        <button class="mode-tab">Numbers Only</button>
+      </div>
+      <button class="give-up-btn">포기</button>
+    </div>
+  </div>
+
+  <!-- ============ Scene (collapsible) ============ -->
+  <div class="card" id="card-scene">
+    <div class="card-head" onclick="toggle('card-scene')">
+      <div class="card-head-left"><span class="chevron">▾</span><b>대결</b></div>
+      <div class="card-head-right">나 vs 배화교 행자</div>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <div class="scene">
+        <div class="portrait portrait-ally">🗡</div>
+        <div class="scene-vs">✕</div>
+        <div class="portrait portrait-enemy">🔥</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Dual face-off bars (always visible) ============ -->
+  <div class="card no-head">
+    <div class="bars">
+      <!-- Ally side -->
+      <div class="side side-ally">
+        <div class="side-header">
+          <span class="side-name">내 캐릭터</span>
+          <span class="side-lv">Lv.42</span>
+        </div>
+        <div class="bar-wrap bar-hp">
+          <div class="fill fill-hp" style="width:65.4%"></div>
+          <div class="bar-text"><span class="k">체력</span><span class="v">1,535 / 2,349</span></div>
+        </div>
+        <div class="bar-wrap bar-mp">
+          <div class="fill fill-mp" style="width:100%"></div>
+          <div class="bar-text"><span class="k">내력</span><span class="v">119 / 119</span></div>
+        </div>
+        <div class="side-buffs">
+          <div class="buff-chip">🔥 ember <b>x2</b> <span class="dur">(∞)</span></div>
+        </div>
+      </div>
+
+      <!-- Enemy side (내력 없는 몬스터 예시) -->
+      <div class="side side-enemy">
+        <div class="side-header">
+          <span class="side-lv">Lv.45</span>
+          <span class="side-name">배화교 행자</span>
+        </div>
+        <div class="bar-wrap bar-hp">
+          <div class="fill fill-enemy-hp" style="width:96.6%"></div>
+          <div class="bar-text rtl"><span class="k">체력</span><span class="v">3,671 / 3,800</span></div>
+        </div>
+        <!-- 내력이 있는 적일 땐 아래처럼 채움. 배화교 행자는 없어서 비어있는 상태 -->
+        <div class="bar-wrap bar-mp">
+          <div class="bar-empty rtl">내력 없음</div>
+        </div>
+        <div class="side-buffs">
+          <!-- 적 버프/디버프가 있으면 여기 (예: 분노 +10s) -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Combat status (improved) ============ -->
+  <div class="card" id="card-dps">
+    <div class="card-head" onclick="toggle('card-dps')">
+      <div class="card-head-left"><span class="chevron">▾</span><b>전투 현황</b></div>
+      <div class="card-head-right"><b class="num" style="color:var(--text);">8.0s</b> 진행중</div>
+    </div>
+    <div class="card-body">
+
+      <!-- 1) DPS comparison with balance gauge -->
+      <div class="dps-battle">
+        <div class="dps-side ally">
+          <div class="dps-label">내 DPS</div>
+          <div class="dps-val">52</div>
+        </div>
+        <div class="dps-gauge">
+          <div class="dps-gauge-bar" title="DPS 비율 (52 : 64)">
+            <div class="gauge-ally" style="width:44.8%"></div>
+            <div class="gauge-enemy" style="width:55.2%"></div>
+          </div>
+          <div class="dps-balance">
+            <span class="deltas">
+              <span>DPS <span class="neg">−12</span></span>
+              <span class="sep">·</span>
+              <span>HP <span class="neg">−2,136</span></span>
+            </span>
+            <span class="verdict bad">⚠ 종합 열세</span>
+          </div>
+        </div>
+        <div class="dps-side enemy">
+          <div class="dps-label">적 DPS</div>
+          <div class="dps-val">64</div>
+        </div>
+      </div>
+
+      <!-- 2) Attack timing gauges -->
+      <div class="timing-row">
+        <div class="timing-cell ally">
+          <div class="timing-icon">⚔</div>
+          <div class="timing-bar-wrap">
+            <div class="timing-bar"><div class="timing-fill ally" id="cd-ally-bar" style="width:40%"></div></div>
+            <div class="timing-text">내 공격 <b>1.5s</b> · 다음 <b id="cd-ally-next">0.9s</b></div>
+          </div>
+        </div>
+        <div class="timing-cell enemy">
+          <div class="timing-icon">🛡</div>
+          <div class="timing-bar-wrap">
+            <div class="timing-bar"><div class="timing-fill enemy-fill" id="cd-enemy-bar" style="width:70%"></div></div>
+            <div class="timing-text">적 공격 <b>2.5s</b> · 다음 <b id="cd-enemy-next">0.8s</b></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3) Damage summary cards (디버프류는 HP 막대 아래 버프칩으로) -->
+      <div class="dmg-row">
+        <div class="dmg-card">
+          <div class="dmg-card-label">누적 피해</div>
+          <div class="dmg-card-val pos">423</div>
+          <div class="dmg-card-sub">평균 <b>52</b>/s · 최대 <b>112</b></div>
+        </div>
+        <div class="dmg-card">
+          <div class="dmg-card-label">누적 피격</div>
+          <div class="dmg-card-val neg">214</div>
+          <div class="dmg-card-sub">평균 <b>26</b>/s · 최대 <b>48</b></div>
+        </div>
+      </div>
+
+      <!-- 4) Skill timeline (쿨다운 · 예정 발동) -->
+      <div class="skill-lane">
+        <div class="lane-header">
+          <span class="lane-title">◈ 스킬 쿨다운 · 예정 발동</span>
+          <span class="lane-note">향후 8초</span>
+        </div>
+        <div class="skill-list">
+          <!-- 내 스킬 (준비됨) -->
+          <div class="skill-row ally ready" id="sk-a1">
+            <span class="skill-side">나</span>
+            <span class="skill-icon">◈</span>
+            <span class="skill-name">[무공 A]</span>
+            <span class="skill-tag ready">준비됨</span>
+            <div class="skill-progress"><div class="skill-progress-fill ally" style="width:100%"></div></div>
+            <span class="skill-time">발동 대기</span>
+          </div>
+          <!-- 내 스킬 (쿨다운 중) -->
+          <div class="skill-row ally" id="sk-a2">
+            <span class="skill-side">나</span>
+            <span class="skill-icon">⚔</span>
+            <span class="skill-name">[무공 B]</span>
+            <span></span>
+            <div class="skill-progress"><div class="skill-progress-fill ally" style="width:47%"></div></div>
+            <span class="skill-time">4.2s 쿨</span>
+          </div>
+          <!-- 적 스킬 (차징 · 텔레그래프) -->
+          <div class="skill-row enemy warn" id="sk-e1">
+            <span class="skill-side">적</span>
+            <span class="skill-icon">🔥</span>
+            <span class="skill-name">[대형 스킬]</span>
+            <span class="skill-tag warn">⚠ 2턴 뒤 발동</span>
+            <div class="skill-progress"><div class="skill-progress-fill warn" style="width:65%"></div></div>
+            <span class="skill-time">2.5s 후</span>
+          </div>
+          <!-- 적 스킬 (쿨다운) -->
+          <div class="skill-row enemy" id="sk-e2">
+            <span class="skill-side">적</span>
+            <span class="skill-icon">💥</span>
+            <span class="skill-name">[반격기]</span>
+            <span></span>
+            <div class="skill-progress"><div class="skill-progress-fill enemy" style="width:15%"></div></div>
+            <span class="skill-time">6.8s 쿨</span>
+          </div>
+        </div>
+        <div class="placeholder-note" style="margin-top:6px;">
+          ※ 실제 장착 무공 / 적 스킬 구성에 맞춰 표시. 초 단위 / 턴 단위 혼용 가능
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ Log area w/ tabs ============ -->
+  <div class="log-area">
+    <div class="log-tabs">
+      <button class="log-tab active" data-tab="log">전투 로그 <span class="badge">live</span></button>
+      <button class="log-tab" data-tab="char">내 정보</button>
+      <button class="log-tab" data-tab="stats">전투 통계</button>
+    </div>
+
+    <!-- ====== LOG VIEW ====== -->
+    <div class="tab-view active" data-tab="log">
+      <div class="log">
+
+        <!-- Special event -->
+        <div class="log-event">
+          <div class="log-time"></div>
+          <div class="log-special">
+            <div class="sp-text">*행자가 성화를 향해 두 손을 모은다.*</div>
+            <div class="sp-title">◈ 삼행의 율법 (三行律法) · 발동</div>
+            <div class="sp-text">*"삼행(三行)이 흐르지 않는 손은 우리의 살갗을 스치지 못하리라."*</div>
+          </div>
+        </div>
+
+        <!-- 4.0s -->
+        <div class="log-event">
+          <div class="log-time num">4.0s</div>
+          <div class="log-side left"></div>
+          <div class="log-side right">
+            <div><span class="log-dmg enemy num">304</span> 배화교 행자 <span class="log-tag hit">적중복</span></div>
+            <div class="log-narrative">*행자가 눈을 감고 송가를 읊는다. 그 숨결이 당신의 몸을 스치며 미세한 불티를 남긴다.*</div>
+            <div style="margin-top:4px;"><span class="log-tag ember">불씨 +1</span></div>
+          </div>
+        </div>
+
+        <!-- 6.0s -->
+        <div class="log-event">
+          <div class="log-time num">6.0s</div>
+          <div class="log-side left">
+            <div class="log-narrative">*당신의 공격이 성화의 결 앞에서 무뎌진다.* *"길을 아직 걷지 않은 자의 것이군요."*</div>
+            <div class="log-action" style="margin-top:4px;">거친 권풍이 몰아친다!</div>
+            <div style="margin-top:4px; font-size:11px; color:var(--muted);">
+              <span class="log-skill-icon">▽</span>무뎌짐 <span class="num" style="color:var(--text); font-weight:700;">294</span>
+            </div>
+          </div>
+          <div class="log-side right">
+            <div><span class="log-dmg enemy num">304</span> 배화교 행자 <span class="log-tag hit">적중복</span></div>
+            <div class="log-narrative">*"성화여, 이 미천한 자의 목소리를 들으소서."* *행자의 기도 끝에서 불꽃이 피어나 당신의 옷자락에 옮겨 붙는다.*</div>
+            <div style="margin-top:4px;"><span class="log-tag ember">불씨 +1</span></div>
+          </div>
+        </div>
+
+        <!-- 8.0s -->
+        <div class="log-event">
+          <div class="log-time warn num">8.0s ⚠</div>
+          <div class="log-side left">
+            <div class="log-action">삼재의 이치를 담은 일격!</div>
+            <div style="margin-top:4px; font-size:11px; color:var(--muted);">
+              <span class="log-skill-icon">▽</span>무뎌짐 <span class="num" style="color:var(--text); font-weight:700;">129</span>
+            </div>
+          </div>
+          <div class="log-side right">
+            <div><span class="log-dmg num" style="color:var(--enemy-hp);">214</span> 배화교 행자 <span class="log-tag taken">피격</span></div>
+            <div class="log-narrative">*행자의 기도 소리에 맞춰, 당신의 살갗 위 불씨가 다시 타오른다.*</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ====== CHARACTER INFO VIEW ====== -->
+    <div class="tab-view" data-tab="char">
+      <div class="char-grid">
+        <div class="char-header">
+          <div class="char-avatar">🗡</div>
+          <div>
+            <div class="char-name">[캐릭터명] <span class="char-lv">Lv.42</span></div>
+            <div class="char-title" style="color:var(--dim); font-style:italic;">※ 게임 내 타이틀 / 문파 / 칭호 자리</div>
+          </div>
+        </div>
+
+        <div class="stat-section">
+          <div class="stat-section-title">◈ 기본 스탯</div>
+          <div class="stat-pair">
+            <div><span class="k">체력</span><span class="v num">2,349</span></div>
+            <div><span class="k">내력</span><span class="v num">119</span></div>
+            <div><span class="k">공격력</span><span class="v num">287</span></div>
+            <div><span class="k">방어력</span><span class="v num">164</span></div>
+            <div><span class="k">공격속도</span><span class="v num">1.5s</span></div>
+            <div><span class="k">회피</span><span class="v num">14%</span></div>
+            <div><span class="k">치명타율</span><span class="v warn num">18%</span></div>
+            <div><span class="k">치명타 피해</span><span class="v warn num">+150%</span></div>
+          </div>
+          <div class="placeholder-note">※ 실제 게임에 있는 스탯만 나열. 명중·관통 등 미구현 스탯은 생략</div>
+        </div>
+
+        <div class="stat-section">
+          <div class="stat-section-title">◈ 장착 무공</div>
+          <div class="skill-grid">
+            <div class="skill">
+              <div class="skill-slot">무공 1</div>
+              <div class="skill-name">[무공명]</div>
+              <div class="skill-meta">수련 ·단계 / 효과 요약</div>
+            </div>
+            <div class="skill">
+              <div class="skill-slot">무공 2</div>
+              <div class="skill-name">[무공명]</div>
+              <div class="skill-meta">수련 ·단계 / 효과 요약</div>
+            </div>
+            <div class="skill">
+              <div class="skill-slot">무공 3</div>
+              <div class="skill-name empty">비어 있음</div>
+              <div class="skill-meta">미장착</div>
+            </div>
+          </div>
+          <div class="placeholder-note">※ 무공 슬롯 개수 / 명칭은 게임 내 시스템에 맞춰 교체</div>
+        </div>
+
+        <div class="stat-section">
+          <div class="stat-section-title">◈ 장착 장비</div>
+          <div class="equip-grid">
+            <div class="equip">
+              <div class="equip-slot">무기</div>
+              <div class="equip-name">[무기명]</div>
+              <div class="equip-grade grade-epic">영웅</div>
+            </div>
+            <div class="equip">
+              <div class="equip-slot">방어구</div>
+              <div class="equip-name">[방어구명]</div>
+              <div class="equip-grade grade-rare">희귀</div>
+            </div>
+            <div class="equip">
+              <div class="equip-slot">장신구</div>
+              <div class="equip-name empty">비어 있음</div>
+              <div class="equip-grade grade-common">—</div>
+            </div>
+          </div>
+          <div class="placeholder-note">※ 장비 슬롯 개수 / 명칭 / 등급 체계는 게임 내 장비창 기준으로 교체</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== COMBAT STATS VIEW ====== -->
+    <div class="tab-view" data-tab="stats">
+      <div class="cstats-section-title">◈ 이번 전투 (8.0s)</div>
+      <div class="cstats">
+        <div class="cstat">
+          <div class="cstat-k">누적 피해</div>
+          <div class="cstat-v pos num">423</div>
+          <div class="cstat-sub">평균 52.9 / 초</div>
+        </div>
+        <div class="cstat">
+          <div class="cstat-k">누적 피격</div>
+          <div class="cstat-v neg num">214</div>
+          <div class="cstat-sub">평균 26.8 / 초</div>
+        </div>
+        <div class="cstat">
+          <div class="cstat-k">순손익</div>
+          <div class="cstat-v warn num">+209</div>
+          <div class="cstat-sub">HP 효율</div>
+        </div>
+        <div class="cstat">
+          <div class="cstat-k">치명타</div>
+          <div class="cstat-v warn num">1 회</div>
+          <div class="cstat-sub">최대 112</div>
+        </div>
+        <div class="cstat">
+          <div class="cstat-k">회피</div>
+          <div class="cstat-v num">0 회</div>
+          <div class="cstat-sub">회피율 0%</div>
+        </div>
+        <div class="cstat">
+          <div class="cstat-k">스킬 발동</div>
+          <div class="cstat-v gold num">2 회</div>
+          <div class="cstat-sub">삼재의 이치</div>
+        </div>
+      </div>
+
+      <div class="cstats-section-title">◈ 이번 사냥 세션 (22분)</div>
+      <div class="cstats">
+        <div class="cstat">
+          <div class="cstat-k">처치</div>
+          <div class="cstat-v gold num">47</div>
+          <div class="cstat-sub">2.1 / 분</div>
+        </div>
+        <div class="cstat">
+          <div class="cstat-k">경험치</div>
+          <div class="cstat-v pos num">12,480</div>
+          <div class="cstat-sub">+14.2%</div>
+        </div>
+        <div class="cstat">
+          <div class="cstat-k">원보</div>
+          <div class="cstat-v gold num">3,204</div>
+          <div class="cstat-sub">145 / 분</div>
+        </div>
+        <div class="cstat">
+          <div class="cstat-k">평균 DPS</div>
+          <div class="cstat-v pos num">48.6</div>
+          <div class="cstat-sub">최대 72</div>
+        </div>
+        <div class="cstat">
+          <div class="cstat-k">생존율</div>
+          <div class="cstat-v pos num">100%</div>
+          <div class="cstat-sub">무사</div>
+        </div>
+        <div class="cstat">
+          <div class="cstat-k">드롭</div>
+          <div class="cstat-v warn num">3</div>
+          <div class="cstat-sub">희귀 1</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note" style="max-width:480px; margin-left:auto; margin-right:auto;">
+  <h3>전투 현황 박스 개선</h3>
+  <ul>
+    <li><b>① DPS 대결 게이지</b> — 52 vs 64를 좌우 분할 바로 시각화</li>
+    <li><b>② 종합 판정 뱃지</b> — DPS 격차 + HP 격차를 <u>둘 다 표기</u>하고 verdict(⚠ 종합 열세 / — 호각 / ✓ 우세)는 두 수치를 종합해서 결정. DPS 열세여도 HP 여유 크면 "호각"으로 나올 수 있음</li>
+    <li><b>③ 공격 타이밍 게이지</b> — 내 공격/적 공격 쿨다운을 실시간 충전 바로 + 다음 공격까지 남은 시간 숫자</li>
+    <li><b>④ 피해 카드 2장</b> — 누적 피해 / 누적 피격만. 평균/초 + 최대 피해 보조 표기. 불씨 같은 디버프는 카드 대신 체력 막대 아래 <b>버프 칩</b>으로 이미 표시됨</li>
+    <li><b>⑤ 스킬 타임라인</b> — 나/적 스킬의 쿨다운과 예정 발동 목록. 각 행에 진행 바 + 남은 시간. 적의 차징형 스킬은 <span style="color:var(--warn)">⚠ 2턴 뒤 발동</span> 뱃지로 명시. 준비된 스킬엔 <span style="color:var(--hp)">준비됨</span> 뱃지</li>
+  </ul>
+</div>
+
+<script>
+  function toggle(id) {
+    document.getElementById(id).classList.toggle('collapsed');
+  }
+
+  // Tabs
+  document.querySelectorAll('.log-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      const tab = t.dataset.tab;
+      document.querySelectorAll('.log-tab').forEach(x => x.classList.toggle('active', x === t));
+      document.querySelectorAll('.tab-view').forEach(v => v.classList.toggle('active', v.dataset.tab === tab));
+    });
+  });
+
+  // Mode tabs (cosmetic)
+  document.querySelectorAll('.mode-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.mode-tab').forEach(x => x.classList.toggle('active', x === t));
+    });
+  });
+
+  // Animate cooldown gauges
+  let tA = 0.6, tE = 1.75;
+  const atkA = 1.5, atkE = 2.5;
+  setInterval(() => {
+    tA += 0.033; if (tA > atkA) tA = 0;
+    tE += 0.033; if (tE > atkE) tE = 0;
+    const bA = document.getElementById('cd-ally-bar');
+    const bE = document.getElementById('cd-enemy-bar');
+    const nA = document.getElementById('cd-ally-next');
+    const nE = document.getElementById('cd-enemy-next');
+    if (bA) bA.style.width = (tA / atkA * 100) + '%';
+    if (bE) bE.style.width = (tE / atkE * 100) + '%';
+    if (nA) nA.textContent = (atkA - tA).toFixed(1) + 's';
+    if (nE) nE.textContent = (atkE - tE).toFixed(1) + 's';
+  }, 33);
+
+  // Animate skill timeline (cooldowns count down, charging skills fire & cycle)
+  const skills = [
+    { id: 'sk-a1', total: 6, remaining: 0, mode: 'ready',    fill: 'ally',  label: '발동 대기' },
+    { id: 'sk-a2', total: 8, remaining: 4.2, mode: 'cool',    fill: 'ally',  label: '쿨' },
+    { id: 'sk-e1', total: 4, remaining: 2.5, mode: 'charge',  fill: 'warn',  label: '후', fireAfterCool: 8 },
+    { id: 'sk-e2', total: 8, remaining: 6.8, mode: 'cool',    fill: 'enemy', label: '쿨' },
+  ];
+  setInterval(() => {
+    skills.forEach(s => {
+      const row = document.getElementById(s.id);
+      if (!row) return;
+      const fillEl = row.querySelector('.skill-progress-fill');
+      const timeEl = row.querySelector('.skill-time');
+      if (s.mode === 'ready') {
+        fillEl.style.width = '100%';
+        timeEl.textContent = '발동 대기';
+        return;
+      }
+      s.remaining -= 0.1;
+      if (s.remaining <= 0) {
+        if (s.mode === 'charge') {
+          // 발동 → 쿨다운 전환
+          s.mode = 'cool';
+          s.remaining = s.fireAfterCool;
+          s.total = s.fireAfterCool;
+          s.label = '쿨';
+          fillEl.classList.remove('warn');
+          fillEl.classList.add('enemy');
+          row.classList.remove('warn');
+          const tag = row.querySelector('.skill-tag');
+          if (tag) tag.remove();
+        } else {
+          s.remaining = s.total;
+        }
+      }
+      const progress = Math.max(0, (s.total - s.remaining) / s.total * 100);
+      fillEl.style.width = progress + '%';
+      timeEl.textContent = s.remaining.toFixed(1) + 's ' + s.label;
+    });
+  }, 100);
+</script>
+</body>
+</html>

@@ -177,6 +177,20 @@ const ASSETS: AssetEntry[] = [
   { file: 'enemies/eunrang.png', category: 'character', size: '1024x1024',
     prompt: 'giant silver wolf with pristine silver-white fur, massive and powerful, ethereal and ghostly elegant, high altitude snowy mountain predator, no footprints' },
 
+  // 배화교 몬스터 (외문 일반 5종) + 문파 배경
+  { file: 'enemies/baehwa_haengja.png', category: 'character', size: '1024x1024',
+    prompt: 'Zoroastrian acolyte novice priest, young shaven-headed figure in plain white robes, holding sacred ember in cupped hands, humble bowing posture, faint orange fire glow, Persian sacred geometry on sleeves' },
+  { file: 'enemies/baehwa_howi.png', category: 'character', size: '1024x1024',
+    prompt: 'Zoroastrian temple guard warrior with long ceremonial spear, red-bordered white robes over light armor, stern protective stance, flame-engraved spearhead, watchful fierce eyes' },
+  { file: 'enemies/baehwa_geombosa.png', category: 'character', size: '1024x1024',
+    prompt: 'Zoroastrian sword-priest swordmaster, three-stance martial warrior, curved blade with sacred fire trailing along the edge, red and gold ritual robes, mid-motion stance change, embers falling around blade' },
+  { file: 'enemies/baehwa_hwabosa.png', category: 'character', size: '1024x1024',
+    prompt: 'Zoroastrian flame priestess in meditation, floating cross-legged above sacred fire altar, four-layered crimson and white ritual robes, hands forming fire mudra, column of holy flame rising behind her' },
+  { file: 'enemies/baehwa_gyeongbosa.png', category: 'character', size: '1024x1024',
+    prompt: 'Zoroastrian scripture scholar reciting the Avesta, elderly male priest in heavy dark-red ceremonial robes, open sacred scroll floating mid-air, glowing Avestan script symbols orbiting, stern chanting expression' },
+  { file: 'backgrounds/baehwagyo.png', category: 'background', size: '1536x1024',
+    prompt: 'Zoroastrian fire temple interior deep in ancient mountains, massive eternal sacred flame on central stone altar, stepped ritual platform, towering columns with flame reliefs, crimson banners, smoky haze lit by firelight, ominous sacred atmosphere' },
+
   // 플레이어 캐릭터 (4단계 진화)
   { file: 'player/tier0_hucheon.png', category: 'character', size: '1024x1024',
     prompt: 'young martial artist beginner, simple white hanbok, wooden training sword, humble stance' },

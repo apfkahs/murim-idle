@@ -42,11 +42,19 @@ export default function CombatBars() {
   const enemyStaminaLabel = bossPat?.staminaLabel ?? '내력';
 
   const dotLabels: Record<string, string> = {
-    bleed: '출혈', poison: '독', stamina_drain: '산공', slow: '둔화',
+    bleed: '출혈', poison: '독', stamina_drain: '산공', slow: '둔화', druze: '드루즈 단죄',
   };
 
+  // 몬스터별 namespace 상태 (discriminated union — kind 분기로 타입 좁힘)
+  const ms = bossPatternState?.monsterState;
+  const haengjaSt = ms?.kind === 'baehwa_haengja' ? ms : null;
+  const howiSt = ms?.kind === 'baehwa_howi' ? ms : null;
+  const geombosaSt = ms?.kind === 'baehwa_geombosa' ? ms : null;
+  const hwabosaSt = ms?.kind === 'baehwa_hwabosa' ? ms : null;
+  const gyeongbosaSt = ms?.kind === 'baehwa_gyeongbosa' ? ms : null;
+
   // ── 플레이어 진영 버프 칩 ──
-  const allyChips: { key: string; label: string }[] = [];
+  const allyChips: { key: string; label: string; danger?: boolean }[] = [];
   if (playerStunTimer > 0) {
     allyChips.push({ key: 'stun', label: `경직 ${playerStunTimer.toFixed(1)}초` });
   }
@@ -54,7 +62,63 @@ export default function CombatBars() {
   if (freezeLeft > 0) {
     allyChips.push({ key: 'freeze', label: `빙결 ${freezeLeft}회 남음` });
   }
+  // 경보사 억압 디버프 (playerAtkDebuffMult + playerAtkSpeedDebuffMult 동시 적용)
+  if (
+    bossPatternState?.playerAtkDebuffMult != null
+    && bossPatternState.playerAtkDebuffMult < 1
+  ) {
+    const atkPct = Math.round((1 - bossPatternState.playerAtkDebuffMult) * 100);
+    const atsMult = bossPatternState.playerAtkSpeedDebuffMult ?? 1;
+    const atsPct = atsMult > 1 ? Math.round((atsMult - 1) * 100) : 0;
+    let label = `억압 · ATK -${atkPct}% / ATS -${atsPct}%`;
+    if (gyeongbosaSt && gyeongbosaSt.suppressionLeft > 0) {
+      label += ` · ${Math.ceil(gyeongbosaSt.suppressionLeft)}s`;
+    }
+    allyChips.push({ key: 'suppression', label });
+  }
+  // 경보사 단언 규율 (크리티컬 확률 강제 0)
+  if (bossPatternState?.playerCritRateOverride === 0) {
+    let label = '단언 · 크확 0';
+    const declLeft = gyeongbosaSt?.activeDisciplineTimers.declaration;
+    if (declLeft && declLeft > 0) {
+      label += ` · ${Math.ceil(declLeft)}s`;
+    }
+    allyChips.push({ key: 'declaration', label });
+  }
+  // 경보사 단죄 DoT / 절대 규율 DoT 는 id 로 식별 (기존 playerDotStacks 루프에서 분기)
   for (const dot of bossPatternState?.playerDotStacks ?? []) {
+    if (dot.id === 'druze') {
+      allyChips.push({
+        key: 'pdot-druze',
+        label: `단죄 ${Math.floor(dot.damagePerTick)}/s · ${Math.ceil(dot.remainingSec)}s`,
+      });
+      continue;
+    }
+    if (dot.id === 'absolute_discipline') {
+      allyChips.push({
+        key: 'pdot-absolute',
+        label: `절대 규율 ${Math.floor(dot.damagePerTick)}/s · ${Math.ceil(dot.remainingSec)}s`,
+        danger: true,
+      });
+      continue;
+    }
+    // 배화교 불씨(魂焰) — noDecay 영구 스택. 시간 표시 생략하고 현재 효과% 요약.
+    if (dot.id === 'ember') {
+      const outPer = dot.outDamageReductionPerStack ?? 0.05;
+      const outCap = dot.maxOutDamageReduction ?? 1.0;
+      const atsPer = dot.atkSpeedReductionPerStack ?? 0.05;
+      const atsCap = dot.maxAtkSpeedReduction ?? 0.8;
+      const outRedPct = Math.round(Math.min(outCap, dot.stacks * outPer) * 100);
+      const atsRedPct = Math.round(Math.min(atsCap, dot.stacks * atsPer) * 100);
+      // cap 근접(출력 피해 80%↑ 또는 공속 64%↑, 약 16스택) 시 위험 강조
+      const nearCap = outRedPct >= 80 || atsRedPct >= 64;
+      allyChips.push({
+        key: 'pdot-ember',
+        label: `불씨 ×${dot.stacks} · 피해 -${outRedPct}% · 공속 -${atsRedPct}%`,
+        danger: nearCap,
+      });
+      continue;
+    }
     const label = dotLabels[dot.type] ?? dot.type;
     allyChips.push({
       key: `pdot-${dot.id}`,
@@ -110,24 +174,24 @@ export default function CombatBars() {
   if (chargeRed > 0) {
     enemyChips.push({ key: 'chargered', label: `차지 방어 -${Math.round(chargeRed * 100)}%` });
   }
-  // main 추가: 배화교 행자 보호 배율
+  // main 추가: 배화교 4보스 공통 보호 배율 (삼행의 율법)
   const guardMult = bossPatternState?.guardDamageTakenMultiplier;
   if (guardMult != null && guardMult < 1) {
     const reductionPct = Math.round((1 - guardMult) * 100);
     enemyChips.push({ key: 'guard', label: `보호 -${reductionPct}%` });
   }
   // main 추가: 배화교 행자 자폭 phase
-  const atar = bossPatternState?.atarSacrificeState;
+  const atar = haengjaSt?.atarSacrificeState;
   if (atar) {
     enemyChips.push({ key: 'atar', label: `자폭 ${atar.turnsLeft}턴` });
   }
   // main 추가: 배화교 호위 단계
-  const sraoshaTier = bossPatternState?.sraoshaTier ?? 0;
+  const sraoshaTier = howiSt?.sraoshaTier ?? 0;
   if (sraoshaTier > 0) {
     enemyChips.push({ key: 'sraosha', label: `호위 ${sraoshaTier}단계` });
   }
   // main 추가: 배화교 호위 성맹 phase
-  const howi = bossPatternState?.howiSacredOathState;
+  const howi = howiSt?.howiSacredOathState;
   if (howi) {
     if (howi.phase === 'awakening') {
       enemyChips.push({ key: 'howi', label: `성맹 ${howi.awakeningTurnsLeft}턴` });
@@ -135,6 +199,71 @@ export default function CombatBars() {
       enemyChips.push({ key: 'howi', label: '광분' });
     }
   }
+  // 화보사 상태 추출 (enemyChips push 에서 먼저 참조하므로 선언을 앞당김)
+  const isHwabosa = currentEnemy.id === 'baehwa_hwabosa';
+  const hwPhase = hwabosaSt?.phase;
+  const hwAbsorbed = hwabosaSt?.absorbedTotal ?? 0;
+  const hwSelfBurn = hwabosaSt?.selfBurnStacks ?? 0;
+  const hwBahram = hwabosaSt?.bahramGauge ?? 0;
+
+  // 검보사: 그로기
+  const grogyLeft = geombosaSt?.grogyLeft ?? 0;
+  if (currentEnemy.id === 'baehwa_geombosa' && grogyLeft > 0) {
+    enemyChips.push({ key: 'groggy', label: `그로기 ${grogyLeft.toFixed(1)}초` });
+  }
+  // 경보사: 활성 규율 (단언·경보의 율·집법의 율) + 자화
+  if (gyeongbosaSt) {
+    const t = gyeongbosaSt.activeDisciplineTimers;
+    if (t.declaration != null && t.declaration > 0) {
+      enemyChips.push({ key: 'gyeong-declaration', label: `단언 ${Math.ceil(t.declaration)}s` });
+    }
+    if (t.lightStep != null && t.lightStep > 0) {
+      enemyChips.push({ key: 'gyeong-lightstep', label: `경보의 율 ${Math.ceil(t.lightStep)}s` });
+    }
+    if (t.enforcement != null && t.enforcement > 0) {
+      enemyChips.push({ key: 'gyeong-enforcement', label: `집법의 율 ${Math.ceil(t.enforcement)}s` });
+    }
+    if (gyeongbosaSt.healAuraLeft > 0) {
+      enemyChips.push({ key: 'gyeong-harmony', label: `자화 ${Math.ceil(gyeongbosaSt.healAuraLeft)}s` });
+    }
+  }
+  // 화보사: 자신 불씨
+  if (isHwabosa) {
+    enemyChips.push({ key: 'hwabosa-self-burn', label: `자신 불씨 ×${hwSelfBurn}` });
+  }
+
+  // 검보사: 태세·성화 게이지
+  const geombosaStance = currentEnemy.id === 'baehwa_geombosa'
+    ? (geombosaSt?.stance ?? 'defense')
+    : null;
+  const STANCE_LABEL: Record<string, string> = { defense: '방어', attack: '공격', master: '명인' };
+  const seonghwaGauge = geombosaSt?.seonghwaGauge ?? 0;
+  const seonghwaPct = Math.min(100, seonghwaGauge);
+  const seonghwaWarning = seonghwaGauge >= 80;
+
+  let hwAbsorptionPct = 0;
+  let hwAbsorptionText = '';
+  if (isHwabosa) {
+    if (!hwPhase || hwPhase === 'prayer' || hwPhase === 'worship') {
+      hwAbsorptionPct = Math.min(100, (hwAbsorbed / 6) * 100);
+      hwAbsorptionText = `${hwAbsorbed} / 6`;
+    } else if (hwPhase === 'meditation') {
+      hwAbsorptionPct = Math.min(100, ((hwAbsorbed - 6) / 10) * 100);
+      hwAbsorptionText = `${hwAbsorbed} / 16`;
+    } else if (hwPhase === 'liberation') {
+      hwAbsorptionPct = Math.min(100, ((hwAbsorbed - 16) / 15) * 100);
+      hwAbsorptionText = `${hwAbsorbed} / 31`;
+    } else {
+      hwAbsorptionPct = 100;
+      hwAbsorptionText = 'MAX';
+    }
+  }
+  const hwBahramPct = Math.min(100, (hwBahram / 30) * 100);
+  const hwBahramWarning = hwBahram >= 24;
+
+  const HW_PHASE_LABEL: Record<string, string> = {
+    worship: '경배', meditation: '묵념', liberation: '해방', ascension: '강림',
+  };
 
   const enemyHpText = reveal >= 2
     ? `${Math.max(0, Math.floor(currentEnemy.hp))} / ${currentEnemy.maxHp}`
@@ -170,7 +299,12 @@ export default function CombatBars() {
           </div>
           <div className="side-buffs">
             {allyChips.map(chip => (
-              <span key={chip.key} className="buff-chip">{chip.label}</span>
+              <span
+                key={chip.key}
+                className={`buff-chip${chip.danger ? ' buff-chip--danger' : ''}`}
+              >
+                {chip.label}
+              </span>
             ))}
           </div>
         </div>
@@ -179,6 +313,16 @@ export default function CombatBars() {
         <div className="combat-side combat-side-enemy">
           <div className="side-header">
             <span className="side-name">{enemyName}</span>
+            {geombosaStance && (
+              <span className={`stance-badge stance-badge--${geombosaStance}`}>
+                {STANCE_LABEL[geombosaStance]}
+              </span>
+            )}
+            {isHwabosa && hwPhase && HW_PHASE_LABEL[hwPhase] && (
+              <span className={`stance-badge phase-badge--${hwPhase}`}>
+                {HW_PHASE_LABEL[hwPhase]}
+              </span>
+            )}
           </div>
           <div className="bar-wrap bar-hp">
             <div className="fill fill-enemy-hp" style={{ width: `${enemyHpPct}%` }} />
@@ -187,6 +331,66 @@ export default function CombatBars() {
               <span className="v">{enemyHpText}</span>
             </div>
           </div>
+          {geombosaStance === 'master' && (
+            <div className={`bar-wrap bar-seonghwa${seonghwaWarning ? ' bar-seonghwa--warning' : ''}`}>
+              <div className="fill fill-seonghwa" style={{ width: `${seonghwaPct}%` }} />
+              <div className="bar-text rtl">
+                <span className="k">성화</span>
+                <span className="v">{Math.floor(seonghwaGauge)} / 100</span>
+              </div>
+            </div>
+          )}
+          {isHwabosa && (
+            <div className="bar-wrap bar-absorption">
+              <div className="fill fill-absorption" style={{ width: `${hwAbsorptionPct}%` }} />
+              <div className="bar-text rtl">
+                <span className="k">흡수</span>
+                <span className="v">{hwAbsorptionText}</span>
+              </div>
+            </div>
+          )}
+          {isHwabosa && hwPhase === 'ascension' && (
+            <div className={`bar-wrap bar-bahram${hwBahramWarning ? ' bar-bahram--warning' : ''}`}>
+              <div className="fill fill-bahram" style={{ width: `${hwBahramPct}%` }} />
+              <div className="bar-text rtl">
+                <span className="k">봉납</span>
+                <span className="v">{Math.floor(hwBahram)} / 30</span>
+              </div>
+            </div>
+          )}
+          {currentEnemy.id === 'baehwa_gyeongbosa' && gyeongbosaSt && (() => {
+            const stackCap = 6;
+            const stacks = Math.min(gyeongbosaSt.disciplineStacks, stackCap);
+            const counter = gyeongbosaSt.disciplineCounter;
+            const nextIsAbsolute = (counter + 1) % 4 === 0;
+            return (
+              <div className="gyeongbosa-panel">
+                <div className="gyeongbosa-discipline-gauge">
+                  <span className="discipline-label">규율</span>
+                  <div className="discipline-cells">
+                    {Array.from({ length: stackCap }).map((_, i) => (
+                      <span
+                        key={i}
+                        className={`discipline-cell${i < stacks ? ' filled' : ''}`}
+                      />
+                    ))}
+                  </div>
+                  <span className="discipline-count">{stacks} / {stackCap}</span>
+                </div>
+                <div
+                  className={`gyeongbosa-counter-chip${nextIsAbsolute ? ' danger' : ''}`}
+                >
+                  규율 {counter}회
+                  {nextIsAbsolute && <span className="counter-sub"> · 다음 절대 규율</span>}
+                </div>
+                {gyeongbosaSt.ceremonyLeft > 0 && (
+                  <div className="gyeongbosa-ceremony-banner">
+                    서문 낭독 중 · {Math.ceil(gyeongbosaSt.ceremonyLeft)}s
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           <div className="bar-wrap bar-mp">
             {enemyHasStamina ? (
               <>

@@ -21,12 +21,74 @@
   overflow: hidden;
   background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%);
   margin: 0 auto 12px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.char-circle:hover,
+.char-circle--active {
+  border-color: rgba(255, 215, 0, 0.35);
 }
 
 .char-circle img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+/* ── 프로필 선택 패널 ── */
+.profile-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+.profile-panel-title {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.profile-thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.profile-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 4px;
+  border: 2px solid transparent;
+  transition: border-color 0.15s;
+}
+.profile-thumb img {
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+.profile-thumb span {
+  font-size: 9px;
+  color: var(--text-dim);
+  text-align: center;
+  word-break: keep-all;
+}
+.profile-thumb:hover { border-color: rgba(255, 215, 0, 0.2); }
+.profile-thumb.selected { border-color: var(--gold); }
+.upload-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 24px;
+  color: var(--text-dim);
 }
 
 /* ────────────────────────────────

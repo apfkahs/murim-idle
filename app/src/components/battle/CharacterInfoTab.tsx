@@ -6,7 +6,7 @@ import {
 } from '../../store/gameStore';
 import { getArtDef } from '../../data/arts';
 import { getEquipmentDef, type EquipSlot } from '../../data/equipment';
-import { getPlayerByTier } from '../../assets';
+import { getActiveProfile } from '../../assets';
 import { getTierDef } from '../../data/tiers';
 import { formatPassiveEffectSummary, GRADE_KOREAN } from '../arts/artsUtils';
 import { formatNumber } from '../../utils/format';
@@ -52,7 +52,9 @@ export default function CharacterInfoTab() {
   const equipStats = gatherEquipmentStats(state);
   const equipAtk = equipStats.bonusAtk ?? 0;
 
-  const player = getPlayerByTier(tier);
+  const selectedProfileKey = useGameStore(s => s.selectedProfileKey);
+  const customProfileUrl = useGameStore(s => s.customProfileUrl);
+  const player = getActiveProfile(selectedProfileKey, customProfileUrl, tier);
   const tierDef = getTierDef(tier);
 
   return (

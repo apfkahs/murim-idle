@@ -6,6 +6,7 @@
 import { BALANCE_PARAMS } from '../../data/balance';
 import { getArtDef } from '../../data/arts';
 import { BOSS_PATTERNS, getMonsterDef } from '../../data/monsters';
+import { MONSTER_STATE_FACTORIES } from './skillHandlers/registry';
 import {
   calcCritDamageMultiplier, calcCritRate, calcDodge, calcDmgReduction, calcTierMultiplier,
   calcStamina, calcEffectiveRegen, calcQiPerSec, calcCombatQiRatio,
@@ -92,6 +93,8 @@ export interface TickContext {
   pendingHuntRetry: boolean;
   pendingAutoExplore: boolean;
   dodgeCounterActive: boolean;
+  baehwagyoEmberTimer: number;
+  baehwagyoAshOathBuffs: GameState['baehwagyoAshOathBuffs'];
   playerFinisherCharge: GameState['playerFinisherCharge'];
   totalKills: number;
   hiddenRevealedInField: Record<string, string | null>;
@@ -205,6 +208,8 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
   const sessionProfGains = { ...(state.sessionProfGains ?? {}) };
   let pendingAutoExplore = state.pendingAutoExplore ?? false;
   let dodgeCounterActive = state.dodgeCounterActive ?? false;
+  const baehwagyoEmberTimer = state.baehwagyoEmberTimer ?? 0;
+  const baehwagyoAshOathBuffs = [...(state.baehwagyoAshOathBuffs ?? [])];
   let playerFinisherCharge = state.playerFinisherCharge ?? null;
   let totalKills = state.totalKills ?? 0;
   let combatElapsed = state.combatElapsed ?? 0;
@@ -220,7 +225,12 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
   const obtainedMaterials = [...state.obtainedMaterials];
   const knownEquipment = [...state.knownEquipment];
   let ultCooldowns = { ...state.ultCooldowns };
-  if (bossPatternState) bossPatternState = { ...bossPatternState };
+  if (bossPatternState) {
+    bossPatternState = { ...bossPatternState };
+    if (bossPatternState.monsterState) {
+      bossPatternState.monsterState = { ...bossPatternState.monsterState };
+    }
+  }
   const stats = { ...state.stats };
   const proficiency = { ...state.proficiency };
 
@@ -247,10 +257,11 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
   const equipStats = gatherEquipmentStats(state);
   const masteryEffects = gatherMasteryEffects(state);
   const critDmg = calcCritDamageMultiplier(state);
-  const critRate = Math.min(
+  const baseCritRate = Math.min(
     calcCritRate(state) + (equipStats.bonusCritRate ?? 0),
     B.CRIT_RATE_CAP,
   );
+  const critRate = bossPatternState?.playerCritRateOverride ?? baseCritRate;
   const masteryDodge = calcDodge(state);
   const dodgeRate = Math.min(
     masteryDodge + (equipStats.bonusDodge ?? 0) / 100,
@@ -287,7 +298,9 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
     sessionTotalDamage, sessionActiveTime, sessionMaxDps,
     sessionBattleWins, sessionDeaths, sessionDrops, sessionProfGains,
     bossPatternState, playerStunTimer, lastEnemyAttack,
-    pendingHuntRetry, pendingAutoExplore, dodgeCounterActive, playerFinisherCharge,
+    pendingHuntRetry, pendingAutoExplore, dodgeCounterActive,
+    baehwagyoEmberTimer, baehwagyoAshOathBuffs,
+    playerFinisherCharge,
     totalKills, hiddenRevealedInField,
     equipment, equipmentInventory, equipmentDotOnEnemy, materials, artGradeExp, activeMasteries,
     obtainedMaterials, knownEquipment, ultCooldowns,
@@ -427,6 +440,8 @@ export function applyBattleReset(ctx: TickContext): void {
   ctx.equipmentDotOnEnemy = [];
   ctx.combatElapsed = 0;
   ctx.lawActiveFromSkillId = null;
+  ctx.baehwagyoEmberTimer = 0;
+  ctx.baehwagyoAshOathBuffs = [];
 }
 
 export function applyUltCooldownReset(ctx: TickContext): void {
@@ -448,6 +463,16 @@ export function applyIncomingDamage(ctx: TickContext, damage: number): void {
   if (damage > ctx.currentBattleMaxIncomingHit) ctx.currentBattleMaxIncomingHit = damage;
 }
 
+/**
+ * 회피 카운터 발동 확률 체크. dodgeCounterEnabled 가 켜져 있을 때만 의미 있으며,
+ * 확률은 masteryEffects.dodgeCounterChance (없으면 0.5 기본값) 로 결정된다.
+ */
+export function rollDodgeCounter(ctx: TickContext): boolean {
+  if (!ctx.masteryEffects?.dodgeCounterEnabled) return false;
+  const chance = ctx.masteryEffects.dodgeCounterChance ?? 0.5;
+  return Math.random() < chance;
+}
+
 export function handleDodge(ctx: TickContext, eName: string, customMsg?: string): void {
   ctx.currentBattleDodgeCount += 1;
   ctx.logEvent({
@@ -461,7 +486,7 @@ export function handleDodge(ctx: TickContext, eName: string, customMsg?: string)
     ctx.floatingTexts = [...ctx.floatingTexts, { id: ctx.nextFloatingId++, text: '회피!', type: 'evade' as const, timestamp: Date.now() }];
     if (ctx.floatingTexts.length > 15) ctx.floatingTexts = ctx.floatingTexts.slice(-15);
   }
-  if (ctx.masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) {
+  if (rollDodgeCounter(ctx)) {
     ctx.dodgeCounterActive = true;
   }
   const healPct = ctx.masteryEffects?.dodgeHealPercent;
@@ -480,6 +505,7 @@ export function createBossPatternState(monsterId: string): NonNullable<GameState
   const pattern = BOSS_PATTERNS[monsterId];
   if (!pattern) return null;
   const monDef = getMonsterDef(monsterId);
+  const factory = MONSTER_STATE_FACTORIES[monsterId];
   return {
     bossStamina: pattern.stamina.initial,
     rageUsed: false,
@@ -499,9 +525,7 @@ export function createBossPatternState(monsterId: string): NonNullable<GameState
     bossChargeDmgReduction: 0,
     bossChargeStunImmune: false,
     chargeRegenPenalty: 0,
-    sraoshaTier: 0,
-    sraoshaLastLoggedTier: 0,
-    howiSacredOathState: null,
+    monsterState: factory ? factory() : null,
   };
 }
 
@@ -538,7 +562,9 @@ export function applyBattleStartSkills(
       const hasFactionArt = required
         ? equippedArts.some(id => getArtDef(id)?.faction === required)
         : true;
-      next.guardDamageTakenMultiplier = hasFactionArt ? 1.0 : (skill.damageTakenMultiplierIfCondition ?? 0.5);
+      next.guardDamageTakenMultiplier = hasFactionArt
+        ? (skill.damageTakenMultiplierWhenFactionEquipped ?? 1.0)
+        : (skill.damageTakenMultiplierIfCondition ?? 0.5);
       next.guardFirstHitLogged = false;
       // law-banner 엔트리
       const displayName = (skill as { displayName?: string }).displayName ?? skill.id;
@@ -558,8 +584,13 @@ export function applyBattleStartSkills(
       if (skill.oneTime) usedOne.push(skill.id);
     }
     if (skill.type === 'sraosha_response') {
-      next.sraoshaTier = 0;
-      next.sraoshaLastLoggedTier = 0;
+      if (next.monsterState?.kind === 'baehwa_howi') {
+        next.monsterState = {
+          ...next.monsterState,
+          sraoshaTier: 0,
+          sraoshaLastLoggedTier: 0,
+        };
+      }
       if (skill.oneTime) usedOne.push(skill.id);
     }
   }
@@ -616,6 +647,8 @@ export function buildResult(ctx: TickContext, extras: {
     bossPatternState: ctx.bossPatternState, playerStunTimer: ctx.playerStunTimer, lastEnemyAttack: ctx.lastEnemyAttack,
     proficiency: ctx.proficiency, artGradeExp: ctx.artGradeExp, activeMasteries: ctx.activeMasteries,
     pendingHuntRetry: ctx.pendingHuntRetry, pendingAutoExplore: ctx.pendingAutoExplore, dodgeCounterActive: ctx.dodgeCounterActive,
+    baehwagyoEmberTimer: ctx.baehwagyoEmberTimer,
+    baehwagyoAshOathBuffs: ctx.baehwagyoAshOathBuffs,
     playerFinisherCharge: ctx.playerFinisherCharge,
   };
 

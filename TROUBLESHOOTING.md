@@ -237,6 +237,34 @@ cd D:/newidle/app && node node_modules/.bin/tsx scripts/generate-assets.ts
 | **원인** | Windows cp949 인코딩으로 한글+특수문자(☯ 등) 출력 시 실패 |
 | **해결법** | Python stdout을 UTF-8로 래핑: `sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')` |
 
+### 5-5. 불씨(ember) 디버프 칩이 `ember x6 (9007199254740991s)` 로 표시
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 플레이어 측 버프 칩에 `ember x6 (9007199254740991s)` 가 그대로 찍힘 |
+| **원인** | 불씨는 `noDecay: true` + `remainingSec = Number.MAX_SAFE_INTEGER` 로 설계된 영구 스택이지만, `CombatBars.tsx` 의 `playerDotStacks` 루프가 일반 DoT 포맷(`${label} x${stacks} (${Math.ceil(remainingSec)}s)`)으로 폴백했기 때문. 또 `dotLabels` 에 `ember` 한글 매핑이 없어 type 문자열이 그대로 라벨로 사용됨. |
+| **해결법** | `CombatBars.tsx` 의 `playerDotStacks` 루프에 `dot.id === 'ember'` 전용 분기 추가. 시간 필드는 생략하고, 스택 수 + 현재 `outDamageReduction` / `atkSpeedReduction` 을 한글로 요약(`불씨 ×N · 피해 -X% · 공속 -Y%`). cap 근접(≈16스택) 시 `danger: true` 로 `.buff-chip--danger` 적용. |
+
+```tsx
+if (dot.id === 'ember') {
+  const outPer = dot.outDamageReductionPerStack ?? 0.05;
+  const outCap = dot.maxOutDamageReduction ?? 1.0;
+  const atsPer = dot.atkSpeedReductionPerStack ?? 0.05;
+  const atsCap = dot.maxAtkSpeedReduction ?? 0.8;
+  const outRedPct = Math.round(Math.min(outCap, dot.stacks * outPer) * 100);
+  const atsRedPct = Math.round(Math.min(atsCap, dot.stacks * atsPer) * 100);
+  const nearCap = outRedPct >= 80 || atsRedPct >= 64;
+  allyChips.push({
+    key: 'pdot-ember',
+    label: `불씨 ×${dot.stacks} · 피해 -${outRedPct}% · 공속 -${atsRedPct}%`,
+    danger: nearCap,
+  });
+  continue;
+}
+```
+
+> 참고: 다른 `noDecay` DoT가 추가될 경우에도 같은 방식으로 id 또는 `noDecay` 플래그 분기해서 시간 필드를 숨기는 것이 안전.
+
 ---
 
 ## 6. v1.1 전투 시스템 관련
@@ -342,4 +370,17 @@ if (ctx.bossPatternState) {
 }
 ```
 
-*마지막 업데이트: 2026-04-19*
+*마지막 업데이트: 2026-04-22*
+
+---
+
+## 9. 세이브 마이그레이션 관련
+
+### 9-1. 배화교 외법 재편 (dataVersion 2) — 구 세이브 step-*/outer-* 키 초기화
+
+| 항목 | 내용 |
+|------|------|
+| **현상** | 보법 탭 폐지·외법 통합(v0.22.0)으로 구 세이브의 `step-t*`/`outer-t*` 노드 레벨·비급·단계 해금 데이터가 모두 자동 초기화됨 |
+| **원인** | `migrateBaehwagyoOuterSplit`이 `dataVersion < 2`인 세이브에서 해당 키를 필터링하고 새 키 구조(`outer-bobeop-open` 등)로 초기화 |
+| **성화보법 소유 보존 여부** | `migrateBaehwagyoOwnedArts`가 `LEGACY_NODE_TO_ART_ID`(`step-t1-1`)를 병합 순회하므로 구 세이브에 `step-t1-1 Lv≥1`이 있었다면 `ownedArts`의 `baehwa_seonghwa_bobeop` 항목은 **보존 또는 신규 추가** |
+| **rollback 시** | dataVersion 2로 저장된 세이브는 구 코드에서 로드 시 bahwagyo 하위가 새 키 구조라 사실상 초기화 상태로 복구됨. 완화책: 마이그레이션 시 `console.warn`으로 초기화된 키 목록 기록 |

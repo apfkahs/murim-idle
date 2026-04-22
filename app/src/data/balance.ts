@@ -29,7 +29,7 @@ export const BALANCE_PARAMS = {
 
   // ── COMBAT ──
   BASE_ATTACK_INTERVAL: 2.5,
-  ATK_SPEED_MIN: 1.0,
+  ATK_SPEED_MIN: 1.5,
 
   // ── QI PRODUCTION ──
   BASE_QI_PER_SEC: 1,

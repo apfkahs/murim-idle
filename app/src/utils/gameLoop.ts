@@ -18,6 +18,7 @@ import { buildAchievementContext, ACHIEVEMENTS } from './combat/damageCalc';
 import { executePlayerAttackPhase } from './combat/playerCombat';
 import { executeEnemyAttackPhase } from './combat/enemyCombat';
 import { processEnemyDeath } from './combat/battleRewards';
+import { tickBaehwagyoEmber } from './combat/baehwagyoEmberTick';
 import type { GameState } from '../store/types';
 
 const B = BALANCE_PARAMS;
@@ -172,6 +173,11 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           } else if (dot.type === 'stamina_drain') {
             const drainAmt = (dot.damagePerTick + dot.damagePerStack * (dot.stacks - 1)) * dt;
             ctx.stamina = Math.max(0, ctx.stamina - drainAmt);
+          } else if (dot.type === 'druze') {
+            // 드루즈 단죄 — 틱별 ±10% 분산, 치명타/회피 없음, dmgReduction만 적용
+            const variance = 0.9 + Math.random() * 0.2;
+            const tickDmg = dot.damagePerTick * variance * dt * (1 - ctx.dmgReduction / 100);
+            ctx.hp -= tickDmg;
           }
           // slow: 데미지 없음, playerCombat에서 공속 반영
           remaining.push(updatedDot);
@@ -240,6 +246,9 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       }
       ctx.equipmentDotOnEnemy = remaining;
     }
+
+    // 배화교 불씨 소각 틱 (식화심법 장착 시에만 본문 실행, 미장착이면 early return)
+    tickBaehwagyoEmber(ctx, dt);
 
     // 플레이어 공격 페이즈
     executePlayerAttackPhase(ctx);

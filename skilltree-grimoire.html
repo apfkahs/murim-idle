@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>배화교 비급 · 그리모어 시안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Ma+Shan+Zheng&family=Noto+Serif+KR:wght@400;500;600;700&family=Gowun+Batang:wght@400;700&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse at center, #1a1410 0%, #0a0706 100%);
+    font-family:'Gowun Batang','Noto Serif KR',serif;
+    color:#3a2412;
+    padding:30px 20px;
+    display:flex;
+    justify-content:center;
+  }
+
+  /* ─── 외부 프레임 ─── */
+  .grimoire{
+    width:760px;
+    max-width:100%;
+    position:relative;
+    padding:8px;
+  }
+
+  /* ─── 양피지 본체 ─── */
+  .page{
+    position:relative;
+    padding:38px 46px 50px;
+    /* 자연스러운 deckle edge */
+    clip-path: polygon(
+      0% 2%, 1.2% 0.6%, 3% 1.2%, 5% 0.4%, 7% 1.6%, 9% 0.5%,
+      12% 1.4%, 15% 0.3%, 18% 1.5%, 22% 0.6%, 26% 1.3%, 30% 0.4%,
+      34% 1.5%, 38% 0.6%, 42% 1.2%, 46% 0.4%, 50% 1.6%, 54% 0.5%,
+      58% 1.4%, 62% 0.3%, 66% 1.5%, 70% 0.6%, 74% 1.3%, 78% 0.4%,
+      82% 1.5%, 86% 0.6%, 90% 1.2%, 93% 0.4%, 96% 1.5%, 98% 0.6%, 100% 2%,
+      99.4% 5%, 100% 9%, 99.2% 14%, 100% 19%, 99.5% 25%, 100% 31%,
+      99.3% 38%, 100% 45%, 99.6% 52%, 100% 60%, 99.4% 68%, 100% 76%,
+      99.5% 84%, 100% 92%, 99.4% 97%,
+      98% 99%, 96% 98.5%, 92% 99.5%, 88% 98.4%, 84% 99.4%, 80% 98.5%,
+      76% 99.6%, 72% 98.4%, 68% 99.5%, 64% 98.6%, 60% 99.5%, 56% 98.4%,
+      52% 99.6%, 48% 98.5%, 44% 99.4%, 40% 98.5%, 36% 99.6%, 32% 98.4%,
+      28% 99.5%, 24% 98.6%, 20% 99.4%, 16% 98.5%, 12% 99.6%, 8% 98.4%,
+      5% 99.5%, 2% 98.5%, 0% 97%,
+      0.6% 92%, 0% 86%, 0.5% 80%, 0% 74%, 0.6% 68%, 0% 62%,
+      0.5% 55%, 0% 48%, 0.6% 41%, 0% 34%, 0.5% 27%, 0% 20%,
+      0.6% 14%, 0% 8%, 0.5% 4%
+    );
+    background:
+      /* 색상 변동 패치 */
+      radial-gradient(ellipse 320px 220px at 22% 28%, rgba(244,228,188,.5), transparent 65%),
+      radial-gradient(ellipse 360px 260px at 78% 72%, rgba(218,178,118,.45), transparent 70%),
+      radial-gradient(ellipse 240px 200px at 50% 50%, rgba(238,218,170,.4), transparent 70%),
+      /* 4방향 가장자리 그을림 */
+      radial-gradient(ellipse at 50% 0%, rgba(110,65,18,.5), transparent 16%),
+      radial-gradient(ellipse at 50% 100%, rgba(110,65,18,.5), transparent 16%),
+      radial-gradient(ellipse at 0% 50%, rgba(110,65,18,.5), transparent 14%),
+      radial-gradient(ellipse at 100% 50%, rgba(110,65,18,.5), transparent 14%),
+      /* 4모서리 깊은 탄 자국 */
+      radial-gradient(circle at 0% 0%, rgba(40,18,4,.7), transparent 100px),
+      radial-gradient(circle at 100% 0%, rgba(40,18,4,.7), transparent 100px),
+      radial-gradient(circle at 0% 100%, rgba(40,18,4,.7), transparent 100px),
+      radial-gradient(circle at 100% 100%, rgba(40,18,4,.7), transparent 100px),
+      /* 종이 섬유결 */
+      repeating-linear-gradient(0deg, transparent 0 18px, rgba(95,65,28,.04) 18px 19px, transparent 19px 20px),
+      repeating-linear-gradient(45deg, transparent 0 80px, rgba(120,80,35,.025) 80px 82px),
+      /* 베이스 */
+      radial-gradient(ellipse 100% 100% at 50% 50%,
+        #f0d9a8 0%, #e3c486 35%, #d0a866 65%, #a87a40 92%, #6e4818 100%);
+    box-shadow:
+      inset 0 0 120px rgba(95,55,18,.45),
+      inset 0 0 30px rgba(70,40,12,.35),
+      0 25px 60px rgba(0,0,0,.7),
+      0 0 0 1px rgba(60,35,10,.4);
+  }
+
+  /* foxing/얼룩 레이어 */
+  .page::before{
+    content:"";
+    position:absolute;inset:0;
+    pointer-events:none;
+    background:
+      /* 작은 갈색 얼룩들 */
+      radial-gradient(circle 5px at 12% 18%, rgba(110,65,25,.55), transparent 70%),
+      radial-gradient(circle 4px at 18% 30%, rgba(120,70,30,.45), transparent 70%),
+      radial-gradient(circle 6px at 24% 48%, rgba(100,55,20,.5), transparent 70%),
+      radial-gradient(circle 3px at 35% 22%, rgba(115,65,25,.6), transparent 70%),
+      radial-gradient(circle 7px at 42% 38%, rgba(95,50,18,.5), transparent 70%),
+      radial-gradient(circle 4px at 52% 28%, rgba(110,60,20,.55), transparent 70%),
+      radial-gradient(circle 5px at 64% 45%, rgba(120,70,28,.5), transparent 70%),
+      radial-gradient(circle 6px at 72% 22%, rgba(100,55,20,.45), transparent 70%),
+      radial-gradient(circle 4px at 82% 38%, rgba(115,65,22,.55), transparent 70%),
+      radial-gradient(circle 3px at 88% 52%, rgba(105,58,20,.5), transparent 70%),
+      radial-gradient(circle 5px at 14% 65%, rgba(110,60,22,.5), transparent 70%),
+      radial-gradient(circle 7px at 28% 78%, rgba(95,50,18,.45), transparent 70%),
+      radial-gradient(circle 4px at 38% 88%, rgba(120,68,28,.55), transparent 70%),
+      radial-gradient(circle 6px at 52% 72%, rgba(105,58,22,.5), transparent 70%),
+      radial-gradient(circle 5px at 66% 82%, rgba(115,65,25,.55), transparent 70%),
+      radial-gradient(circle 4px at 78% 88%, rgba(100,55,18,.5), transparent 70%),
+      radial-gradient(circle 6px at 86% 70%, rgba(110,60,22,.55), transparent 70%),
+      /* 물 자국 (둥근 링) */
+      radial-gradient(circle 60px at 28% 55%,
+        transparent 0%, transparent 78%,
+        rgba(120,75,28,.18) 80%, rgba(120,75,28,.22) 86%, transparent 92%),
+      radial-gradient(circle 45px at 70% 60%,
+        transparent 0%, transparent 78%,
+        rgba(110,65,22,.15) 82%, rgba(110,65,22,.2) 88%, transparent 94%),
+      /* 먹 번짐 */
+      radial-gradient(ellipse 18px 12px at 45% 8%, rgba(40,22,8,.4), transparent 70%),
+      radial-gradient(ellipse 12px 8px at 88% 12%, rgba(50,25,10,.3), transparent 70%);
+  }
+
+  /* 접힘 자국 */
+  .page::after{
+    content:"";
+    position:absolute;inset:0;
+    pointer-events:none;
+    background:
+      /* 가로 접힘 3줄 */
+      linear-gradient(180deg, transparent 0%, transparent 32%,
+        rgba(75,45,15,.18) 32.3%, transparent 33%,
+        transparent 65%,
+        rgba(75,45,15,.15) 65.3%, transparent 66%,
+        transparent 100%),
+      /* 세로 접힘 2줄 */
+      linear-gradient(90deg, transparent 0%, transparent 33%,
+        rgba(75,45,15,.12) 33.3%, transparent 34%,
+        transparent 66%,
+        rgba(75,45,15,.12) 66.3%, transparent 67%,
+        transparent 100%);
+  }
+
+  /* ─── 장식 테두리 ─── */
+  .ornament-border{
+    position:absolute;
+    inset:18px;
+    pointer-events:none;
+    border:1px solid rgba(75,45,15,.45);
+    z-index:2;
+  }
+  .ornament-border::before,
+  .ornament-border::after{
+    content:"";
+    position:absolute;
+    inset:5px;
+    border:1px solid rgba(95,55,20,.3);
+  }
+  .ornament-border::after{
+    inset:8px;
+    border:1px dashed rgba(95,55,20,.18);
+  }
+
+  /* 코너 장식 */
+  .corner{
+    position:absolute;
+    width:54px;height:54px;
+    z-index:3;
+    color:#5a3818;
+    opacity:.85;
+  }
+  .corner svg{width:100%;height:100%;display:block;}
+  .corner.tl{top:14px;left:14px;}
+  .corner.tr{top:14px;right:14px;transform:scaleX(-1);}
+  .corner.bl{bottom:14px;left:14px;transform:scaleY(-1);}
+  .corner.br{bottom:14px;right:14px;transform:scale(-1,-1);}
+
+  /* ─── 컨텐츠 영역 ─── */
+  .content{
+    position:relative;
+    z-index:5;
+  }
+
+  /* ─── 헤더 (해/달 + 타이틀) ─── */
+  .header{
+    text-align:center;
+    margin-top:6px;
+  }
+  .celestial{
+    display:flex;align-items:center;justify-content:center;
+    gap:24px;
+    margin-bottom:10px;
+  }
+  .celestial .moon, .celestial .sun{
+    width:42px;height:42px;
+    color:#5a3818;
+    opacity:.8;
+  }
+  .celestial .label{
+    font-family:'Cinzel',serif;
+    font-size:11px;
+    letter-spacing:6px;
+    color:#6a4520;
+    font-weight:500;
+    padding-top:4px;
+  }
+  .title-main{
+    font-family:'Ma Shan Zheng','Noto Serif KR',serif;
+    font-size:62px;
+    font-weight:400;
+    color:#2a1608;
+    letter-spacing:18px;
+    line-height:1.1;
+    margin:8px 0 4px;
+    text-indent:18px;
+    filter:blur(.3px) contrast(1.1);
+    text-shadow:0 0 1px rgba(40,20,5,.3);
+  }
+  .title-sub{
+    font-family:'ZCOOL XiaoWei','Ma Shan Zheng',serif;
+    font-size:18px;
+    color:#5a3818;
+    letter-spacing:14px;
+    text-indent:14px;
+    margin-bottom:10px;
+  }
+  .title-deco{
+    display:flex;align-items:center;justify-content:center;
+    gap:14px;
+    margin:6px 0 18px;
+    color:#7a4f22;
+    font-size:14px;
+    letter-spacing:3px;
+  }
+  .title-deco .star{font-size:11px;}
+  .title-deco .dot{display:inline-block;width:4px;height:4px;border-radius:50%;background:#7a4f22;}
+
+  /* ─── 상단 컨트롤 (돌아가기/약안) ─── */
+  .top-controls{
+    position:absolute;
+    top:32px;
+    left:36px;right:36px;
+    display:flex;justify-content:space-between;
+    z-index:6;
+  }
+  .ctrl-btn{
+    font-family:'Cormorant Garamond',serif;
+    font-style:italic;
+    font-size:13px;
+    color:#5a3818;
+    background:transparent;
+    border:none;
+    cursor:pointer;
+    letter-spacing:1px;
+    padding:4px 8px;
+    border-bottom:1px solid rgba(90,55,24,.3);
+    transition:color .15s;
+  }
+  .ctrl-btn:hover{color:#2a1608;border-bottom-color:#2a1608;}
+
+  /* ─── 탭 (장(章) 네비) ─── */
+  .chapters{
+    display:flex;justify-content:center;
+    gap:0;
+    margin:10px 0 22px;
+    padding:0 20px;
+  }
+  .chapter{
+    flex:1;
+    text-align:center;
+    padding:8px 4px;
+    font-family:'ZCOOL XiaoWei','Ma Shan Zheng',serif;
+    font-size:18px;
+    color:#7a4f22;
+    letter-spacing:4px;
+    cursor:pointer;
+    border-bottom:1px solid rgba(90,55,24,.2);
+    transition:all .15s;
+    position:relative;
+  }
+  .chapter:hover{color:#2a1608;}
+  .chapter.active{
+    color:#2a1608;
+    font-weight:bold;
+    border-bottom:2px solid #5a3818;
+  }
+  .chapter.active::before{
+    content:"❋";
+    position:absolute;
+    top:-4px;left:50%;transform:translateX(-50%);
+    font-size:9px;
+    color:#7a4f22;
+  }
+
+  /* ─── 자원 표시 (잔불/불꽃/정수) ─── */
+  .resources{
+    display:flex;justify-content:center;
+    gap:34px;
+    margin:14px 0 24px;
+    padding:14px 20px;
+    border-top:1px solid rgba(90,55,24,.25);
+    border-bottom:1px solid rgba(90,55,24,.25);
+    position:relative;
+  }
+  .resources::before, .resources::after{
+    content:"❋";
+    position:absolute;
+    top:-7px;
+    color:#7a4f22;
+    font-size:11px;
+    background:#e0c084;
+    padding:0 6px;
+  }
+  .resources::before{left:30%;}
+  .resources::after{right:30%;}
+  .res{
+    display:flex;align-items:center;gap:10px;
+  }
+  .res-glyph{
+    width:42px;height:42px;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Ma Shan Zheng',serif;
+    font-size:26px;
+    color:#3a2412;
+    border:1px solid rgba(75,45,15,.4);
+    border-radius:50%;
+    background:radial-gradient(circle,rgba(244,228,188,.5),rgba(218,178,118,.3));
+    position:relative;
+  }
+  .res-glyph.flame{color:#a04018;}
+  .res-glyph.divine{color:#8a6a18;}
+  .res-glyph::after{
+    content:"";position:absolute;inset:-4px;
+    border:1px dashed rgba(75,45,15,.2);
+    border-radius:50%;
+  }
+  .res-info{
+    display:flex;flex-direction:column;
+    line-height:1.2;
+  }
+  .res-label{
+    font-family:'Gowun Batang',serif;
+    font-style:italic;
+    font-size:12px;
+    color:#5a3818;
+    letter-spacing:1px;
+  }
+  .res-val{
+    font-family:'Cinzel',serif;
+    font-size:18px;
+    color:#2a1608;
+    font-weight:600;
+  }
+
+  /* ─── 단(段) 섹션 헤더 ─── */
+  .tier-header{
+    text-align:center;
+    margin:26px 0 14px;
+    position:relative;
+  }
+  .tier-rule{
+    display:flex;align-items:center;justify-content:center;
+    gap:14px;
+    color:#7a4f22;
+  }
+  .tier-rule .line{
+    flex:0 1 110px;
+    height:1px;
+    background:linear-gradient(90deg,transparent,rgba(90,55,24,.6) 50%,transparent);
+  }
+  .tier-name{
+    font-family:'ZCOOL XiaoWei','Ma Shan Zheng',serif;
+    font-size:22px;
+    color:#2a1608;
+    letter-spacing:8px;
+    padding:0 4px;
+    text-indent:8px;
+  }
+  .tier-quote{
+    font-family:'Cormorant Garamond','Gowun Batang',serif;
+    font-style:italic;
+    font-size:14px;
+    color:#5a3818;
+    margin-top:8px;
+    letter-spacing:1px;
+  }
+  .tier-quote::before, .tier-quote::after{
+    content:"✦";
+    color:#a07530;
+    margin:0 8px;
+    font-size:9px;
+    vertical-align:middle;
+  }
+
+  /* ─── 무공 노드 그리드 ─── */
+  .arts-grid{
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap:18px 28px;
+    margin:14px 8px 8px;
+  }
+  .arts-grid.single{
+    grid-template-columns:1fr;
+    max-width:340px;margin:14px auto 8px;
+  }
+
+  .art{
+    display:flex;
+    gap:14px;
+    align-items:flex-start;
+    padding:6px 4px;
+  }
+  .art-seal{
+    flex-shrink:0;
+    width:62px;height:62px;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Ma Shan Zheng',serif;
+    font-size:38px;
+    color:#3a2412;
+    background:
+      radial-gradient(circle, rgba(244,228,188,.6), rgba(200,160,100,.3) 70%, transparent);
+    border:1.5px solid rgba(75,45,15,.5);
+    border-radius:50%;
+    position:relative;
+    text-indent:4px;
+    box-shadow:inset 0 0 12px rgba(80,45,15,.25);
+  }
+  .art-seal::before{
+    content:"";position:absolute;inset:-5px;
+    border:1px solid rgba(75,45,15,.25);
+    border-radius:50%;
+  }
+  .art-seal::after{
+    content:"";position:absolute;inset:-9px;
+    border:1px dotted rgba(75,45,15,.2);
+    border-radius:50%;
+  }
+  .art.dim .art-seal{
+    color:#7a5a30;
+    opacity:.6;
+    background:radial-gradient(circle, rgba(220,200,160,.3), transparent 70%);
+  }
+  .art-info{
+    flex:1;
+    padding-top:4px;
+  }
+  .art-cat{
+    font-family:'Cormorant Garamond',serif;
+    font-style:italic;
+    font-size:11px;
+    color:#7a4f22;
+    letter-spacing:2px;
+    margin-bottom:2px;
+    text-transform:uppercase;
+  }
+  .art-name{
+    font-family:'Noto Serif KR','Gowun Batang',serif;
+    font-weight:600;
+    font-size:16px;
+    color:#2a1608;
+    letter-spacing:2px;
+    margin-bottom:4px;
+  }
+  .art-desc{
+    font-family:'Gowun Batang','Noto Serif KR',serif;
+    font-style:italic;
+    font-size:12px;
+    color:#5a3818;
+    line-height:1.45;
+    margin-bottom:6px;
+  }
+  .art-lvl{
+    display:inline-block;
+    font-family:'Cinzel',serif;
+    font-size:11px;
+    color:#5a3818;
+    padding:2px 10px;
+    border:1px solid rgba(75,45,15,.4);
+    border-radius:10px;
+    background:rgba(244,228,188,.4);
+    letter-spacing:1px;
+  }
+  .art.root .art-name{font-size:18px;}
+  .art.root .art-seal{
+    width:72px;height:72px;
+    font-size:46px;
+    border-color:rgba(160,75,25,.6);
+    background:
+      radial-gradient(circle, rgba(255,200,140,.5), rgba(200,120,60,.3) 70%, transparent);
+    box-shadow:
+      inset 0 0 15px rgba(160,70,20,.35),
+      0 0 0 2px rgba(160,75,25,.15);
+  }
+
+  /* ─── 봉인된 장 ─── */
+  .sealed{
+    margin:24px 12px 8px;
+    padding:22px 20px;
+    text-align:center;
+    border-top:1px dashed rgba(75,45,15,.35);
+    border-bottom:1px dashed rgba(75,45,15,.35);
+    position:relative;
+  }
+  .sealed-icon{
+    width:54px;height:54px;
+    margin:0 auto 10px;
+    color:#6a3818;
+    opacity:.7;
+  }
+  .sealed-icon svg{width:100%;height:100%;}
+  .sealed-title{
+    font-family:'ZCOOL XiaoWei','Ma Shan Zheng',serif;
+    font-size:18px;
+    color:#5a3818;
+    letter-spacing:6px;
+    margin-bottom:6px;
+    text-indent:6px;
+  }
+  .sealed-sub{
+    font-family:'Cormorant Garamond','Gowun Batang',serif;
+    font-style:italic;
+    font-size:12px;
+    color:#7a5530;
+    letter-spacing:2px;
+  }
+  .sealed-sub::before, .sealed-sub::after{
+    content:"✦";color:#a07530;margin:0 6px;font-size:9px;vertical-align:middle;
+  }
+
+  /* ─── 푸터 ─── */
+  .footer{
+    margin-top:30px;
+    padding-top:18px;
+    text-align:center;
+    border-top:1px solid rgba(75,45,15,.3);
+    position:relative;
+  }
+  .footer::before{
+    content:"❋";
+    position:absolute;
+    top:-7px;left:50%;transform:translateX(-50%);
+    color:#7a4f22;
+    font-size:13px;
+    background:#e0c084;
+    padding:0 8px;
+  }
+  .footer-text{
+    font-family:'Cinzel',serif;
+    font-size:11px;
+    letter-spacing:8px;
+    color:#5a3818;
+    text-indent:8px;
+  }
+  .footer-deco{
+    margin-top:6px;
+    color:#7a4f22;
+    font-size:10px;
+    letter-spacing:4px;
+  }
+
+  /* 작은 별 장식 (페이지 빈 공간) */
+  .star-deco{
+    position:absolute;
+    color:#7a4f22;
+    opacity:.5;
+    pointer-events:none;
+    z-index:4;
+    font-size:10px;
+  }
+  .star-deco.s1{top:18%;left:8%;}
+  .star-deco.s2{top:48%;right:6%;font-size:8px;}
+  .star-deco.s3{top:74%;left:4%;font-size:12px;}
+  .star-deco.s4{top:32%;right:8%;font-size:9px;}
+  .star-deco.s5{top:88%;right:14%;font-size:8px;}
+  .star-deco.s6{top:62%;left:6%;font-size:7px;}
+</style>
+</head>
+<body>
+
+<div class="grimoire">
+  <div class="page">
+
+    <!-- 외곽 이중 보더 -->
+    <div class="ornament-border"></div>
+
+    <!-- 코너 장식 (덩굴) -->
+    <div class="corner tl">
+      <svg viewBox="0 0 60 60" fill="none" stroke="currentColor" stroke-width="1.2">
+        <path d="M2 2 Q 30 2 30 30 M2 2 Q 2 30 30 30" />
+        <path d="M8 4 Q 16 8 18 14 Q 14 12 10 14 Q 14 18 18 18 Q 22 22 22 28" stroke-width="0.9" opacity=".8"/>
+        <circle cx="22" cy="28" r="2" fill="currentColor" opacity=".6"/>
+        <path d="M4 8 Q 8 16 14 18" stroke-width="0.7" opacity=".6"/>
+        <circle cx="6" cy="6" r="1.4" fill="currentColor"/>
+        <path d="M28 28 Q 32 24 38 24" stroke-width="0.7" opacity=".6"/>
+        <path d="M28 28 Q 32 32 32 38" stroke-width="0.7" opacity=".6"/>
+      </svg>
+    </div>
+    <div class="corner tr">
+      <svg viewBox="0 0 60 60" fill="none" stroke="currentColor" stroke-width="1.2">
+        <path d="M2 2 Q 30 2 30 30 M2 2 Q 2 30 30 30" />
+        <path d="M8 4 Q 16 8 18 14 Q 14 12 10 14 Q 14 18 18 18 Q 22 22 22 28" stroke-width="0.9" opacity=".8"/>
+        <circle cx="22" cy="28" r="2" fill="currentColor" opacity=".6"/>
+        <path d="M4 8 Q 8 16 14 18" stroke-width="0.7" opacity=".6"/>
+        <circle cx="6" cy="6" r="1.4" fill="currentColor"/>
+      </svg>
+    </div>
+    <div class="corner bl">
+      <svg viewBox="0 0 60 60" fill="none" stroke="currentColor" stroke-width="1.2">
+        <path d="M2 2 Q 30 2 30 30 M2 2 Q 2 30 30 30" />
+        <path d="M8 4 Q 16 8 18 14 Q 14 12 10 14 Q 14 18 18 18 Q 22 22 22 28" stroke-width="0.9" opacity=".8"/>
+        <circle cx="22" cy="28" r="2" fill="currentColor" opacity=".6"/>
+        <circle cx="6" cy="6" r="1.4" fill="currentColor"/>
+      </svg>
+    </div>
+    <div class="corner br">
+      <svg viewBox="0 0 60 60" fill="none" stroke="currentColor" stroke-width="1.2">
+        <path d="M2 2 Q 30 2 30 30 M2 2 Q 2 30 30 30" />
+        <path d="M8 4 Q 16 8 18 14 Q 14 12 10 14 Q 14 18 18 18 Q 22 22 22 28" stroke-width="0.9" opacity=".8"/>
+        <circle cx="22" cy="28" r="2" fill="currentColor" opacity=".6"/>
+        <circle cx="6" cy="6" r="1.4" fill="currentColor"/>
+      </svg>
+    </div>
+
+    <!-- 별 장식 -->
+    <div class="star-deco s1">✦</div>
+    <div class="star-deco s2">✧</div>
+    <div class="star-deco s3">❋</div>
+    <div class="star-deco s4">✦</div>
+    <div class="star-deco s5">✧</div>
+    <div class="star-deco s6">✦</div>
+
+    <!-- 상단 컨트롤 -->
+    <div class="top-controls">
+      <button class="ctrl-btn">← Voltar</button>
+      <button class="ctrl-btn">☾ Modo Suave</button>
+    </div>
+
+    <div class="content">
+
+      <!-- 헤더 -->
+      <div class="header">
+        <div class="celestial">
+          <svg class="moon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.3">
+            <path d="M28 8 a14 14 0 1 0 4 18 a11 11 0 0 1 -4 -18 z" fill="currentColor" fill-opacity=".15"/>
+            <circle cx="14" cy="22" r="1" fill="currentColor"/>
+            <circle cx="20" cy="14" r=".7" fill="currentColor"/>
+            <circle cx="22" cy="26" r=".8" fill="currentColor"/>
+            <path d="M8 6 l1 2 l2 1 l-2 1 l-1 2 l-1 -2 l-2 -1 l2 -1z" fill="currentColor" opacity=".5"/>
+          </svg>
+          <span class="label">PROPRIEDADES MÁGICAS</span>
+          <svg class="sun" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.2">
+            <circle cx="20" cy="20" r="8" fill="currentColor" fill-opacity=".15"/>
+            <circle cx="20" cy="20" r="8"/>
+            <circle cx="17" cy="19" r=".8" fill="currentColor"/>
+            <circle cx="23" cy="19" r=".8" fill="currentColor"/>
+            <path d="M16 23 q4 3 8 0" stroke-width="1"/>
+            <g stroke-width="1.3">
+              <line x1="20" y1="4" x2="20" y2="8"/>
+              <line x1="20" y1="32" x2="20" y2="36"/>
+              <line x1="4" y1="20" x2="8" y2="20"/>
+              <line x1="32" y1="20" x2="36" y2="20"/>
+              <line x1="8" y1="8" x2="11" y2="11"/>
+              <line x1="29" y1="29" x2="32" y2="32"/>
+              <line x1="32" y1="8" x2="29" y2="11"/>
+              <line x1="11" y1="29" x2="8" y2="32"/>
+            </g>
+          </svg>
+        </div>
+        <h1 class="title-main">拜 火 教</h1>
+        <div class="title-sub">秘  笈</div>
+        <div class="title-deco">
+          <span class="star">✦</span>
+          <span>火</span><span class="dot"></span>
+          <span>拜</span><span class="dot"></span>
+          <span>道</span>
+          <span class="star">✦</span>
+        </div>
+      </div>
+
+      <!-- 탭(장 네비게이션) -->
+      <div class="chapters">
+        <div class="chapter">劍 法</div>
+        <div class="chapter active">心 法</div>
+        <div class="chapter">步 法</div>
+        <div class="chapter">外 法</div>
+        <div class="chapter">? ? ?</div>
+      </div>
+
+      <!-- 자원 -->
+      <div class="resources">
+        <div class="res">
+          <div class="res-glyph">火</div>
+          <div class="res-info">
+            <span class="res-label">Brasa Fraca</span>
+            <span class="res-val">7</span>
+          </div>
+        </div>
+        <div class="res">
+          <div class="res-glyph flame">焰</div>
+          <div class="res-info">
+            <span class="res-label">Chama Ardente</span>
+            <span class="res-val">0</span>
+          </div>
+        </div>
+        <div class="res">
+          <div class="res-glyph divine">聖</div>
+          <div class="res-info">
+            <span class="res-label">Essência Sagrada</span>
+            <span class="res-val">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 一段 헤더 -->
+      <div class="tier-header">
+        <div class="tier-rule">
+          <span class="line"></span>
+          <span class="tier-name">一  段</span>
+          <span class="line"></span>
+        </div>
+        <div class="tier-quote">오직 마음으로 불을 본다</div>
+      </div>
+
+      <!-- 一段 · 루트 (단일 컬럼) -->
+      <div class="arts-grid single">
+        <div class="art root">
+          <div class="art-seal">開</div>
+          <div class="art-info">
+            <div class="art-cat">PARA · ABRIR O CAMINHO</div>
+            <div class="art-name">심법 개방</div>
+            <div class="art-desc">처음으로 단전에 불씨를 품는다. 모든 길의 시작점이며,
+              매 호흡마다 한 줌의 잔불이 차오른다.</div>
+            <span class="art-lvl">LV 1 / 30</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 一段 · 가지 (3개 컬럼 → 2x2 grid 위쪽 두 개 + 단일 -->
+      <div class="arts-grid">
+        <div class="art dim">
+          <div class="art-seal">念</div>
+          <div class="art-info">
+            <div class="art-cat">PARA · A MEDITAÇÃO</div>
+            <div class="art-name">재의 묵념</div>
+            <div class="art-desc">고요히 앉아 재 위의 잔불을 응시한다.
+              내공의 회복 속도가 천천히 깊어진다.</div>
+            <span class="art-lvl">LV 0 / 30</span>
+          </div>
+        </div>
+        <div class="art dim">
+          <div class="art-seal">誓</div>
+          <div class="art-info">
+            <div class="art-cat">PARA · O JURAMENTO</div>
+            <div class="art-name">재의 맹세</div>
+            <div class="art-desc">불 앞에 무릎 꿇어 한 마디 약속을 새긴다.
+              그 약속이 마음의 갑옷이 되어준다.</div>
+            <span class="art-lvl">LV 0 / 30</span>
+          </div>
+        </div>
+        <div class="art dim" style="grid-column:1/-1;max-width:340px;margin:0 auto;">
+          <div class="art-seal">速</div>
+          <div class="art-info">
+            <div class="art-cat">PARA · A VELOCIDADE</div>
+            <div class="art-name">재의 빠름</div>
+            <div class="art-desc">불꽃처럼 일어서고 잿가루처럼 사라진다.
+              발끝의 가벼움이 한층 깊어진다.</div>
+            <span class="art-lvl">LV 0 / 30</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 二段 봉인 -->
+      <div class="sealed">
+        <div class="sealed-icon">
+          <svg viewBox="0 0 60 60" fill="none" stroke="currentColor" stroke-width="1.4">
+            <path d="M30 8 L34 14 L42 16 L36 22 L38 30 L30 26 L22 30 L24 22 L18 16 L26 14 z"
+                  fill="currentColor" fill-opacity=".15"/>
+            <circle cx="30" cy="42" r="10" fill="currentColor" fill-opacity=".1"/>
+            <path d="M26 38 v-4 a4 4 0 0 1 8 0 v4" />
+            <rect x="22" y="38" width="16" height="12" rx="1.5" />
+          </svg>
+        </div>
+        <div class="sealed-title">二 段 · 봉인된 장</div>
+        <div class="sealed-sub">강적이 품은 비밀, 혹은 끊임없는 수련</div>
+      </div>
+
+      <!-- 三段 봉인 -->
+      <div class="sealed">
+        <div class="sealed-icon">
+          <svg viewBox="0 0 60 60" fill="none" stroke="currentColor" stroke-width="1.4">
+            <path d="M30 6 L33 13 L40 14 L35 19 L37 26 L30 22 L23 26 L25 19 L20 14 L27 13 z"
+                  fill="currentColor" fill-opacity=".15"/>
+            <circle cx="30" cy="42" r="11" fill="currentColor" fill-opacity=".1"/>
+            <path d="M25 38 v-5 a5 5 0 0 1 10 0 v5" />
+            <rect x="21" y="38" width="18" height="13" rx="1.5" />
+            <circle cx="30" cy="44" r="1.5" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="sealed-title">三 段 · 깊은 봉인</div>
+        <div class="sealed-sub">경지에 이른 자만이 펼칠 수 있는 두루마리</div>
+      </div>
+
+      <!-- 푸터 -->
+      <div class="footer">
+        <div class="footer-text">B A E H W A G Y O · S E C R E T · S C R I P T</div>
+        <div class="footer-deco">✦ ─── 拜 火 教 ─── ✦</div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /page -->
+</div><!-- /grimoire -->
+
+</body>
+</html>

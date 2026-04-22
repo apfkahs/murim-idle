@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>배화교 비급 UI 시안 비교</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+KR:wght@400;600;700&family=ZCOOL+XiaoWei&family=Gowun+Batang:wght@400;700&display=swap');
+  /* ─────────────────────────────────────────────
+     공통 스위처
+     ───────────────────────────────────────────── */
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#0a0806;color:#d8c89a;font-family:'Noto Serif KR','Batang',serif;}
+  .switcher{
+    position:sticky;top:0;z-index:100;
+    display:flex;align-items:center;gap:12px;
+    padding:12px 20px;
+    background:rgba(18,12,8,.94);
+    border-bottom:1px solid rgba(201,160,67,.3);
+    backdrop-filter:blur(6px);
+  }
+  .switcher h1{margin:0;font-size:15px;letter-spacing:3px;color:#e8b852;flex-shrink:0;}
+  .switcher .hint{font-size:11px;color:#8a7548;letter-spacing:1px;margin-left:8px;}
+  .switcher .tabs{display:flex;gap:6px;margin-left:auto;}
+  .switcher button{
+    padding:8px 18px;background:transparent;border:1px solid rgba(201,160,67,.3);
+    color:#a08456;font-family:inherit;font-size:13px;letter-spacing:2px;cursor:pointer;border-radius:4px;
+    transition:all .15s;
+  }
+  .switcher button:hover{color:#e8b852;border-color:#c9a043;background:rgba(201,160,67,.08);}
+  .switcher button.active{color:#0c0a0a;background:#e8b852;border-color:#e8b852;font-weight:700;box-shadow:0 0 14px rgba(201,160,67,.35);}
+  .legend{
+    padding:10px 20px;font-size:12px;color:#8a7548;letter-spacing:1px;
+    background:rgba(0,0,0,.3);border-bottom:1px solid rgba(201,160,67,.12);
+  }
+  .legend b{color:#e8b852;margin-right:8px;}
+  .mockup{display:none;padding:24px;}
+  .mockup.active{display:flex;justify-content:center;}
+
+  /* ─────────────────────────────────────────────
+     시안 A · 양피지 (매우 낡은)
+     ───────────────────────────────────────────── */
+  .A{
+    --paper-0:#eeddb0;       /* 밝은 부분 (가운데 쪽) */
+    --paper-1:#dec38a;       /* 중간 톤 */
+    --paper-2:#c09b5e;       /* 가장자리 누렇게 */
+    --paper-3:#8b683a;       /* 가장 가장자리 그을림 */
+    --paper-edge:#7a5b30;
+    --ink:#2a1d10;
+    --ink-faded:#5a4528;
+    --ink-soft:#7a5b35;
+    --seal:#8a2418;
+    --seal-dark:#5a160e;
+    --gold:#a87c29;
+    --foxing:#7a4a1e;        /* 폭싱 얼룩 (작은 갈색 점) */
+    --burn:#3a2008;          /* 그을림 */
+    --font-brush:'Ma Shan Zheng','Long Cang','Nanum Myeongjo',serif;
+    --font-han:'ZCOOL XiaoWei','Ma Shan Zheng','Nanum Myeongjo',serif;
+    --font-old:'Gowun Batang','Noto Serif KR','Batang',serif;
+    font-family:var(--font-old);
+    color:var(--ink);
+  }
+  /* 나무 프레임 */
+  .A .frame{
+    width:min(880px,100%);
+    background:
+      repeating-linear-gradient(135deg, rgba(60,40,20,.12) 0 2px, transparent 2px 6px),
+      repeating-linear-gradient(0deg, rgba(40,24,10,.18) 0 1px, transparent 1px 3px),
+      linear-gradient(180deg,#2f2318,#1a120a);
+    border-radius:14px;padding:18px;
+    box-shadow:0 20px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(120,80,40,.3);
+  }
+  /* 두루마리 롤러 */
+  .A .roller{
+    height:22px;
+    background:
+      repeating-linear-gradient(90deg, rgba(0,0,0,.18) 0 1px, transparent 1px 4px),
+      linear-gradient(90deg,#2a1a0a 0%, #6b4a26 10%, #8a6531 50%, #6b4a26 90%, #2a1a0a 100%);
+    border:1px solid #1a0f06;border-radius:10px;
+    box-shadow:0 2px 6px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,220,160,.20), inset 0 -2px 4px rgba(0,0,0,.55);
+    position:relative;
+  }
+  .A .roller::before,.A .roller::after{
+    content:"";position:absolute;top:-3px;width:18px;height:28px;border-radius:4px;
+    background:linear-gradient(180deg,#b98a44,#4a2f14);
+    border:1px solid #1a0f06;
+    box-shadow:inset 0 1px 0 rgba(255,220,170,.25);
+  }
+  .A .roller::before{left:-10px}
+  .A .roller::after{right:-10px}
+  .A .roller.bottom{margin-top:-4px}
+  .A .roller.top{margin-bottom:-4px}
+
+  /* ── 양피지 본문: 매우 낡은 + 양피지 질감 ── */
+  .A .scroll{
+    position:relative;
+    /* 찢긴 외곽 */
+    clip-path: polygon(
+      0% 3%, 1.5% 0.5%, 4% 1%, 7% 0%, 12% 1.5%, 17% 0%, 23% 1%, 28% 0.5%, 35% 0%, 42% 1.5%, 50% 0.3%, 58% 1.2%, 65% 0%, 72% 1.8%, 79% 0.5%, 85% 0%, 90% 1.5%, 95% 0.3%, 98% 1.2%, 100% 2.5%,
+      99.2% 6%, 100% 11%, 98.8% 16%, 100% 22%, 99.5% 30%, 100% 38%, 98.7% 48%, 100% 58%, 99.2% 66%, 100% 74%, 98.5% 82%, 100% 90%, 99.3% 96%, 100% 98%,
+      98% 99.3%, 94% 98.7%, 88% 100%, 82% 98.8%, 76% 100%, 70% 99.2%, 63% 100%, 56% 98.5%, 50% 100%, 44% 99%, 38% 100%, 32% 98.8%, 26% 99.8%, 20% 98.5%, 14% 100%, 8% 99%, 3% 99.5%, 0% 97%,
+      0.8% 92%, 0% 85%, 1.2% 78%, 0% 70%, 0.5% 62%, 0% 54%, 1.5% 45%, 0% 36%, 0.8% 28%, 0% 20%, 1.2% 12%, 0% 6%
+    );
+    background:
+      /* 색상 패치 변화 (자연스러운 얼룩덜룩) */
+      radial-gradient(ellipse 380px 280px at 25% 35%, rgba(240,225,185,.55), transparent 65%),
+      radial-gradient(ellipse 320px 240px at 72% 68%, rgba(180,140,80,.40), transparent 65%),
+      radial-gradient(ellipse 260px 200px at 85% 18%, rgba(210,170,110,.45), transparent 70%),
+      radial-gradient(ellipse 280px 180px at 15% 78%, rgba(200,160,100,.42), transparent 68%),
+      /* 가장자리 그을림 + 누런 변색 (4방향) */
+      radial-gradient(ellipse at 50% 0%, rgba(120,70,20,.55), transparent 18%),
+      radial-gradient(ellipse at 50% 100%, rgba(100,60,18,.55), transparent 18%),
+      radial-gradient(ellipse at 0% 50%, rgba(110,65,20,.55), transparent 15%),
+      radial-gradient(ellipse at 100% 50%, rgba(110,65,20,.55), transparent 15%),
+      /* 네 모서리 깊은 그을림 */
+      radial-gradient(circle at 0% 0%, rgba(50,25,5,.75), transparent 120px),
+      radial-gradient(circle at 100% 0%, rgba(50,25,5,.70), transparent 100px),
+      radial-gradient(circle at 0% 100%, rgba(45,22,5,.80), transparent 130px),
+      radial-gradient(circle at 100% 100%, rgba(50,25,5,.72), transparent 110px),
+      /* 섬유결 (가로) */
+      repeating-linear-gradient(0deg, transparent 0 19px, rgba(100,70,30,.05) 19px 20px, transparent 20px 21px),
+      /* 섬유결 (대각선, 살짝) */
+      repeating-linear-gradient(7deg, transparent 0 80px, rgba(120,80,30,.03) 80px 82px, transparent 82px 160px),
+      /* 베이스 그라디언트 (가운데 밝고 가장자리 어둡게) */
+      radial-gradient(ellipse 100% 100% at 50% 50%, var(--paper-0) 0%, var(--paper-1) 55%, var(--paper-2) 85%, var(--paper-3) 100%);
+    padding:26px 34px 44px;
+    box-shadow:
+      inset 0 0 140px rgba(80,50,20,.55),
+      inset 0 0 40px rgba(100,65,25,.45),
+      0 10px 30px rgba(0,0,0,.45);
+  }
+  /* 폭싱 점 (foxing) + 물때 + 구김 */
+  .A .scroll::before{
+    content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+    background:
+      /* 큰 물때 링 */
+      radial-gradient(circle 85px at 28% 42%, transparent 0 55px, rgba(120,75,30,.22) 56px 60px, rgba(120,75,30,.08) 62px 68px, transparent 72px),
+      radial-gradient(circle 65px at 72% 64%, transparent 0 42px, rgba(110,70,28,.20) 44px 48px, rgba(110,70,28,.06) 50px 56px, transparent 60px),
+      /* 얼룩 (잉크 떨어진) */
+      radial-gradient(ellipse 35px 22px at 18% 28%, rgba(60,35,12,.35), transparent 70%),
+      radial-gradient(ellipse 45px 28px at 82% 34%, rgba(50,28,10,.38), transparent 70%),
+      radial-gradient(ellipse 28px 18px at 55% 88%, rgba(70,40,15,.32), transparent 70%),
+      radial-gradient(ellipse 22px 14px at 12% 62%, rgba(55,30,12,.35), transparent 70%),
+      /* 폭싱 점 (작은 갈색 점) 15개 정도 */
+      radial-gradient(circle 4px at 22% 15%, rgba(110,65,20,.65), transparent 70%),
+      radial-gradient(circle 3px at 38% 22%, rgba(110,65,20,.60), transparent 70%),
+      radial-gradient(circle 5px at 64% 18%, rgba(95,55,18,.65), transparent 70%),
+      radial-gradient(circle 4px at 78% 26%, rgba(110,65,20,.60), transparent 70%),
+      radial-gradient(circle 3px at 15% 38%, rgba(100,58,18,.55), transparent 70%),
+      radial-gradient(circle 5px at 48% 44%, rgba(110,65,20,.50), transparent 70%),
+      radial-gradient(circle 4px at 68% 48%, rgba(95,55,18,.60), transparent 70%),
+      radial-gradient(circle 3px at 88% 52%, rgba(110,65,20,.65), transparent 70%),
+      radial-gradient(circle 4px at 25% 58%, rgba(100,58,18,.55), transparent 70%),
+      radial-gradient(circle 5px at 52% 62%, rgba(95,55,18,.60), transparent 70%),
+      radial-gradient(circle 3px at 75% 72%, rgba(110,65,20,.60), transparent 70%),
+      radial-gradient(circle 4px at 35% 76%, rgba(100,58,18,.55), transparent 70%),
+      radial-gradient(circle 5px at 60% 82%, rgba(95,55,18,.58), transparent 70%),
+      radial-gradient(circle 3px at 84% 86%, rgba(110,65,20,.60), transparent 70%),
+      radial-gradient(circle 4px at 18% 88%, rgba(100,58,18,.55), transparent 70%),
+      radial-gradient(circle 3px at 45% 34%, rgba(110,65,20,.55), transparent 70%),
+      radial-gradient(circle 4px at 92% 40%, rgba(95,55,18,.58), transparent 70%);
+  }
+  /* 접힘 자국 + 찢어진 안쪽 균열 */
+  .A .scroll::after{
+    content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+    background:
+      /* 가로 접힘 3줄 */
+      linear-gradient(180deg,
+        transparent 0 24%,
+        rgba(60,35,12,.22) 24.2%, rgba(255,240,200,.18) 24.5%, transparent 25% 48%,
+        rgba(60,35,12,.18) 48.2%, rgba(255,240,200,.15) 48.5%, transparent 49% 72%,
+        rgba(60,35,12,.20) 72.2%, rgba(255,240,200,.16) 72.5%, transparent 73% 100%
+      ),
+      /* 세로 접힘 2줄 */
+      linear-gradient(90deg,
+        transparent 0 33%,
+        rgba(60,35,12,.15) 33.2%, rgba(255,240,200,.12) 33.5%, transparent 34% 66%,
+        rgba(60,35,12,.15) 66.2%, rgba(255,240,200,.12) 66.5%, transparent 67% 100%
+      );
+  }
+  .A .scroll > *{position:relative;z-index:2;}
+
+  .A .head{display:flex;align-items:center;gap:14px;padding:4px 0 14px;border-bottom:2px double var(--ink-faded);}
+  .A .back-btn{
+    background:transparent;border:1px solid var(--ink-faded);color:var(--ink);
+    padding:5px 12px;border-radius:3px;font-family:var(--font-old);font-size:13px;cursor:pointer;
+  }
+  .A .back-btn:hover{background:rgba(90,60,30,.15);}
+  /* 타이틀: 붓글씨 */
+  .A .title{
+    flex:1;text-align:center;
+    font-family:var(--font-brush);font-weight:400;
+    font-size:36px;letter-spacing:10px;color:var(--ink);
+    text-shadow:
+      0 1px 0 rgba(255,240,200,.5),
+      1px 1px 0 rgba(90,60,30,.25);
+    /* 글씨 바랜 효과 */
+    filter:blur(.3px) contrast(1.1);
+  }
+  .A .title .sub{
+    display:block;font-family:var(--font-old);
+    font-size:11px;letter-spacing:4px;color:var(--ink-soft);margin-top:4px;font-weight:400;
+    filter:none;
+  }
+  .A .tabs-row{display:flex;gap:0;margin-top:14px;}
+  .A .tab{
+    flex:1;padding:11px 6px;text-align:center;cursor:pointer;
+    font-family:var(--font-han);font-size:16px;letter-spacing:4px;color:var(--ink-soft);
+    background:
+      radial-gradient(ellipse 40px 14px at 20% 100%, rgba(90,60,30,.25), transparent 70%),
+      rgba(217,195,146,.25);
+    border:1px solid var(--paper-edge);border-bottom:none;
+    position:relative;
+  }
+  .A .tab + .tab{border-left:none}
+  .A .tab.active{
+    background:
+      radial-gradient(ellipse 40px 14px at 20% 100%, rgba(90,60,30,.25), transparent 70%),
+      linear-gradient(180deg, rgba(255,245,220,.55), rgba(217,195,146,.2));
+    color:var(--seal);font-weight:700;
+    box-shadow:inset 0 -3px 0 var(--seal);
+  }
+  .A .tab.mystery{color:#6b5b85;font-style:italic;}
+
+  .A .inv{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0 8px;
+    padding:14px 18px;position:relative;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 12px, rgba(120,80,30,.07) 12px 13px),
+      rgba(255,245,215,.35);
+    border:1px solid var(--paper-edge);border-radius:3px;
+    overflow:hidden;
+  }
+  .A .inv::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 50px 20px at 80% 30%, rgba(100,60,18,.22), transparent 70%),
+      radial-gradient(circle 4px at 25% 60%, rgba(100,58,18,.55), transparent 70%),
+      radial-gradient(circle 3px at 55% 75%, rgba(110,65,20,.55), transparent 70%);
+  }
+  .A .inv-cell{display:flex;align-items:center;gap:8px;font-size:13px;position:relative;z-index:1;}
+  .A .inv-icon{
+    width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-han);font-size:15px;font-weight:700;
+    background:radial-gradient(circle at 35% 35%, #f7c970, #b67a25 60%, #6b4416);
+    border:1.5px solid var(--ink);color:#fff8d8;
+    box-shadow:inset 0 -2px 3px rgba(0,0,0,.35);
+  }
+  .A .inv-icon.flame{background:radial-gradient(circle at 35% 35%, #f3a24d, #a0321a 60%, #4a0e06);}
+  .A .inv-icon.divine{background:radial-gradient(circle at 35% 35%, #ffe5a1, #d4a53e 60%, #7a5a14);}
+  .A .inv-label{font-family:var(--font-old);color:var(--ink-soft);font-size:12px;}
+  .A .inv-value{font-family:var(--font-han);color:var(--ink);font-weight:700;font-size:17px;margin-left:auto;}
+
+  .A .tier{display:flex;align-items:center;gap:12px;margin:28px 0 6px;}
+  .A .tier-line{flex:1;height:1px;background:linear-gradient(90deg,transparent, var(--ink-faded) 20%, var(--ink-faded) 80%, transparent);}
+  .A .tier-label{
+    font-family:var(--font-han);font-size:15px;letter-spacing:8px;color:var(--ink-faded);
+    padding:4px 16px;
+    border:1px solid var(--ink-faded);border-radius:20px;
+    background:rgba(255,245,215,.45);
+  }
+
+  .A .tree{display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .A .row{display:flex;justify-content:center;gap:32px;}
+  .A .line-v{width:2px;height:28px;background:linear-gradient(180deg, var(--ink-faded), transparent);position:relative;}
+  .A .line-v::before,.A .line-v::after{content:"";position:absolute;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 1px var(--ink-faded);}
+  .A .line-v::before{top:-3px}
+  .A .line-v::after{bottom:-3px}
+  .A .branch-line{position:relative;width:360px;height:20px;margin:0 0 6px;}
+  .A .branch-line::before{content:"";position:absolute;top:0;left:10%;right:10%;height:2px;background:linear-gradient(90deg, transparent, var(--ink-faded) 15%, var(--ink-faded) 85%, transparent);}
+  .A .branch-line span{position:absolute;top:-3px;width:2px;height:20px;background:var(--ink-faded);}
+  .A .branch-line span:nth-child(1){left:10%}
+  .A .branch-line span:nth-child(2){left:50%}
+  .A .branch-line span:nth-child(3){right:10%}
+
+  .A .node{display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;}
+  .A .seal{
+    width:86px;height:86px;position:relative;
+    background:
+      radial-gradient(circle at 30% 25%, rgba(255,200,150,.45), transparent 55%),
+      radial-gradient(circle at center, var(--seal) 0 62%, var(--seal-dark) 63% 100%);
+    border-radius:50%;display:flex;align-items:center;justify-content:center;
+    color:#f4e6cc;font-family:var(--font-brush);
+    box-shadow:inset 0 -4px 10px rgba(0,0,0,.45), inset 0 2px 5px rgba(255,220,180,.30), 0 3px 10px rgba(60,20,10,.45);
+    transition:transform .15s, box-shadow .15s;
+    overflow:hidden;
+  }
+  /* 인장 번짐/낡음 */
+  .A .seal::before{
+    content:"";position:absolute;inset:6px;
+    border:1.5px dashed rgba(255,220,180,.35);border-radius:50%;
+  }
+  .A .seal::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(circle 18px at 75% 20%, rgba(40,8,4,.45), transparent 70%),
+      radial-gradient(circle 12px at 18% 78%, rgba(40,8,4,.40), transparent 70%),
+      radial-gradient(ellipse 30px 10px at 50% 105%, rgba(240,220,180,.25), transparent 70%);
+    border-radius:50%;
+  }
+  .A .seal .ch{
+    font-size:44px;font-weight:400;letter-spacing:0;line-height:1;
+    text-shadow:0 1px 2px rgba(0,0,0,.55);
+    position:relative;z-index:1;
+    /* 인주가 번진 느낌 */
+    filter:blur(.3px) contrast(1.1);
+  }
+  .A .node:hover .seal{
+    transform:translateY(-2px);
+    box-shadow:inset 0 -4px 10px rgba(0,0,0,.45),inset 0 2px 5px rgba(255,220,180,.30),0 0 0 2px var(--gold), 0 6px 14px rgba(60,20,10,.55);
+  }
+  .A .node .name{font-family:var(--font-old);font-size:14px;font-weight:600;color:var(--ink);letter-spacing:1px;}
+  .A .node .lvl{
+    font-family:var(--font-han);font-size:12px;color:var(--ink-soft);
+    padding:2px 12px;background:rgba(255,245,215,.7);
+    border:1px solid var(--paper-edge);border-radius:10px;
+  }
+  .A .node.root .seal{
+    width:108px;height:108px;
+    background:
+      radial-gradient(circle at 30% 25%, rgba(255,220,180,.55), transparent 55%),
+      radial-gradient(circle at center, #c9391e 0 62%, #74170c 63% 100%);
+    box-shadow:inset 0 -4px 12px rgba(0,0,0,.5), inset 0 2px 6px rgba(255,230,195,.35), 0 0 0 3px rgba(168,124,41,.6), 0 0 0 5px rgba(60,40,20,.5), 0 6px 18px rgba(60,20,10,.5);
+  }
+  .A .node.root .seal::before{inset:8px;border-color:rgba(255,230,195,.45);}
+  .A .node.root .seal .ch{font-size:56px}
+  .A .node.root .name{font-size:16px;color:var(--seal-dark);font-weight:700;}
+  .A .node.dim .seal{filter:saturate(.35) brightness(.85);opacity:.75}
+  .A .node.dim .name{color:var(--ink-soft)}
+
+  .A .locked{
+    position:relative;margin:28px 0 0;padding:34px 20px;
+    border:1px dashed var(--ink-faded);border-radius:3px;
+    background:
+      repeating-linear-gradient(45deg, transparent 0 10px, rgba(120,80,30,.08) 10px 11px),
+      rgba(217,195,146,.18);
+    text-align:center;cursor:pointer;transition:background .15s;overflow:hidden;
+  }
+  /* 잠긴 영역 폭싱 */
+  .A .locked::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(circle 5px at 15% 25%, rgba(100,58,18,.55), transparent 70%),
+      radial-gradient(circle 4px at 75% 18%, rgba(110,65,20,.60), transparent 70%),
+      radial-gradient(circle 6px at 88% 72%, rgba(95,55,18,.60), transparent 70%),
+      radial-gradient(circle 4px at 28% 82%, rgba(100,58,18,.55), transparent 70%),
+      radial-gradient(ellipse 80px 30px at 20% 50%, rgba(100,60,18,.15), transparent 70%);
+  }
+  .A .locked:hover{background:rgba(217,195,146,.28)}
+  .A .wax-seal{
+    width:76px;height:76px;margin:0 auto 14px;position:relative;z-index:1;
+    background:radial-gradient(circle at 30% 30%, #d4583e, #8a2418 50%, #4a0c06);
+    border-radius:50%;
+    box-shadow:inset 0 -5px 12px rgba(0,0,0,.5), inset 0 3px 6px rgba(255,180,150,.4), 0 4px 10px rgba(80,20,10,.5);
+  }
+  .A .wax-seal::before{
+    content:"封";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#f4d5b0;font-size:40px;font-weight:400;
+    font-family:var(--font-brush);
+    text-shadow:0 1px 2px rgba(0,0,0,.55);
+    filter:blur(.3px);
+  }
+  .A .locked-text{
+    font-family:var(--font-han);font-size:16px;color:var(--ink-faded);letter-spacing:3px;line-height:1.7;
+    position:relative;z-index:1;
+  }
+  .A .locked-hint{
+    display:block;font-family:var(--font-old);font-size:11px;color:var(--ink-soft);
+    margin-top:6px;letter-spacing:1px;font-style:italic;
+    position:relative;z-index:1;
+  }
+
+  /* ─────────────────────────────────────────────
+     시안 B · 흑단 비단 (낡은 비급)
+     ───────────────────────────────────────────── */
+  .B{
+    --silk-0:#1a1310;--silk-1:#241915;
+    --gold-1:#c9a043;--gold-2:#8a6a25;
+    --vermilion:#a8331e;--vermilion-deep:#5e1a0e;
+    --ink-light:#d8c89a;--ink-mid:#a08456;--ink-dim:#6b5535;
+    --font-brush:'Ma Shan Zheng','Nanum Myeongjo',serif;
+    --font-han:'ZCOOL XiaoWei','Ma Shan Zheng','Nanum Myeongjo',serif;
+    --font-serif:'Noto Serif KR','Gowun Batang','Batang',serif;
+    font-family:var(--font-serif);
+    color:var(--ink-light);
+  }
+  .B .frame{
+    width:min(880px,100%);position:relative;
+    background:repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,.35) 3px 4px),linear-gradient(180deg,#1a1208 0%, #0c0805 100%);
+    border:1px solid #2a1d10;border-radius:6px;padding:14px;
+    box-shadow:inset 0 0 0 1px rgba(201,160,67,.15), 0 25px 70px rgba(0,0,0,.7);
+  }
+  .B .corner{position:absolute;width:30px;height:30px;border:1.5px solid var(--gold-2);z-index:3;}
+  .B .corner.tl{top:6px;left:6px;border-right:none;border-bottom:none;}
+  .B .corner.tr{top:6px;right:6px;border-left:none;border-bottom:none;}
+  .B .corner.bl{bottom:6px;left:6px;border-right:none;border-top:none;}
+  .B .corner.br{bottom:6px;right:6px;border-left:none;border-top:none;}
+  /* ── 비단 본문: 직조 + 먹 얼룩 + 구김 + 모서리 닳음 ── */
+  .B .silk{
+    position:relative;
+    background:
+      /* 먹 얼룩들 — 큰 것 5점 + 작은 것 */
+      radial-gradient(ellipse 90px 55px at 14% 22%, rgba(0,0,0,.42), transparent 65%),
+      radial-gradient(ellipse 70px 48px at 86% 16%, rgba(40,18,6,.50), transparent 62%),
+      radial-gradient(ellipse 110px 75px at 78% 70%, rgba(0,0,0,.38), transparent 65%),
+      radial-gradient(ellipse 55px 38px at 22% 86%, rgba(60,28,8,.40), transparent 60%),
+      radial-gradient(ellipse 35px 24px at 48% 48%, rgba(80,38,18,.22), transparent 60%),
+      radial-gradient(ellipse 28px 18px at 62% 30%, rgba(0,0,0,.30), transparent 60%),
+      radial-gradient(ellipse 22px 14px at 8% 60%, rgba(50,22,8,.32), transparent 60%),
+      /* 가로 구김 (fold creases) */
+      linear-gradient(180deg, transparent 0 30%, rgba(0,0,0,.18) 30.3%, rgba(255,210,140,.04) 30.6%, transparent 31% 62%, rgba(0,0,0,.14) 62.3%, rgba(255,210,140,.03) 62.6%, transparent 63% 100%),
+      /* 직조 패턴 */
+      repeating-linear-gradient(45deg, rgba(201,160,67,.05) 0 1px, transparent 1px 6px),
+      repeating-linear-gradient(-45deg, rgba(201,160,67,.04) 0 1px, transparent 1px 6px),
+      /* 따뜻한 광택 */
+      radial-gradient(ellipse at 20% 20%, rgba(168,51,30,.06), transparent 55%),
+      radial-gradient(ellipse at 80% 80%, rgba(201,160,67,.07), transparent 55%),
+      /* 베이스 */
+      linear-gradient(180deg, var(--silk-1) 0%, var(--silk-0) 100%);
+    border:1px solid rgba(201,160,67,.18);border-radius:3px;
+    padding:24px 32px 36px;
+    box-shadow:
+      inset 0 0 110px rgba(0,0,0,.45),
+      inset 0 0 60px rgba(0,0,0,.55),
+      inset 0 0 0 6px rgba(0,0,0,.3);
+  }
+  /* 모서리 닳음 + 비네팅 */
+  .B .silk::before{
+    content:"";position:absolute;inset:0;pointer-events:none;z-index:2;
+    background:
+      radial-gradient(circle at 0% 0%,    rgba(0,0,0,.55), transparent 110px),
+      radial-gradient(circle at 100% 0%,  rgba(0,0,0,.50), transparent 95px),
+      radial-gradient(circle at 0% 100%,  rgba(0,0,0,.60), transparent 120px),
+      radial-gradient(circle at 100% 100%,rgba(0,0,0,.55), transparent 110px),
+      /* 일부 모서리에 작은 검은 헤짐 — irregular */
+      radial-gradient(ellipse 14px 6px at 1% 32%, rgba(0,0,0,.55), transparent 70%),
+      radial-gradient(ellipse 8px 14px at 98% 58%, rgba(0,0,0,.55), transparent 70%),
+      radial-gradient(ellipse 18px 8px at 40% 99%, rgba(0,0,0,.50), transparent 70%);
+  }
+  /* 종이결 + 점 노이즈 */
+  .B .silk::after{
+    content:"";position:absolute;inset:0;pointer-events:none;z-index:2;opacity:.55;
+    background:
+      radial-gradient(circle at 28% 60%, rgba(255,220,150,.045) 1px, transparent 2px),
+      radial-gradient(circle at 72% 40%, rgba(255,220,150,.04) 1px, transparent 2px),
+      radial-gradient(circle at 50% 80%, rgba(0,0,0,.20) 1px, transparent 2px),
+      radial-gradient(circle at 18% 12%, rgba(0,0,0,.18) 1px, transparent 2px),
+      radial-gradient(circle at 84% 88%, rgba(255,220,150,.04) 1px, transparent 2px);
+    background-size:32px 32px, 48px 48px, 26px 26px, 40px 40px, 36px 36px;
+  }
+  /* 본문 자식들이 얼룩/구김 위로 올라오도록 */
+  .B .silk > *{position:relative;z-index:1;}
+
+  .B .head{display:flex;align-items:center;gap:14px;padding:6px 0 14px;border-bottom:1px solid rgba(201,160,67,.25);}
+  .B .back-btn{
+    background:transparent;border:1px solid rgba(201,160,67,.35);color:var(--ink-light);
+    padding:5px 12px;border-radius:2px;font-family:var(--font-serif);font-size:13px;cursor:pointer;letter-spacing:1px;
+  }
+  .B .back-btn:hover{background:rgba(201,160,67,.08);border-color:var(--gold-1);color:var(--gold-1);}
+  /* 타이틀: 붓글씨 */
+  .B .title{
+    flex:1;text-align:center;
+    font-family:var(--font-brush);font-weight:400;
+    font-size:34px;letter-spacing:14px;
+    color:var(--gold-1);
+    text-shadow:0 0 12px rgba(201,160,67,.45), 0 1px 0 #000, 1px 1px 0 rgba(0,0,0,.4);
+    /* 글씨 자체에 살짝 바랜 효과 */
+    filter:contrast(1.05);
+  }
+  .B .title .sub{
+    display:block;font-family:var(--font-serif);font-weight:400;
+    font-size:10px;letter-spacing:6px;color:var(--ink-mid);margin-top:4px;
+    filter:none;
+  }
+  .B .tabs-row{display:flex;gap:6px;margin-top:18px;justify-content:center;}
+  .B .tab{
+    flex:1;padding:0;cursor:pointer;position:relative;height:48px;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-han);font-size:17px;letter-spacing:6px;
+    color:var(--ink-dim);
+    background:linear-gradient(180deg, #2a1f15 0%, #1a120c 100%);
+    border:1px solid #3a2814;border-top:2px solid #5a4020;border-radius:2px 2px 0 0;
+    box-shadow:inset 0 -2px 4px rgba(0,0,0,.6);
+    overflow:hidden;
+  }
+  /* 탭 닳음 */
+  .B .tab::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 30px 12px at 10% 100%, rgba(0,0,0,.5), transparent 70%),
+      radial-gradient(ellipse 22px 10px at 90% 0%, rgba(0,0,0,.45), transparent 70%);
+  }
+  .B .tab.active{
+    color:var(--gold-1);
+    background:radial-gradient(ellipse at top, rgba(201,160,67,.18), transparent 60%),linear-gradient(180deg, #3a2614 0%, #1f1409 100%);
+    border-color:var(--gold-2);border-top-color:var(--gold-1);
+    text-shadow:0 0 6px rgba(201,160,67,.5);
+  }
+  .B .tab.active::after{content:"";position:absolute;left:8%;right:8%;bottom:-2px;height:2px;background:var(--gold-1);box-shadow:0 0 8px rgba(201,160,67,.7);}
+  .B .tab.mystery{color:#6b5b85;}
+
+  .B .inv{
+    margin:18px 0 8px;padding:14px 18px;
+    background:rgba(0,0,0,.40);
+    border:1px solid rgba(201,160,67,.18);border-radius:3px;
+    display:grid;grid-template-columns:repeat(3,1fr);gap:14px;position:relative;
+    overflow:hidden;
+  }
+  .B .inv::before{
+    content:"";position:absolute;inset:3px;border:1px dashed rgba(201,160,67,.10);border-radius:2px;pointer-events:none;
+  }
+  /* 인벤 위 작은 얼룩 */
+  .B .inv::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 28px 12px at 75% 30%, rgba(0,0,0,.35), transparent 70%),
+      radial-gradient(ellipse 14px 8px at 18% 78%, rgba(40,18,6,.40), transparent 70%);
+  }
+  .B .inv-cell{display:flex;align-items:center;gap:10px;font-size:13px;position:relative;z-index:1;}
+  .B .inv-icon{
+    width:30px;height:30px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    border-radius:2px;font-family:var(--font-han);font-size:16px;font-weight:700;
+    background:linear-gradient(180deg, rgba(168,51,30,.55), rgba(94,26,14,.85));
+    border:1px solid rgba(201,160,67,.45);color:var(--gold-1);
+    text-shadow:0 1px 1px rgba(0,0,0,.7);
+    box-shadow:inset 0 1px 0 rgba(255,210,140,.18), 0 0 0 1px rgba(0,0,0,.5);
+  }
+  .B .inv-icon.flame{background:linear-gradient(180deg, rgba(168,90,30,.55), rgba(94,42,10,.85));}
+  .B .inv-icon.divine{background:linear-gradient(180deg, rgba(201,160,67,.45), rgba(94,72,20,.85));}
+  .B .inv-label{font-family:var(--font-serif);color:var(--ink-mid);font-size:12px;letter-spacing:1px;}
+  .B .inv-value{margin-left:auto;color:var(--gold-1);font-weight:700;font-size:18px;font-family:var(--font-han);text-shadow:0 0 6px rgba(201,160,67,.3);}
+
+  .B .tier{display:flex;align-items:center;gap:14px;margin:30px 0 14px;}
+  .B .tier-line{flex:1;height:1px;background:linear-gradient(90deg,transparent, rgba(201,160,67,.4) 30%, rgba(201,160,67,.4) 70%, transparent);}
+  .B .tier-label{
+    font-family:var(--font-han);font-size:16px;letter-spacing:8px;
+    color:var(--gold-1);
+    padding:6px 22px;
+    background:radial-gradient(ellipse at center, rgba(201,160,67,.10), transparent 70%),rgba(0,0,0,.55);
+    border:1px solid rgba(201,160,67,.35);border-radius:2px;
+    text-shadow:0 0 6px rgba(201,160,67,.4);
+    position:relative;
+  }
+  .B .tree{display:flex;flex-direction:column;align-items:center;gap:0;color:var(--ink-light);}
+  .B .row{display:flex;justify-content:center;gap:36px;padding:6px 0;}
+  .B .line-v{width:1px;height:32px;background:linear-gradient(180deg, rgba(201,160,67,.7) 0%, rgba(201,160,67,.2) 100%);position:relative;}
+  .B .line-v::before,.B .line-v::after{content:"◆";position:absolute;left:50%;transform:translateX(-50%);color:var(--gold-1);font-size:8px;line-height:1;text-shadow:0 0 4px rgba(201,160,67,.6);}
+  .B .line-v::before{top:-6px}
+  .B .line-v::after{bottom:-6px}
+  .B .branch{position:relative;width:440px;height:18px;}
+  .B .branch::before{content:"";position:absolute;top:0;left:8%;right:8%;height:1px;background:linear-gradient(90deg,transparent, rgba(201,160,67,.5) 15%, rgba(201,160,67,.5) 85%, transparent);}
+  .B .branch i{position:absolute;top:0;width:1px;height:18px;background:linear-gradient(180deg, rgba(201,160,67,.6), transparent);}
+  .B .branch i:nth-child(1){left:8%}
+  .B .branch i:nth-child(2){left:50%}
+  .B .branch i:nth-child(3){right:8%}
+
+  .B .node{display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer;}
+  .B .card{
+    width:96px;height:96px;position:relative;
+    background:
+      /* 카드 위 얼룩 */
+      radial-gradient(ellipse 18px 10px at 78% 22%, rgba(0,0,0,.45), transparent 70%),
+      radial-gradient(ellipse 12px 8px at 18% 82%, rgba(0,0,0,.40), transparent 70%),
+      /* 종이 광택 */
+      radial-gradient(ellipse at 30% 25%, rgba(201,160,67,.18), transparent 55%),
+      /* 베이스 */
+      linear-gradient(160deg, #2c1d14 0%, #160c08 100%);
+    border:1px solid var(--gold-2);border-radius:3px;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.7), inset 0 0 22px rgba(0,0,0,.55), inset 0 1px 0 rgba(201,160,67,.25), 0 4px 14px rgba(0,0,0,.6);
+    transition:all .15s;overflow:hidden;
+  }
+  .B .card::before{content:"";position:absolute;inset:5px;border:1px solid rgba(201,160,67,.32);pointer-events:none;}
+  /* 카드 모서리 닳음 */
+  .B .card::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(circle at 0% 0%,    rgba(0,0,0,.45), transparent 18px),
+      radial-gradient(circle at 100% 0%,  rgba(0,0,0,.40), transparent 16px),
+      radial-gradient(circle at 0% 100%,  rgba(0,0,0,.50), transparent 22px),
+      radial-gradient(circle at 100% 100%,rgba(0,0,0,.45), transparent 18px);
+  }
+  .B .card .ch{
+    font-family:var(--font-brush);font-weight:400;font-size:54px;line-height:1;
+    color:var(--gold-1);
+    text-shadow:0 0 10px rgba(201,160,67,.4), 0 2px 3px rgba(0,0,0,.85);
+    letter-spacing:0;
+    /* 잉크가 살짝 번진 듯 */
+    filter:contrast(1.08);
+  }
+  .B .lvl-badge{
+    position:absolute;bottom:3px;right:5px;font-family:var(--font-han);
+    font-size:11px;color:var(--ink-mid);
+    background:rgba(0,0,0,.7);padding:1px 6px;border-radius:2px;border:1px solid rgba(201,160,67,.25);
+    z-index:1;
+  }
+  .B .node:hover .card{
+    border-color:var(--gold-1);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.7), inset 0 0 22px rgba(0,0,0,.55), inset 0 1px 0 rgba(201,160,67,.35), 0 0 0 2px rgba(201,160,67,.4), 0 6px 18px rgba(0,0,0,.7);
+  }
+  .B .node .name{font-family:var(--font-serif);font-size:13px;color:var(--ink-light);letter-spacing:2px;}
+  .B .node.root .card{
+    width:118px;height:118px;
+    background:
+      radial-gradient(ellipse 22px 12px at 72% 18%, rgba(0,0,0,.40), transparent 70%),
+      radial-gradient(ellipse 16px 10px at 22% 78%, rgba(0,0,0,.35), transparent 70%),
+      radial-gradient(ellipse at 30% 25%, rgba(255,180,140,.25), transparent 55%),
+      linear-gradient(160deg, #6a1d10 0%, #2a0a06 100%);
+    border:2px solid var(--gold-1);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.7), inset 0 0 22px rgba(0,0,0,.5), inset 0 2px 0 rgba(201,160,67,.35), 0 0 18px rgba(168,51,30,.4), 0 6px 20px rgba(0,0,0,.7);
+  }
+  .B .node.root .card::before{inset:7px;border-color:rgba(201,160,67,.5);}
+  .B .node.root .card .ch{font-size:68px;color:#f4d597;text-shadow:0 0 14px rgba(255,200,120,.5), 0 2px 3px rgba(0,0,0,.85);}
+  .B .node.root .name{color:var(--gold-1);font-size:14px;text-shadow:0 0 6px rgba(201,160,67,.3);}
+  .B .node.dim .card{filter:saturate(.3) brightness(.55);}
+  .B .node.dim .name{color:var(--ink-dim)}
+
+  .B .locked{
+    position:relative;margin:34px 0 0;padding:30px 24px;
+    background:repeating-linear-gradient(0deg, transparent 0 4px, rgba(0,0,0,.20) 4px 5px),linear-gradient(180deg, rgba(20,12,8,.7), rgba(10,6,4,.85));
+    border:1px solid rgba(201,160,67,.18);border-radius:3px;text-align:center;
+    cursor:pointer;transition:all .15s;overflow:hidden;
+  }
+  /* 잠긴 영역 위 얼룩 */
+  .B .locked::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 80px 30px at 20% 30%, rgba(0,0,0,.30), transparent 70%),
+      radial-gradient(ellipse 60px 24px at 82% 70%, rgba(40,18,6,.30), transparent 70%);
+  }
+  .B .locked:hover{border-color:rgba(201,160,67,.4);background:linear-gradient(180deg, rgba(28,18,12,.7), rgba(14,9,6,.85));}
+  .B .lock-glyph{
+    position:relative;z-index:1;
+    width:84px;height:84px;margin:0 auto 14px;
+    background:radial-gradient(circle at 30% 30%, rgba(168,51,30,.45), transparent 55%),radial-gradient(circle, var(--vermilion) 0 60%, var(--vermilion-deep) 61% 100%);
+    border:2px solid var(--gold-2);border-radius:3px;display:flex;align-items:center;justify-content:center;
+    box-shadow:inset 0 0 0 2px rgba(0,0,0,.5), inset 0 -4px 10px rgba(0,0,0,.6), 0 0 24px rgba(168,51,30,.25), 0 4px 12px rgba(0,0,0,.6);
+  }
+  .B .lock-glyph::before{content:"封";position:absolute;font-family:var(--font-brush);font-size:48px;font-weight:400;color:#f4d597;text-shadow:0 0 8px rgba(255,200,120,.4), 0 2px 3px rgba(0,0,0,.85);}
+  .B .lock-glyph::after{content:"";position:absolute;inset:6px;border:1px dashed rgba(201,160,67,.4);border-radius:2px;}
+  .B .locked-text{font-family:var(--font-han);font-size:16px;color:var(--ink-mid);letter-spacing:4px;position:relative;z-index:1;}
+  .B .locked-hint{display:block;font-family:var(--font-serif);font-size:11px;color:var(--ink-dim);margin-top:8px;letter-spacing:2px;font-style:italic;position:relative;z-index:1;}
+
+  /* ─────────────────────────────────────────────
+     시안 C · 불꽃 인장
+     ───────────────────────────────────────────── */
+  .C{
+    --ember:#ff8c3a;--ember-deep:#d04a10;--ember-glow:#ffb766;
+    --gold-1:#e8b852;--gold-2:#a07a24;
+    --ink-bright:#f5d8a0;--ink-mid:#b08a5a;--ink-dim:#6f5332;
+  }
+  .C .frame{width:min(880px,100%);position:relative;background:radial-gradient(ellipse at 20% 0%, rgba(208,74,16,.35), transparent 50%),radial-gradient(ellipse at 80% 100%, rgba(208,74,16,.25), transparent 55%),radial-gradient(ellipse at 50% 50%, rgba(40,20,16,.8), transparent 70%),linear-gradient(180deg, #1a0b06 0%, #0a0504 100%);border:1px solid rgba(208,74,16,.25);border-radius:10px;padding:18px 20px 28px;box-shadow:inset 0 0 80px rgba(208,74,16,.08), 0 25px 70px rgba(0,0,0,.7);overflow:hidden;color:var(--ink-bright);}
+  .C .frame::before{content:"";position:absolute;pointer-events:none;width:3px;height:3px;border-radius:50%;background:var(--ember-glow);box-shadow:120px 80px 0 0.5px var(--ember-glow),200px 140px 0 0 var(--ember),300px 60px 0 0 var(--ember-glow),420px 220px 0 0 var(--ember),540px 120px 0 0 var(--ember-glow),640px 300px 0 0 var(--ember),720px 180px 0 0 var(--ember-glow),60px 300px 0 0 var(--ember),380px 420px 0 0 var(--ember-glow),500px 500px 0 0 var(--ember);top:40px;left:10px;opacity:.55;filter:blur(.6px);}
+  .C .head{position:relative;display:flex;align-items:center;gap:14px;padding:6px 6px 16px;border-bottom:1px solid rgba(208,74,16,.25);}
+  .C .head::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg, transparent, var(--ember) 30%, var(--ember) 70%, transparent);box-shadow:0 0 12px rgba(255,140,58,.5);}
+  .C .back-btn{background:rgba(0,0,0,.4);border:1px solid rgba(208,74,16,.35);color:var(--ink-bright);padding:6px 14px;border-radius:4px;font-family:inherit;font-size:13px;cursor:pointer;letter-spacing:1px;transition:all .15s;}
+  .C .back-btn:hover{background:rgba(208,74,16,.18);border-color:var(--ember);color:var(--ember-glow);box-shadow:0 0 10px rgba(255,140,58,.3);}
+  .C .title{flex:1;text-align:center;font-family:'Nanum Myeongjo',serif;font-weight:700;font-size:26px;letter-spacing:14px;background:linear-gradient(180deg, #fff0c8 0%, var(--ember-glow) 45%, var(--ember) 75%, #8a2a08 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 12px rgba(255,140,58,.55));}
+  .C .title .sub{display:block;font-size:10px;letter-spacing:8px;color:var(--ink-mid);margin-top:3px;-webkit-text-fill-color:var(--ink-mid);}
+  .C .tabs-row{display:flex;gap:4px;margin-top:18px;justify-content:center;}
+  .C .tab{flex:1;padding:10px 4px;cursor:pointer;text-align:center;font-family:'Nanum Myeongjo',serif;font-size:15px;letter-spacing:6px;color:var(--ink-dim);background:linear-gradient(180deg, rgba(20,10,6,.6) 0%, rgba(10,5,3,.8) 100%);border:1px solid rgba(120,60,30,.25);border-radius:6px 6px 0 0;transition:all .15s;position:relative;}
+  .C .tab:hover{color:var(--ink-mid);border-color:rgba(208,74,16,.35);}
+  .C .tab.active{color:var(--ember-glow);background:radial-gradient(ellipse at top, rgba(255,140,58,.20), transparent 70%),linear-gradient(180deg, rgba(50,20,10,.8) 0%, rgba(20,10,6,.8) 100%);border-color:rgba(208,74,16,.6);text-shadow:0 0 8px rgba(255,140,58,.55);}
+  .C .tab.active::after{content:"";position:absolute;left:10%;right:10%;bottom:-1px;height:2px;background:linear-gradient(90deg, transparent, var(--ember) 50%, transparent);box-shadow:0 0 10px var(--ember);}
+  .C .tab.mystery{color:#6f5a88;}
+  .C .inv{margin:14px 0 8px;padding:14px 18px;background:radial-gradient(ellipse at 50% 0%, rgba(208,74,16,.12), transparent 70%),rgba(0,0,0,.45);border:1px solid rgba(208,74,16,.22);border-radius:8px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .C .inv-cell{display:flex;align-items:center;gap:12px;font-size:13px;}
+  .C .inv-icon{width:34px;height:34px;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;border-radius:50%;font-family:'Nanum Myeongjo',serif;font-size:16px;font-weight:700;background:radial-gradient(circle at 35% 30%, #ffd28a, var(--ember) 55%, #5a1a08);color:#fff6d8;text-shadow:0 1px 2px rgba(0,0,0,.8);box-shadow:inset 0 -3px 6px rgba(0,0,0,.5), inset 0 2px 3px rgba(255,220,150,.4), 0 0 12px rgba(255,140,58,.35);}
+  .C .inv-icon.flame{background:radial-gradient(circle at 35% 30%, #ffb56a, #c83410 55%, #3a0a04);}
+  .C .inv-icon.divine{background:radial-gradient(circle at 35% 30%, #fff0c0, var(--gold-1) 55%, #6a4a14);box-shadow:inset 0 -3px 6px rgba(0,0,0,.5),inset 0 2px 3px rgba(255,230,180,.5),0 0 14px rgba(232,184,82,.4);}
+  .C .inv-label{color:var(--ink-mid);font-size:12px;}
+  .C .inv-value{margin-left:auto;color:var(--ink-bright);font-weight:700;font-size:17px;font-family:'Nanum Myeongjo',serif;}
+  .C .tier{display:flex;align-items:center;gap:14px;margin:32px 0 18px;}
+  .C .tier-line{flex:1;height:1px;background:linear-gradient(90deg,transparent, rgba(208,74,16,.45) 30%, rgba(208,74,16,.45) 70%, transparent);box-shadow:0 0 6px rgba(208,74,16,.25);}
+  .C .tier-label{font-family:'Nanum Myeongjo',serif;font-size:14px;letter-spacing:10px;font-weight:700;color:var(--ember-glow);padding:6px 22px;background:radial-gradient(ellipse at center, rgba(208,74,16,.18), transparent 70%),rgba(0,0,0,.5);border:1px solid rgba(208,74,16,.5);border-radius:20px;text-shadow:0 0 8px rgba(255,140,58,.55);}
+  .C .tree{display:flex;flex-direction:column;align-items:center;gap:0;}
+  .C .row{display:flex;justify-content:center;gap:42px;padding:8px 0;}
+  .C .line-v{width:3px;height:36px;background:linear-gradient(180deg, var(--ember) 0%, var(--ember-deep) 50%, transparent 100%);box-shadow:0 0 8px rgba(255,140,58,.55), 0 0 18px rgba(208,74,16,.3);border-radius:2px;position:relative;}
+  .C .line-v::before,.C .line-v::after{content:"";position:absolute;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:var(--ember-glow);box-shadow:0 0 12px var(--ember);}
+  .C .line-v::before{top:-4px}
+  .C .line-v::after{bottom:-4px;background:var(--ember-deep);box-shadow:0 0 10px var(--ember-deep);}
+  .C .branch{position:relative;width:480px;height:24px;}
+  .C .branch::before{content:"";position:absolute;top:2px;left:6%;right:6%;height:2px;background:linear-gradient(90deg,transparent, var(--ember-deep) 12%, var(--ember) 50%, var(--ember-deep) 88%, transparent);box-shadow:0 0 8px rgba(255,140,58,.45);border-radius:2px;}
+  .C .branch i{position:absolute;top:2px;width:2px;height:24px;background:linear-gradient(180deg, var(--ember), transparent);box-shadow:0 0 6px rgba(255,140,58,.5);}
+  .C .branch i:nth-child(1){left:6%}
+  .C .branch i:nth-child(2){left:50%}
+  .C .branch i:nth-child(3){right:6%}
+  .C .node{display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer;position:relative;}
+  .C .medal{width:96px;height:96px;position:relative;border-radius:50%;background:radial-gradient(circle at 32% 28%, rgba(255,220,150,.4), transparent 55%),radial-gradient(circle at center, #3a1a0c 0%, #180806 70%, #0a0303 100%);border:2px solid var(--gold-2);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 22px rgba(208,74,16,.25), inset 0 3px 6px rgba(255,200,140,.2), 0 0 0 3px rgba(0,0,0,.6), 0 0 22px rgba(208,74,16,.35), 0 6px 18px rgba(0,0,0,.65);transition:all .2s;}
+  .C .medal::before{content:"";position:absolute;inset:6px;border-radius:50%;border:1px dashed rgba(232,184,82,.4);pointer-events:none;}
+  .C .medal .ch{font-family:'Nanum Myeongjo',serif;font-size:40px;font-weight:700;line-height:1;letter-spacing:-2px;background:linear-gradient(180deg, #fff0c8 0%, var(--ember-glow) 45%, var(--ember) 90%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 6px rgba(255,140,58,.6));}
+  .C .lvl-ring{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);padding:2px 10px;font-size:11px;font-family:'Nanum Myeongjo',serif;font-weight:700;color:var(--ink-bright);background:rgba(0,0,0,.85);border:1px solid var(--gold-2);border-radius:10px;box-shadow:0 0 8px rgba(208,74,16,.3);white-space:nowrap;}
+  .C .node:hover .medal{transform:translateY(-2px);box-shadow:inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 28px rgba(208,74,16,.4), inset 0 3px 8px rgba(255,200,140,.3), 0 0 0 3px rgba(0,0,0,.6), 0 0 32px rgba(208,74,16,.55), 0 8px 22px rgba(0,0,0,.7);border-color:var(--gold-1);}
+  .C .node .name{font-size:13px;color:var(--ink-bright);letter-spacing:2px;font-family:'Nanum Myeongjo',serif;margin-top:8px;}
+  .C .node.root .medal{width:122px;height:122px;background:radial-gradient(circle at 32% 28%, rgba(255,220,150,.55), transparent 55%),radial-gradient(circle at center, #8a2a0c 0%, #3a0e06 65%, #1a0604 100%);border:3px solid var(--gold-1);box-shadow:inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 30px rgba(255,140,58,.4), inset 0 4px 8px rgba(255,220,180,.35), 0 0 0 3px rgba(0,0,0,.6), 0 0 0 6px rgba(232,184,82,.35), 0 0 40px rgba(255,140,58,.55), 0 8px 24px rgba(0,0,0,.7);animation:C-pulse 2.6s ease-in-out infinite alternate;}
+  .C .node.root .medal .ch{font-size:54px;}
+  .C .node.root .name{color:var(--ember-glow);font-size:15px;text-shadow:0 0 8px rgba(255,140,58,.4);}
+  @keyframes C-pulse{
+    from{box-shadow:inset 0 0 0 2px rgba(0,0,0,.55),inset 0 0 28px rgba(255,140,58,.35),inset 0 4px 8px rgba(255,220,180,.3),0 0 0 3px rgba(0,0,0,.6),0 0 0 6px rgba(232,184,82,.3),0 0 30px rgba(255,140,58,.4),0 8px 24px rgba(0,0,0,.7);}
+    to{box-shadow:inset 0 0 0 2px rgba(0,0,0,.55),inset 0 0 36px rgba(255,140,58,.55),inset 0 4px 10px rgba(255,220,180,.4),0 0 0 3px rgba(0,0,0,.6),0 0 0 6px rgba(232,184,82,.45),0 0 50px rgba(255,140,58,.7),0 8px 28px rgba(0,0,0,.75);}
+  }
+  .C .node.dim .medal{filter:saturate(.2) brightness(.45);}
+  .C .node.dim .name{color:var(--ink-dim)}
+  .C .locked{position:relative;margin:38px 0 0;padding:36px 24px 30px;background:radial-gradient(ellipse at 50% 50%, rgba(208,74,16,.1), transparent 70%),rgba(0,0,0,.55);border:1px solid rgba(120,60,30,.35);border-radius:8px;text-align:center;cursor:pointer;transition:all .15s;overflow:hidden;}
+  .C .locked:hover{border-color:rgba(208,74,16,.55);background:radial-gradient(ellipse at 50% 50%, rgba(208,74,16,.18), transparent 70%),rgba(0,0,0,.6);}
+  .C .locked::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent, rgba(208,74,16,.5) 40%, rgba(208,74,16,.5) 60%, transparent);}
+  .C .lock-medal{width:86px;height:86px;margin:0 auto 16px;position:relative;border-radius:50%;background:radial-gradient(circle at 30% 30%, rgba(120,60,30,.4), transparent 55%),radial-gradient(circle, #1a0a06 0%, #0a0402 100%);border:2px solid rgba(120,60,30,.55);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 2px rgba(0,0,0,.7), inset 0 0 18px rgba(208,74,16,.15), 0 0 20px rgba(120,60,30,.25);}
+  .C .lock-medal::before{content:"封";position:absolute;font-family:'Nanum Myeongjo',serif;font-size:38px;font-weight:700;color:var(--ink-dim);text-shadow:0 0 6px rgba(208,74,16,.3);}
+  .C .lock-medal::after{content:"";position:absolute;inset:6px;border-radius:50%;border:1px dashed rgba(120,60,30,.45);}
+  .C .locked-text{font-size:14px;color:var(--ink-mid);letter-spacing:4px;font-family:'Nanum Myeongjo',serif;}
+  .C .locked-hint{display:block;font-size:11px;color:var(--ink-dim);margin-top:8px;letter-spacing:2px;font-style:italic;}
+</style>
+</head>
+<body>
+
+<div class="switcher">
+  <h1>배화교 비급 · UI 시안</h1>
+  <span class="hint">· 고대 비급 두루마리 컨셉</span>
+  <div class="tabs">
+    <button data-target="A" class="active">A · 양피지 (낡음)</button>
+    <button data-target="B">B · 흑단 비단</button>
+    <button data-target="C">C · 불꽃 인장</button>
+  </div>
+</div>
+<div class="legend" id="legend">
+  <b>A · 양피지 두루마리 (매우 낡음)</b>찢어진 모서리(deckle edge), 17+ 곰팡이 얼룩(foxing), 물 자국, 먹 번짐, 접힘 자국, 4방향 가장자리 그을림. 붓글씨(Ma Shan Zheng) + 석비체(ZCOOL XiaoWei).
+</div>
+
+<!-- ─── 시안 A ─── -->
+<div class="mockup A active" id="mk-A">
+  <div class="frame">
+    <div class="scroll">
+      <div class="roller top"></div>
+      <div class="head">
+        <button class="back-btn">← 돌아가기</button>
+        <div class="title">拜 火 教 秘 笈<span class="sub">배 화 교 비 급</span></div>
+        <button class="back-btn">약안</button>
+      </div>
+      <div class="tabs-row">
+        <div class="tab">劍 法</div>
+        <div class="tab active">心 法</div>
+        <div class="tab">步 法</div>
+        <div class="tab">外 法</div>
+        <div class="tab mystery">? ? ?</div>
+      </div>
+      <div class="inv">
+        <div class="inv-cell"><div class="inv-icon">火</div><span class="inv-label">희미한 잔불</span><span class="inv-value">7</span></div>
+        <div class="inv-cell"><div class="inv-icon flame">焰</div><span class="inv-label">타오르는 불꽃</span><span class="inv-value">0</span></div>
+        <div class="inv-cell"><div class="inv-icon divine">聖</div><span class="inv-label">신성한 불의 정수</span><span class="inv-value">0</span></div>
+      </div>
+      <div class="tier"><div class="tier-line"></div><div class="tier-label">一 段</div><div class="tier-line"></div></div>
+      <div class="tree">
+        <div class="row">
+          <div class="node root"><div class="seal"><span class="ch">開</span></div><div class="name">심법 개방</div><div class="lvl">1 / 30</div></div>
+        </div>
+        <div class="line-v"></div>
+        <div class="branch-line"><span></span><span></span><span></span></div>
+        <div class="row">
+          <div class="node dim"><div class="seal"><span class="ch">念</span></div><div class="name">재의 묵념</div><div class="lvl">0 / 30</div></div>
+          <div class="node dim"><div class="seal"><span class="ch">誓</span></div><div class="name">재의 맹세</div><div class="lvl">0 / 30</div></div>
+          <div class="node dim"><div class="seal"><span class="ch">速</span></div><div class="name">재의 빠름</div><div class="lvl">0 / 30</div></div>
+        </div>
+      </div>
+      <div class="locked">
+        <div class="wax-seal"></div>
+        <div class="locked-text">封 — 이 다음 장은 아직 봉인되었다</div>
+        <span class="locked-hint">강적이 품은 비밀, 혹은 끊임없는 수련</span>
+      </div>
+      <div class="locked">
+        <div class="wax-seal"></div>
+        <div class="locked-text">封 — 세 번째 장</div>
+        <span class="locked-hint">깊은 경지에 이른 자만이 펼칠 수 있는 두루마리</span>
+      </div>
+      <div class="roller bottom"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 시안 B ─── -->
+<div class="mockup B" id="mk-B">
+  <div class="frame">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <div class="silk">
+      <div class="head">
+        <button class="back-btn">← 돌아가기</button>
+        <div class="title">拜火敎秘笈<span class="sub">B A E H W A G Y O</span></div>
+        <button class="back-btn">약안</button>
+      </div>
+      <div class="tabs-row">
+        <div class="tab">劍法</div>
+        <div class="tab active">心法</div>
+        <div class="tab">步法</div>
+        <div class="tab">外法</div>
+        <div class="tab mystery">???</div>
+      </div>
+      <div class="inv">
+        <div class="inv-cell"><div class="inv-icon">火</div><span class="inv-label">희미한 잔불</span><span class="inv-value">7</span></div>
+        <div class="inv-cell"><div class="inv-icon flame">焰</div><span class="inv-label">타오르는 불꽃</span><span class="inv-value">0</span></div>
+        <div class="inv-cell"><div class="inv-icon divine">聖</div><span class="inv-label">신성한 정수</span><span class="inv-value">0</span></div>
+      </div>
+      <div class="tier"><div class="tier-line"></div><div class="tier-label">一段</div><div class="tier-line"></div></div>
+      <div class="tree">
+        <div class="row">
+          <div class="node root"><div class="card"><div class="ch">開</div><div class="lvl-badge">1 / 30</div></div><div class="name">심법 개방</div></div>
+        </div>
+        <div class="line-v"></div>
+        <div class="branch"><i></i><i></i><i></i></div>
+        <div class="row">
+          <div class="node dim"><div class="card"><div class="ch">念</div><div class="lvl-badge">0 / 30</div></div><div class="name">재의 묵념</div></div>
+          <div class="node dim"><div class="card"><div class="ch">誓</div><div class="lvl-badge">0 / 30</div></div><div class="name">재의 맹세</div></div>
+          <div class="node dim"><div class="card"><div class="ch">速</div><div class="lvl-badge">0 / 30</div></div><div class="name">재의 빠름</div></div>
+        </div>
+      </div>
+      <div class="locked">
+        <div class="lock-glyph"></div>
+        <div class="locked-text">二段 · 봉인된 장</div>
+        <span class="locked-hint">강적이 품은 비밀, 혹은 끊임없는 수련</span>
+      </div>
+      <div class="locked">
+        <div class="lock-glyph"></div>
+        <div class="locked-text">三段 · 깊은 봉인</div>
+        <span class="locked-hint">경지에 이른 자만이 펼칠 수 있는 두루마리</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 시안 C ─── -->
+<div class="mockup C" id="mk-C">
+  <div class="frame">
+    <div class="head">
+      <button class="back-btn">← 돌아가기</button>
+      <div class="title">拜火秘笈<span class="sub">B A E H W A G Y O · S E C R E T · S C R I P T</span></div>
+      <button class="back-btn">🌙 약안</button>
+    </div>
+    <div class="tabs-row">
+      <div class="tab">劍法</div>
+      <div class="tab active">心法</div>
+      <div class="tab">步法</div>
+      <div class="tab">外法</div>
+      <div class="tab mystery">???</div>
+    </div>
+    <div class="inv">
+      <div class="inv-cell"><div class="inv-icon">火</div><span class="inv-label">희미한 잔불</span><span class="inv-value">7</span></div>
+      <div class="inv-cell"><div class="inv-icon flame">焰</div><span class="inv-label">타오르는 불꽃</span><span class="inv-value">0</span></div>
+      <div class="inv-cell"><div class="inv-icon divine">聖</div><span class="inv-label">신성한 정수</span><span class="inv-value">0</span></div>
+    </div>
+    <div class="tier"><div class="tier-line"></div><div class="tier-label">一 段</div><div class="tier-line"></div></div>
+    <div class="tree">
+      <div class="row">
+        <div class="node root"><div class="medal"><div class="ch">開</div></div><div class="lvl-ring">1 / 30</div><div class="name">심법 개방</div></div>
+      </div>
+      <div class="line-v" style="margin-top:22px"></div>
+      <div class="branch"><i></i><i></i><i></i></div>
+      <div class="row">
+        <div class="node dim"><div class="medal"><div class="ch">念</div></div><div class="lvl-ring">0 / 30</div><div class="name">재의 묵념</div></div>
+        <div class="node dim"><div class="medal"><div class="ch">誓</div></div><div class="lvl-ring">0 / 30</div><div class="name">재의 맹세</div></div>
+        <div class="node dim"><div class="medal"><div class="ch">速</div></div><div class="lvl-ring">0 / 30</div><div class="name">재의 빠름</div></div>
+      </div>
+    </div>
+    <div class="locked">
+      <div class="lock-medal"></div>
+      <div class="locked-text">二段 · 봉인된 장</div>
+      <span class="locked-hint">강적이 품은 비밀, 혹은 끊임없는 수련</span>
+    </div>
+    <div class="locked">
+      <div class="lock-medal"></div>
+      <div class="locked-text">三段 · 깊은 봉인</div>
+      <span class="locked-hint">경지에 이른 자만이 펼칠 수 있는 두루마리</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const META = {
+    A: {title:'A · 양피지 두루마리 (매우 낡음)', desc:'찢어진 모서리(deckle edge), 17+ 곰팡이 얼룩(foxing), 물 자국, 먹 번짐, 접힘 자국, 4방향 가장자리 그을림. 붓글씨(Ma Shan Zheng) + 석비체(ZCOOL XiaoWei) 폰트로 진짜 고문서 질감 강화.'},
+    B: {title:'B · 흑단 비단 비급 (수정판)', desc:'붓글씨(Ma Shan Zheng) + 석비체(ZCOOL XiaoWei) 폰트 · 먹 얼룩, 가로 구김, 모서리 닳음으로 오래된 질감 추가.'},
+    C: {title:'C · 불꽃 인장',      desc:'어두운 배경 + 떠다니는 불씨 + 원형 메달리온. 배화교 불 정체성을 가장 강하게 살린 화염 톤.'}
+  };
+  const legend = document.getElementById('legend');
+  document.querySelectorAll('.switcher button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.switcher button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const t = btn.dataset.target;
+      document.querySelectorAll('.mockup').forEach(m=>m.classList.remove('active'));
+      document.getElementById('mk-'+t).classList.add('active');
+      const m = META[t];
+      legend.innerHTML = '<b>'+m.title+'</b>' + m.desc;
+    });
+  });
+</script>
+</body>
+</html>

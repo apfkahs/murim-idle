@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전투 화면 v7 — HUD + 로그 통합</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+    background: #0a0a0d;
+    color: #e4e4e6;
+    line-height: 1.5;
+    padding: 24px 16px 60px;
+  }
+  .page-title { text-align: center; margin-bottom: 18px; }
+  .page-title h1 { font-size: 22px; font-weight: 700; color: #f0f0f2; margin-bottom: 4px; }
+  .page-title p { font-size: 13px; color: #7a7a80; }
+  .demos { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+  .demo { flex: 0 0 440px; max-width: 440px; }
+  .demo-label {
+    text-align: center; padding: 8px 0; font-size: 11px;
+    letter-spacing: 3px; color: #7a7a80; font-weight: 800;
+  }
+  .frame {
+    background: #0f0f13;
+    border: 1px solid #26262c;
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 840px;
+  }
+
+  /* ===== Top game bar ===== */
+  .top-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px;
+    background: #0a0a0d;
+  }
+  .top-bar .game-title { font-size: 14px; color: #c8c8cc; font-weight: 600; }
+  .speed-btn {
+    background: #7a5c2a; color: #f4d08a;
+    padding: 4px 10px; font-size: 11px; font-weight: 700;
+    border-radius: 4px; border: 1px solid #9a7a3e;
+  }
+
+  /* ===== Enemy row ===== */
+  .enemy-row {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: #15151a;
+    border-bottom: 1px solid #26262c;
+  }
+  .enemy-row-left { display: flex; align-items: center; gap: 6px; }
+  .enemy-name { font-size: 15px; font-weight: 700; color: #f0f0f2; }
+  .stage-tag {
+    font-size: 10px; color: #e0c080;
+    background: #3a2e18; border: 1px solid #5a4628;
+    padding: 2px 7px; border-radius: 3px;
+  }
+  .boss-tag {
+    font-size: 10px; color: #f0a080;
+    background: #4a2020; border: 1px solid #7a3030;
+    padding: 2px 7px; border-radius: 3px;
+  }
+  .density-toggle {
+    display: flex; gap: 1px; padding: 2px;
+    background: #1c1c22; border-radius: 4px;
+  }
+  .density-btn {
+    background: transparent; color: #9a9aa0; border: none;
+    padding: 4px 8px; font-size: 10.5px; font-weight: 600;
+    border-radius: 3px; cursor: pointer; font-family: inherit;
+  }
+  .density-btn.active { background: #2d2d36; color: #f0f0f2; }
+  .forfeit-btn {
+    background: transparent; color: #e07080;
+    border: 1px solid #7a3040;
+    padding: 4px 10px; font-size: 10.5px; font-weight: 700;
+    border-radius: 3px; cursor: pointer; font-family: inherit;
+  }
+
+  /* ===== HUD ===== */
+  .hud {
+    background: linear-gradient(180deg, #141418 0%, #101014 100%);
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid #26262c;
+    position: relative;
+  }
+  /* Center axis — continues all the way down into log */
+  .hud::after {
+    content: '';
+    position: absolute;
+    left: 50%; top: 70px; bottom: 6px;
+    width: 1px; background: #26262e;
+    transform: translateX(-0.5px);
+  }
+
+  .hud-portraits {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .portrait {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .portrait.player { align-items: flex-end; }
+  .portrait.enemy { align-items: flex-start; }
+  .portrait .pic {
+    width: 60px; height: 60px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #3a2e20 0%, #1e1812 100%);
+    border: 1px solid #5a4628;
+    position: relative;
+    overflow: hidden;
+  }
+  .portrait.player .pic {
+    background: linear-gradient(135deg, #4a3a28 0%, #261c14 100%);
+  }
+  .portrait.enemy .pic {
+    background: linear-gradient(135deg, #3a2e20 0%, #1e1812 100%);
+  }
+  .portrait.boss .pic {
+    background: linear-gradient(135deg, #5a3e2e 0%, #2a1812 100%);
+    border-color: #8a4040;
+  }
+  .portrait .name { font-size: 10.5px; font-weight: 600; color: #c8c8cc; }
+  .vs {
+    font-size: 18px; color: #55555c; font-weight: 300;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* HUD bars: split by center axis */
+  .hud-bars {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 8px;
+  }
+  .player-bars { padding-right: 10px; }
+  .enemy-bars { padding-left: 10px; }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 3px;
+  }
+  .player-bars .bar { flex-direction: row; }
+  .enemy-bars .bar { flex-direction: row-reverse; }
+  .bar-label {
+    font-size: 10px; color: #7a7a80;
+    width: 24px; text-align: center;
+    font-weight: 600;
+  }
+  .bar-track {
+    flex: 1;
+    height: 9px;
+    background: #17171d;
+    border: 1px solid #24242a;
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+  .bar-fill {
+    position: absolute;
+    top: 0; bottom: 0;
+    transition: width 0.25s ease;
+  }
+  .bar-fill.left-anchor { left: 0; }
+  .bar-fill.right-anchor { right: 0; }
+  .bar-fill.hp-player  { background: linear-gradient(90deg, #2e7a4e, #58b080); }
+  .bar-fill.mp-player  { background: linear-gradient(90deg, #2e5a94, #5888c4); }
+  .bar-fill.hp-enemy   { background: linear-gradient(90deg, #c86a80, #8a3a54); }
+  .bar-fill.hp-boss    { background: linear-gradient(90deg, #e08048, #8a3820); }
+  .bar-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 10px; font-weight: 700;
+    color: #c8c8cc;
+    min-width: 68px;
+    letter-spacing: -0.2px;
+  }
+  .player-bars .bar-value { text-align: right; }
+  .enemy-bars .bar-value { text-align: left; }
+
+  /* HUD status chips — same style as log chips */
+  .hud-status {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 22px;
+    margin-bottom: 8px;
+  }
+  .status-group { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+  .status-group.player { padding-right: 10px; justify-content: flex-end; }
+  .status-group.enemy { padding-left: 10px; justify-content: flex-start; }
+
+  /* === Shared chip styles (used in HUD & log) === */
+  .chip-base {
+    font-family: 'Pretendard', -apple-system, 'Malgun Gothic', sans-serif;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.2px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+    line-height: 1.3;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 3px;
+  }
+  .fire-chip {
+    color: #d8a878;
+    background: #241d14;
+    border: 1px solid #3c2e1e;
+  }
+  .fire-chip::before { content: '🔥'; filter: saturate(0.4); font-size: 9px; opacity: 0.85; margin-right: 1px; }
+  .fire-chip .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    color: #f0c090;
+  }
+  .status-chip {
+    color: #a8a4b4;
+    background: #222028;
+    border: 1px solid #3a3644;
+  }
+  .status-chip::before { content: '▽ '; opacity: 0.7; }
+  .shield-chip {
+    color: #8ab0d0;
+    background: #17222c;
+    border: 1px solid #2a4258;
+  }
+  .shield-chip::before { content: '◇ '; opacity: 0.85; }
+  .shield-chip .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    color: #a8c4d8;
+  }
+  .shield-chip .effect {
+    font-family: 'JetBrains Mono', monospace;
+    color: #e0b880;
+    margin-left: 2px;
+    font-weight: 800;
+  }
+  .law-chip {
+    color: #d8bc80;
+    background: #1e1a12;
+    border: 1px solid #3c3220;
+  }
+  .law-chip::before { content: '◈ '; opacity: 0.9; }
+
+  .chip-base, .fire-chip, .status-chip, .shield-chip, .law-chip {
+    font-family: 'Pretendard', -apple-system, 'Malgun Gothic', sans-serif;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.2px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+    line-height: 1.3;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 3px;
+  }
+
+  /* DPS row */
+  .hud-dps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: baseline;
+  }
+  .dps {
+    font-size: 10.5px; color: #8a8a90;
+    display: flex; align-items: baseline; gap: 5px;
+  }
+  .dps.player { justify-content: flex-end; padding-right: 10px; }
+  .dps.enemy { padding-left: 10px; }
+  .dps .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px; font-weight: 700; color: #e4e4e6;
+  }
+
+  /* ===== LATEST strip ===== */
+  .latest-strip {
+    background: linear-gradient(180deg,
+      rgba(216, 188, 128, 0.05) 0%,
+      rgba(216, 188, 128, 0.01) 100%);
+    border-top: 1px solid #2a251a;
+    border-bottom: 1px solid #26262c;
+    padding: 4px 0 6px;
+    position: relative;
+  }
+  .latest-strip::before {
+    content: '◐ 최신';
+    position: absolute;
+    top: -7px; left: 14px;
+    font-size: 9px; font-weight: 800;
+    letter-spacing: 2px;
+    color: #c0a060;
+    background: #0f0f13;
+    padding: 1px 6px;
+    border-radius: 2px;
+  }
+
+  /* ===== Log body ===== */
+  .log-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+  }
+  .log-body::-webkit-scrollbar { width: 5px; }
+  .log-body::-webkit-scrollbar-track { background: #0f0f13; }
+  .log-body::-webkit-scrollbar-thumb { background: #2c2c34; border-radius: 3px; }
+
+  /* Turn group */
+  .turn-group {
+    display: grid;
+    grid-template-columns: 52px 1fr;
+    align-items: stretch;
+  }
+  .turn-label {
+    text-align: right;
+    padding: 7px 9px 7px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 700;
+    color: #7a7a82;
+    border-right: 1px solid #262630;
+    letter-spacing: 0.3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .turn-label .unit {
+    font-size: 9px; color: #55555c;
+    font-weight: 600; margin-left: 1px;
+  }
+  .turn-label .marker {
+    color: #d29472; font-size: 12px; font-weight: 900; margin-left: 2px;
+  }
+  .turn-group.danger {
+    background: linear-gradient(90deg,
+      rgba(148, 84, 48, 0.09) 0%,
+      rgba(148, 84, 48, 0.035) 40%,
+      transparent 80%);
+  }
+  .turn-group.danger .turn-label {
+    color: #d29472;
+    border-right: 2px solid #8a5438;
+    padding-right: 8px;
+  }
+
+  .turn-group.latest-highlight .turn-label {
+    color: #c8a868;
+  }
+
+  .turn-events {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    row-gap: 2px;
+    padding: 3px 0;
+    position: relative;
+  }
+  .turn-events::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: 2px; bottom: 2px;
+    width: 1px; background: #24242e;
+    transform: translateX(-0.5px);
+  }
+
+  .event {
+    grid-column: 1 / 3;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 22px;
+    align-items: center;
+  }
+  .event .side {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+    padding: 3px 9px;
+    min-width: 0; line-height: 1.2;
+    flex-wrap: wrap;
+  }
+  .event.outgoing .side {
+    grid-column: 1;
+    justify-content: flex-end;
+    padding-right: 8px;
+  }
+  .event.incoming .side {
+    grid-column: 2;
+    padding-left: 8px;
+  }
+  .event.hit-heavy-row { margin: 4px 0; }
+  .event.hit-heavy-row .side {
+    background: linear-gradient(90deg,
+      rgba(148, 84, 48, 0.24),
+      rgba(148, 84, 48, 0.06));
+    border-left: 3px solid #a86044;
+    padding: 7px 12px;
+  }
+  .event.status-row .side { padding: 1px 9px; }
+
+  /* Tags */
+  .tag {
+    font-family: inherit;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.2px;
+    padding: 2px 7px; border-radius: 3px;
+    white-space: nowrap; line-height: 1.3;
+    background: #3a3a44; color: #dadade;
+  }
+  .tag.crit    { background: #8a3440; color: #ffe4e6; }
+  .tag.special { background: #4a3e84; color: #ece4ff; }
+  .tag.hit     { background: #8a5430; color: #ffe6c8; }
+  .tag.heal    { background: #2e6448; color: #dcf0e0; }
+  .tag.dodge,
+  .tag.block   { background: #3a3a46; color: #b4b4b8; }
+
+  /* Values */
+  .value {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700; color: #f4f4f6;
+    white-space: nowrap; letter-spacing: -0.3px; line-height: 1;
+  }
+  .value.normal    { font-size: 13px; font-weight: 600; color: #c8c8cc; }
+  .value.special   { font-size: 18px; font-weight: 700; }
+  .value.crit      { font-size: 22px; font-weight: 800; }
+  .value.hit-heavy { font-size: 20px; font-weight: 800; }
+  .value.heal      { font-size: 13px; font-weight: 600; color: #b8c8be; }
+  .value.muted     { font-size: 12px; color: #6a6a72; font-weight: 500; }
+
+  /* HP delta — micro inline */
+  .hp-delta {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 9.5px;
+    color: #707078;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+  .hp-delta.heavy { color: #d29472; font-weight: 700; }
+
+  /* Names */
+  .name { font-size: 12px; color: #dadade; line-height: 1.2; white-space: nowrap; }
+  .name .sub { color: #80808a; font-size: 10px; margin-left: 3px; }
+
+  /* Flavor / dialogue */
+  .flavor {
+    font-size: 11px; font-style: italic;
+    color: #707078;
+    line-height: 1.55;
+    padding: 1px 10px 3px;
+  }
+  .flavor.side-left { grid-column: 1; text-align: right; padding-right: 10px; padding-left: 20px; }
+  .flavor.side-right { grid-column: 2; padding-left: 10px; padding-right: 20px; }
+  .dialogue {
+    font-size: 11.5px; font-style: italic;
+    color: #a8a8ae;
+    line-height: 1.55;
+    padding: 3px 10px;
+    margin: 2px 0;
+  }
+  .dialogue.side-left {
+    grid-column: 1; text-align: right;
+    margin: 2px 10px 2px 20px;
+    border-right: 2px solid #42424c;
+    padding-right: 10px;
+  }
+  .dialogue.side-right {
+    grid-column: 2;
+    margin: 2px 20px 2px 10px;
+    border-left: 2px solid #42424c;
+    padding-left: 10px;
+  }
+
+  /* Law banner */
+  .law-banner {
+    margin: 8px 16px;
+    padding: 10px 14px;
+    background: linear-gradient(180deg, #1e1a12 0%, #16120c 100%);
+    border: 1px solid #3c3220;
+    border-top: 2px solid #7e6538;
+    border-radius: 4px;
+    text-align: center;
+  }
+  .law-banner .law-flavor {
+    font-size: 11px; font-style: italic; color: #9a8c6c;
+    margin-bottom: 5px;
+  }
+  .law-banner .law-name {
+    font-size: 11px; font-weight: 800; color: #d8bc80;
+    letter-spacing: 2px; margin-bottom: 4px;
+  }
+  .law-banner .law-name::before { content: '◈ '; }
+  .law-banner .law-text {
+    font-size: 12px; font-style: italic; color: #e4ccaa;
+  }
+
+  /* In-log chip size tweak */
+  .event .fire-chip,
+  .event .status-chip,
+  .event .shield-chip,
+  .event .law-chip {
+    font-size: 10px;
+    padding: 1px 6px;
+  }
+
+  /* Density modes */
+  body.mode-full .flavor, body.mode-full .dialogue { display: block; }
+  body.mode-compact .flavor.minor, body.mode-compact .dialogue.minor { display: none; }
+  body.mode-minimal .flavor, body.mode-minimal .dialogue { display: none; }
+
+  /* Kill banner */
+  .kill-banner {
+    margin: 10px 14px;
+    padding: 11px 14px 12px;
+    background: linear-gradient(180deg, #20202a 0%, #181820 100%);
+    border: 1px solid #3a3a48;
+    border-radius: 5px;
+    position: relative;
+  }
+  .kill-banner::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, #8a8aa0, transparent);
+  }
+  .kill-banner .title {
+    font-size: 12px; font-weight: 800;
+    color: #f4f4f6; letter-spacing: 0.6px;
+    margin-bottom: 9px;
+  }
+  .kill-banner .title::before { content: '★ '; color: #d4b060; }
+  .rewards { display: flex; gap: 5px; flex-wrap: wrap; }
+  .reward-chip {
+    background: #25252e; border: 1px solid #3a3a48;
+    padding: 4px 10px; font-size: 11px;
+    border-radius: 3px;
+    font-weight: 700;
+    display: inline-flex; align-items: baseline; gap: 3px;
+  }
+  .reward-chip .label { color: #b8b8c0; font-weight: 600; }
+  .reward-chip .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    color: #f4f4f6;
+  }
+
+  /* Bottom nav */
+  .bottom-nav {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    padding: 6px 0 8px;
+    border-top: 1px solid #26262c;
+    background: #0a0a0d;
+  }
+  .nav-item {
+    text-align: center;
+    font-size: 9.5px; font-weight: 600;
+    color: #66666e;
+    padding: 2px 0;
+  }
+  .nav-item::before {
+    content: '○';
+    display: block;
+    font-size: 10px;
+    margin-bottom: 2px;
+    opacity: 0.7;
+  }
+  .nav-item.active { color: #d4b060; }
+  .nav-item.active::before { content: '●'; opacity: 1; }
+
+  /* Note */
+  .note {
+    max-width: 960px; margin: 32px auto 0;
+    padding: 18px 22px;
+    background: #121216;
+    border: 1px solid #26262c;
+    border-radius: 6px;
+    font-size: 12.5px;
+    color: #a0a0a4;
+    line-height: 1.75;
+  }
+  .note .note-title {
+    color: #e4e4e6; font-weight: 700;
+    margin-bottom: 10px; font-size: 13px;
+  }
+  .note ul { padding-left: 20px; }
+  .note li { margin-bottom: 6px; }
+  .note strong { color: #e8e8ea; font-weight: 700; }
+  .note code {
+    background: #1f1f26; padding: 1px 6px; border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #c6c6c8;
+  }
+
+  @media (max-width: 960px) {
+    .demos { flex-direction: column; align-items: center; }
+  }
+</style>
+</head>
+<body class="mode-full">
+  <div class="page-title">
+    <h1>전투 화면 v7 — HUD + 로그 통합</h1>
+    <p>중앙 축 연장 · 상태칩 스타일 통일 · 최신 이벤트 상단 고정 · HP 델타 인라인</p>
+  </div>
+
+  <div class="demos">
+
+    <!-- ======================================================== -->
+    <!-- Demo A : 일반 전투 (배화교 행자 · 불씨 x3) -->
+    <!-- ======================================================== -->
+    <div class="demo">
+      <div class="demo-label">일반 전투</div>
+      <div class="frame">
+        <div class="top-bar">
+          <span class="game-title">무림방치록</span>
+          <span class="speed-btn">▶ 1x</span>
+        </div>
+        <div class="enemy-row">
+          <div class="enemy-row-left">
+            <span class="enemy-name">배화교</span>
+            <span class="stage-tag">답파 1/5</span>
+          </div>
+          <div class="density-toggle">
+            <button class="density-btn active" data-mode="full">Full</button>
+            <button class="density-btn" data-mode="compact">Compact</button>
+            <button class="density-btn" data-mode="minimal">Min</button>
+          </div>
+          <button class="forfeit-btn">포기</button>
+        </div>
+
+        <!-- HUD -->
+        <div class="hud">
+          <div class="hud-portraits">
+            <div class="portrait player"><div class="pic"></div><div class="name">주인공</div></div>
+            <div class="vs">×</div>
+            <div class="portrait enemy"><div class="pic"></div><div class="name">배화교 행자</div></div>
+          </div>
+
+          <div class="hud-bars">
+            <div class="player-bars">
+              <div class="bar">
+                <span class="bar-label">체력</span>
+                <div class="bar-track">
+                  <div class="bar-fill hp-player right-anchor" style="width: 67%"></div>
+                </div>
+                <span class="bar-value">1563/2349</span>
+              </div>
+              <div class="bar">
+                <span class="bar-label">내력</span>
+                <div class="bar-track">
+                  <div class="bar-fill mp-player right-anchor" style="width: 83%"></div>
+                </div>
+                <span class="bar-value">99/119</span>
+              </div>
+            </div>
+            <div class="enemy-bars">
+              <div class="bar">
+                <span class="bar-label">체력</span>
+                <div class="bar-track">
+                  <div class="bar-fill hp-enemy left-anchor" style="width: 20%"></div>
+                </div>
+                <span class="bar-value">761/3800</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="hud-status">
+            <div class="status-group player">
+              <span class="fire-chip">불씨<span class="count">x3</span></span>
+            </div>
+            <div class="status-group enemy">
+              <!-- 배화교 행자: 특별한 지속 버프 없음 -->
+            </div>
+          </div>
+
+          <div class="hud-dps">
+            <div class="dps player">내 DPS <span class="num">177</span></div>
+            <div class="dps enemy">적 DPS <span class="num">64</span></div>
+          </div>
+        </div>
+
+        <!-- LATEST strip -->
+        <div class="latest-strip">
+          <div class="turn-group latest-highlight">
+            <div class="turn-label">24.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event outgoing">
+                <div class="side">
+                  <span class="tag crit">치명</span>
+                  <span class="name">태산압정<span class="sub">· 비기</span></span>
+                  <span class="value crit">699</span>
+                  <span class="hp-delta">→ 적 -18%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Log body (scrollable) -->
+        <div class="log-body">
+          <div class="turn-group">
+            <div class="turn-label">23.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event incoming">
+                <div class="side">
+                  <span class="value heal">+304</span>
+                  <span class="name">배화교 행자</span>
+                  <span class="tag heal">적회복</span>
+                </div>
+              </div>
+              <div class="flavor side-right">행자가 성화를 향해 두 손을 모으고 송가를 읊는다. 상처가 아물어간다.</div>
+            </div>
+          </div>
+
+          <div class="turn-group">
+            <div class="turn-label">22.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event outgoing">
+                <div class="side">
+                  <span class="name">삼재검법의 검기가 빛난다!</span>
+                  <span class="value normal">119</span>
+                  <span class="hp-delta">→ 적 -3%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="turn-group">
+            <div class="turn-label">21.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event incoming">
+                <div class="side">
+                  <span class="value normal">318</span>
+                  <span class="name">배화교 행자</span>
+                  <span class="tag hit">피격</span>
+                </div>
+              </div>
+              <div class="flavor side-right">행자의 기도 소리에 맞춰, 당신의 살갗 위 불씨가 다시 타오른다.</div>
+              <div class="event incoming status-row">
+                <div class="side">
+                  <span class="fire-chip">불씨<span class="count">+1</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="turn-group">
+            <div class="turn-label">20.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event outgoing">
+                <div class="side">
+                  <span class="name">녹림권의 일격!</span>
+                  <span class="value normal">377</span>
+                  <span class="hp-delta">→ 적 -10%</span>
+                </div>
+              </div>
+              <div class="flavor side-left">적의 공격을 간파하고 강력한 공격을 가했다.</div>
+            </div>
+          </div>
+
+          <div class="turn-group">
+            <div class="turn-label">18.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event outgoing">
+                <div class="side">
+                  <span class="tag crit">치명</span>
+                  <span class="name">삼재의 이치를 담은 일격</span>
+                  <span class="value crit">228</span>
+                  <span class="hp-delta">→ 적 -6%</span>
+                </div>
+              </div>
+              <div class="event incoming">
+                <div class="side">
+                  <span class="value muted">—</span>
+                  <span class="name">배화교 행자의 공격</span>
+                  <span class="tag dodge">회피</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="turn-group">
+            <div class="turn-label">16.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event outgoing">
+                <div class="side">
+                  <span class="name">녹림권의 일격!</span>
+                  <span class="value normal">259</span>
+                  <span class="hp-delta">→ 적 -7%</span>
+                </div>
+              </div>
+              <div class="event incoming">
+                <div class="side">
+                  <span class="value normal">311</span>
+                  <span class="name">배화교 행자</span>
+                  <span class="tag hit">피격</span>
+                </div>
+              </div>
+              <div class="flavor side-right">행자의 손끝이 당신의 몸에 남은 불씨를 건드린다. 불꽃이 되살아난다.</div>
+              <div class="event incoming status-row">
+                <div class="side">
+                  <span class="fire-chip">불씨<span class="count">+1</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bottom-nav">
+          <div class="nav-item">내공</div>
+          <div class="nav-item">무공</div>
+          <div class="nav-item">장비</div>
+          <div class="nav-item">전낭</div>
+          <div class="nav-item active">전장</div>
+          <div class="nav-item">도감</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- Demo B : 보스전 (흑풍채 채주 · 철벽 x5 -40%) -->
+    <!-- ======================================================== -->
+    <div class="demo">
+      <div class="demo-label">보스전</div>
+      <div class="frame">
+        <div class="top-bar">
+          <span class="game-title">무림방치록</span>
+          <span class="speed-btn">▶ 1x</span>
+        </div>
+        <div class="enemy-row">
+          <div class="enemy-row-left">
+            <span class="enemy-name">흑풍채</span>
+            <span class="boss-tag">보스전</span>
+          </div>
+          <div class="density-toggle">
+            <button class="density-btn active" data-mode="full">Full</button>
+            <button class="density-btn" data-mode="compact">Compact</button>
+            <button class="density-btn" data-mode="minimal">Min</button>
+          </div>
+          <button class="forfeit-btn">포기</button>
+        </div>
+
+        <div class="hud">
+          <div class="hud-portraits">
+            <div class="portrait player"><div class="pic"></div><div class="name">주인공</div></div>
+            <div class="vs">×</div>
+            <div class="portrait enemy boss"><div class="pic"></div><div class="name">흑풍채 채주</div></div>
+          </div>
+
+          <div class="hud-bars">
+            <div class="player-bars">
+              <div class="bar">
+                <span class="bar-label">체력</span>
+                <div class="bar-track">
+                  <div class="bar-fill hp-player right-anchor" style="width: 91%"></div>
+                </div>
+                <span class="bar-value">2144/2349</span>
+              </div>
+              <div class="bar">
+                <span class="bar-label">내력</span>
+                <div class="bar-track">
+                  <div class="bar-fill mp-player right-anchor" style="width: 100%"></div>
+                </div>
+                <span class="bar-value">119/119</span>
+              </div>
+            </div>
+            <div class="enemy-bars">
+              <div class="bar">
+                <span class="bar-label">체력</span>
+                <div class="bar-track">
+                  <div class="bar-fill hp-boss left-anchor" style="width: 10%"></div>
+                </div>
+                <span class="bar-value">428/4500</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="hud-status">
+            <div class="status-group player">
+              <!-- 내 디버프 없음 -->
+            </div>
+            <div class="status-group enemy">
+              <span class="shield-chip">철벽<span class="count">x5</span><span class="effect">-40%</span></span>
+            </div>
+          </div>
+
+          <div class="hud-dps">
+            <div class="dps player">내 DPS <span class="num">255</span></div>
+            <div class="dps enemy">적 DPS <span class="num">105</span></div>
+          </div>
+        </div>
+
+        <!-- LATEST -->
+        <div class="latest-strip">
+          <div class="turn-group latest-highlight">
+            <div class="turn-label">20.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event outgoing">
+                <div class="side">
+                  <span class="name">거친 권풍이 몰아친다!</span>
+                  <span class="shield-chip">철벽 -40%</span>
+                  <span class="value normal">465</span>
+                  <span class="hp-delta">→ 적 -10%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="log-body">
+          <div class="turn-group">
+            <div class="turn-label">19.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event outgoing">
+                <div class="side">
+                  <span class="name">삼재검법의 검기가 빛난다!</span>
+                  <span class="shield-chip">철벽 -40%</span>
+                  <span class="value normal">228</span>
+                  <span class="hp-delta">→ 적 -5%</span>
+                </div>
+              </div>
+              <div class="flavor side-left">적의 공격을 간파하고 강력한 공격을 가했다.</div>
+            </div>
+          </div>
+
+          <div class="turn-group">
+            <div class="turn-label">18.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event outgoing">
+                <div class="side">
+                  <span class="name">삼재의 이치를 담은 일격!</span>
+                  <span class="shield-chip">철벽 -40%</span>
+                  <span class="value normal">204</span>
+                  <span class="hp-delta">→ 적 -4%</span>
+                </div>
+              </div>
+              <div class="event incoming">
+                <div class="side">
+                  <span class="value muted">—</span>
+                  <span class="name">흑풍채 채주의 공격</span>
+                  <span class="tag dodge">회피</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="turn-group">
+            <div class="turn-label">17.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="flavor side-right">철벽! 채주가 기를 끌어올려 방어를 굳혔다.</div>
+            </div>
+          </div>
+
+          <div class="turn-group">
+            <div class="turn-label">16.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="dialogue side-right">「도를 손에 들며 — 제대로 놀아보자!」</div>
+            </div>
+          </div>
+
+          <div class="turn-group">
+            <div class="turn-label">15.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event outgoing">
+                <div class="side">
+                  <span class="tag crit">치명</span>
+                  <span class="name">녹림권의 일격!</span>
+                  <span class="value crit">1034</span>
+                  <span class="hp-delta">→ 적 -23%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="turn-group">
+            <div class="turn-label">13.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event outgoing">
+                <div class="side">
+                  <span class="name">녹림권의 일격!</span>
+                  <span class="value normal">664</span>
+                  <span class="hp-delta">→ 적 -15%</span>
+                </div>
+              </div>
+              <div class="dialogue side-right">「술을 마시며 상처를 치유한다…」</div>
+            </div>
+          </div>
+
+          <div class="turn-group">
+            <div class="turn-label">11.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="dialogue side-right">「내 칼을 가져오너라!」</div>
+            </div>
+          </div>
+
+          <div class="turn-group">
+            <div class="turn-label">10.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event outgoing">
+                <div class="side">
+                  <span class="name">녹림권의 일격!</span>
+                  <span class="value normal">662</span>
+                  <span class="hp-delta">→ 적 -15%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="turn-group">
+            <div class="turn-label">9.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event outgoing">
+                <div class="side">
+                  <span class="tag special">비기</span>
+                  <span class="name">태산압정<span class="sub">· 비기</span></span>
+                  <span class="value special">674</span>
+                  <span class="hp-delta">→ 적 -15%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="turn-group danger">
+            <div class="turn-label">8.0<span class="unit">s</span><span class="marker">▲</span></div>
+            <div class="turn-events">
+              <div class="event incoming hit-heavy-row">
+                <div class="side">
+                  <span class="value hit-heavy">108</span>
+                  <span class="name">흑풍채 채주</span>
+                  <span class="tag hit">피격</span>
+                </div>
+              </div>
+              <div class="flavor side-right">채주의 대도가 흑풍을 일으키며 내리쳤다 — 108 피해.</div>
+            </div>
+          </div>
+
+          <div class="turn-group">
+            <div class="turn-label">7.0<span class="unit">s</span></div>
+            <div class="turn-events">
+              <div class="event outgoing">
+                <div class="side">
+                  <span class="tag crit">치명</span>
+                  <span class="name">삼재의 이치를 담은 일격</span>
+                  <span class="value crit">503</span>
+                  <span class="hp-delta">→ 적 -11%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bottom-nav">
+          <div class="nav-item">내공</div>
+          <div class="nav-item">무공</div>
+          <div class="nav-item">장비</div>
+          <div class="nav-item">전낭</div>
+          <div class="nav-item active">전장</div>
+          <div class="nav-item">도감</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Note -->
+  <div class="note">
+    <div class="note-title">v7 주요 변경 (v6 기준)</div>
+    <ul>
+      <li><strong>중앙 축 연장</strong> — HUD의 포트레이트/체력바/상태칩/DPS 모두 2축 그리드에 배치. HUD 중앙 축선과 로그 중앙 축선이 하나로 이어져 "위아래 한 몸"으로 인지됨. 체력바도 축 쪽으로 정렬: 내 체력은 <strong>오른쪽 앵커</strong>(축 쪽으로 붙음), 적 체력은 <strong>왼쪽 앵커</strong>(축 쪽으로 붙음) — 줄어들면 바가 바깥쪽(화면 가장자리)으로 후퇴하는 시각 메타포.</li>
+      <li><strong>상태칩 스타일 통일</strong> — 상단 HUD의 <code>🔥 불씨 x3</code>, <code>◇ 철벽 x5 -40%</code> 칩이 로그 안 칩과 동일한 CSS. 위에서 보이는 지속 상태가 아래 로그의 적용 시점과 시각적으로 같은 언어를 씀 → 시선이 끊기지 않음.</li>
+      <li><strong>최신 이벤트 고정 (LATEST 스트립)</strong> — HUD 바로 아래에 "◐ 최신" 라벨과 함께 가장 최근 이벤트 1개를 고정 슬롯으로. 골드 톤 미세 배경으로 나머지와 분리. 시선은 <strong>HUD ↔ 최신</strong> 좁은 영역에서 대부분 해결되고, 이력을 볼 때만 아래로 스크롤.</li>
+      <li><strong>HP 델타 인라인</strong> — 각 이벤트 숫자 뒤에 <code>→ 적 -10%</code> / <code>→ 나 -5%</code> 같은 상대 체력 변화율을 미세 텍스트로 병기. 체력바를 안 봐도 이 한 방의 임팩트가 즉시 읽힘 — 위아래 시선 이동의 핵심 원인(숫자 → 바 대조)을 제거.</li>
+      <li><strong>영구 지속 버그 수정</strong> — 기존 <code>ember x3 (9007199254740991s)</code>(MAX_SAFE_INTEGER가 초로 찍히던 버그)를 <code>🔥 불씨 x3</code>로 교체. <strong>영구 지속 디버프는 duration을 아예 표기하지 않는다.</strong> 시한부 디버프만 <code>(남은 X.Xs)</code>를 뒤에 붙일 것.</li>
+      <li><strong>수치 디버프 표기 (철벽 류)</strong> — <code>◇ 철벽 x5 -40%</code> 패턴: 아이콘 + 이름 + 스택 + 효과율. 감소형 디버프는 푸른 회색(<code>#8ab0d0</code>), 점화형(불씨)은 갈색(<code>#d8a878</code>)으로 색상 구분. 로그 안의 공격 이벤트에도 <code>철벽 -40%</code> 칩을 붙여 "이 공격이 철벽의 영향을 받고 있음"을 표기.</li>
+      <li><strong>LATEST 하이라이트</strong> — LATEST 스트립 안의 턴 라벨은 골드 톤(<code>#c8a868</code>)으로, 다른 로그(<code>#7a7a82</code>)와 색 차이로 "방금"임을 보임. 동시에 hp-delta도 함께 찍혀서 최신 한 줄로 "무엇이 얼마만큼 깎였는지" 요약.</li>
+    </ul>
+
+    <div class="note-title" style="margin-top: 14px;">구현 체크리스트</div>
+    <ul>
+      <li>[ ] HUD CSS를 로그 CSS와 같은 스타일시트에 두고 chip-base·fire-chip·shield-chip·status-chip 재사용</li>
+      <li>[ ] HUD 중앙 축선 <code>::after</code>를 전체 container의 50% 위치에 수직 1px로 그려서 로그의 축선(<code>.turn-events::before</code>)과 픽셀 단위로 맞춤</li>
+      <li>[ ] 영구 디버프의 duration을 <code>Infinity</code> 또는 <code>Number.MAX_SAFE_INTEGER</code>로 관리 중이라면 UI 포맷팅 단계에서 유한하지 않은 값은 `(-)` 처리</li>
+      <li>[ ] HP 델타 계산: 적에게 가한 피해는 <code>damage / enemyMaxHP</code>, 받은 피해는 <code>damage / playerMaxHP</code></li>
+      <li>[ ] LATEST 스트립은 최근 N초(예: 2초) 윈도우 버퍼. 새 이벤트 발생 시 기존 LATEST는 일반 로그로 이관</li>
+      <li>[ ] 로그 자동 스크롤: 사용자가 스크롤을 위로 올린 상태면 자동 스크롤 일시정지, "최신으로" 버튼 노출 (별도 기능)</li>
+      <li>[ ] 상태칩 라벨 i18n: 내부 키 <code>ember</code> → 표시 <code>불씨</code>, 내부 키 <code>dulled</code> → 표시 <code>무뎌짐</code>, 내부 키 <code>shield</code> → 표시 <code>철벽</code></li>
+    </ul>
+  </div>
+
+  <script>
+    document.querySelectorAll('.density-toggle').forEach(group => {
+      const btns = group.querySelectorAll('.density-btn');
+      btns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const mode = btn.dataset.mode;
+          document.body.classList.remove('mode-full','mode-compact','mode-minimal');
+          document.body.classList.add('mode-' + mode);
+          document.querySelectorAll('.density-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.mode === mode);
+          });
+        });
+      });
+    });
+  </script>
+</body>
+</html>

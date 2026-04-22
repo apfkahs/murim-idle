@@ -60,6 +60,9 @@ const ENEMY_EMOJI: Record<string, string> = {
   // 배화교 몬스터
   baehwa_haengja: '🔥',
   baehwa_howi: '🛡️',
+  baehwa_geombosa: '🗡️',
+  baehwa_hwabosa: '🔥',
+  baehwa_gyeongbosa: '📖',
 };
 
 export function getEnemyImage(key: string): string | null {
@@ -71,7 +74,7 @@ export function getEnemyEmoji(key: string): string {
 }
 
 // 플레이어 경지별 이미지
-const PLAYER_TIER_KEYS = ['tier0_hucheon', 'tier1_seongcheon', 'tier2_jeoljeong', 'tier3_hwagyeong'];
+export const PLAYER_TIER_KEYS = ['tier0_hucheon', 'tier1_seongcheon', 'tier2_jeoljeong', 'tier3_hwagyeong'];
 
 export function getPlayerByTier(tier: number): { url: string | null; emoji: string } {
   const key = PLAYER_TIER_KEYS[Math.min(Math.floor(tier / 3), PLAYER_TIER_KEYS.length - 1)];
@@ -79,6 +82,25 @@ export function getPlayerByTier(tier: number): { url: string | null; emoji: stri
     url: _playerMap[key] ?? null,
     emoji: '🧑',
   };
+}
+
+export function getUnlockedProfileKeys(tier: number): string[] {
+  const maxIdx = Math.min(Math.floor(tier / 3), PLAYER_TIER_KEYS.length - 1);
+  return PLAYER_TIER_KEYS.slice(0, maxIdx + 1);
+}
+
+export function getPlayerImageByKey(key: string): string | null {
+  return _playerMap[key] ?? null;
+}
+
+export function getActiveProfile(
+  selectedKey: string | null,
+  customUrl: string | null,
+  tier: number,
+): { url: string | null; emoji: string } {
+  if (customUrl) return { url: customUrl, emoji: '🧑' };
+  if (selectedKey && _playerMap[selectedKey]) return { url: _playerMap[selectedKey], emoji: '🧑' };
+  return getPlayerByTier(tier);
 }
 
 // 전장 배경 이미지
@@ -90,6 +112,11 @@ const FIELD_BG_MAP: Record<string, string> = {
   cheonsan_jangmak: 'cheonsan_daebaek',
   cheonsan_godo: 'cheonsan_daebaek',
   cheonsan_simjang: 'cheonsan_daebaek',
+  baehwagyo: 'baehwagyo',
+  baehwagyo_oemun: 'baehwagyo',
+  baehwagyo_naemun: 'baehwagyo',
+  baehwagyo_sawon: 'baehwagyo',
+  baehwagyo_simcheo: 'baehwagyo',
 };
 
 export function getFieldBackground(fieldId: string): string | null {

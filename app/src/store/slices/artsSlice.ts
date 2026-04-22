@@ -51,15 +51,31 @@ export const createArtsSlice: StateCreator<GameStore, [], [], ArtsSlice> = (set,
 
     if (state.equippedArts.includes(artId)) return;
 
-    const usedPoints = calcUsedPoints(state);
+    // exclusiveGroup: 동일 그룹의 기존 장착 무공 자동 해제
+    let filteredEquipped = state.equippedArts;
+    let newActiveMasteries = state.activeMasteries;
+    if (artDef.exclusiveGroup) {
+      const group = artDef.exclusiveGroup;
+      const swapped = state.equippedArts.filter(id => getArtDef(id)?.exclusiveGroup === group);
+      if (swapped.length > 0) {
+        filteredEquipped = state.equippedArts.filter(id => !swapped.includes(id));
+        newActiveMasteries = { ...state.activeMasteries };
+        for (const id of swapped) delete newActiveMasteries[id];
+      }
+    }
+
+    // 포인트 체크는 스왑 후 상태 기준
+    const projected = { ...state, equippedArts: filteredEquipped, activeMasteries: newActiveMasteries } as GameState;
+    const usedPoints = calcUsedPoints(projected);
     if (usedPoints + artDef.cost > state.artPoints) return;
 
-    const newEquipped = [...state.equippedArts, artId];
+    const newEquipped = [...filteredEquipped, artId];
     const flags = { ...state.tutorialFlags };
     if (artId === 'samjae_sword') flags.equippedSword = true;
 
     set({
       equippedArts: newEquipped,
+      activeMasteries: newActiveMasteries,
       tutorialFlags: flags,
     });
   },

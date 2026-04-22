@@ -13,6 +13,8 @@ import EnlightenmentModal from './components/EnlightenmentModal';
 
 type TabId = 'neigong' | 'arts' | 'equipment' | 'inventory' | 'battle' | 'encyclopedia';
 
+const SPEED_CYCLE = [0.5, 1, 2] as const;
+
 const TABS: { id: TabId; icon: string; label: string }[] = [
   { id: 'neigong', icon: '☯', label: '내공/경맥' },
   { id: 'arts', icon: '⚔', label: '무공/능력' },
@@ -33,6 +35,8 @@ export default function App() {
   const loadGame = useGameStore(s => s.loadGame);
   const gameSpeed = useGameStore(s => s.gameSpeed);
   const setGameSpeed = useGameStore(s => s.setGameSpeed);
+  const paused = useGameStore(s => s.paused);
+  const setPaused = useGameStore(s => s.setPaused);
   const inventoryCount = useGameStore(s => s.inventory.length);
   const battleResult = useGameStore(s => s.battleResult);
   const currentField = useGameStore(s => s.currentField);
@@ -119,7 +123,9 @@ export default function App() {
 
   function handleSpeedToggle() {
     const current = useGameStore.getState().gameSpeed;
-    setGameSpeed(current === 1 ? 2 : 1);
+    const idx = SPEED_CYCLE.indexOf(current as 0.5 | 1 | 2);
+    const next = idx === -1 ? 1 : SPEED_CYCLE[(idx + 1) % SPEED_CYCLE.length];
+    setGameSpeed(next);
   }
 
   function handleTabChange(tabId: TabId) {
@@ -133,11 +139,18 @@ export default function App() {
         <h1 className="app-title">무림 방치록</h1>
         <div className="header-buttons">
           <button
-            className={`icon-btn speed-btn${gameSpeed === 2 ? ' active' : ''}`}
+            className={`icon-btn speed-btn${gameSpeed !== 1 ? ' active' : ''}`}
             onClick={handleSpeedToggle}
             title="배속 전환"
           >
-            {gameSpeed === 1 ? '\u25B6 1x' : '\u25B6\u25B6 2x'}
+            {gameSpeed === 0.5 ? '◀ 0.5x' : gameSpeed === 2 ? '▶▶ 2x' : '▶ 1x'}
+          </button>
+          <button
+            className={`icon-btn pause-btn${paused ? ' active' : ''}`}
+            onClick={() => setPaused(!paused)}
+            title={paused ? '재개' : '일시정지'}
+          >
+            {paused ? '▶' : '‖'}
           </button>
           <button
             className="icon-btn"

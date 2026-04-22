@@ -4,7 +4,7 @@ import { RESOURCE_NAMES, RESOURCE_ICONS, BRANCH_NAMES } from './bahwagyoData';
 
 interface Props {
   state: BahwagyoState;
-  onReset: () => void;
+  onReset?: () => void;
 }
 
 const SCROLL_LABELS = ['1단계', '2단계', '3단계'];
@@ -17,9 +17,10 @@ const valueClasses: Record<string, string> = {
   divine: 'fire-inventory-value divine',
 };
 
-export default function BahwagyoInventory({ state, onReset }: Props) {
+export default function BahwagyoInventory({ state }: Props) {
   const { activeBranch, resources, scrolls } = state;
   const isMystery = activeBranch === 'mystery';
+  const isOuter = activeBranch === 'outer';
 
   return (
     <div className="fire-inventory">
@@ -36,8 +37,8 @@ export default function BahwagyoInventory({ state, onReset }: Props) {
               <span className="fire-inventory-label">{RESOURCE_NAMES[res]}</span>
               <span className={valueClasses[res]}>{resources[res].toLocaleString()}</span>
             </div>
-            {/* 우측: 비급 (??? 탭 숨김) */}
-            {!isMystery ? (
+            {/* 우측: 비급 (??? 탭, 외법 탭 숨김) */}
+            {!isMystery && !isOuter ? (
               <div className="fire-inventory-cell">
                 <span>📜</span>
                 <span className="fire-inventory-scroll">{branchLabel} {SCROLL_LABELS[i]}</span>
@@ -49,9 +50,6 @@ export default function BahwagyoInventory({ state, onReset }: Props) {
           </div>
         );
       })}
-      <button className="fire-reset-btn" onClick={onReset}>
-        초기화 (프로토타입용)
-      </button>
     </div>
   );
 }

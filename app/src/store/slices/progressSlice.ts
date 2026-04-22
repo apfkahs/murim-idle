@@ -38,9 +38,13 @@ export type ProgressSlice = {
   tutorialFlags: GameState['tutorialFlags'];
   fieldUnlocks: Record<string, boolean>;
   repeatableAchCounts: Record<string, number>;
+  selectedProfileKey: string | null;
+  customProfileUrl: string | null;
 
   // ── actions ──
   investStat: (stat: 'gi' | 'sim' | 'che', amount?: number) => void;
+  setProfileKey: (key: string | null) => void;
+  setCustomProfile: (dataUrl: string | null) => void;
   healWithQi: () => void;
   attemptBreakthrough: () => void;
   getQiPerSec: () => number;
@@ -84,8 +88,13 @@ export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice>
     cheonsan_simjang: false,
   },
   repeatableAchCounts: {},
+  selectedProfileKey: null,
+  customProfileUrl: null,
 
   // ── 액션 ──
+  setProfileKey: (key) => set({ selectedProfileKey: key, customProfileUrl: null }),
+  setCustomProfile: (dataUrl) => set({ customProfileUrl: dataUrl, selectedProfileKey: null }),
+
   investStat: (stat, amount = 1) => {
     const state = get() as GameStore;
     if (state.battleMode !== 'none') return;

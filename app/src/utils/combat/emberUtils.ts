@@ -92,6 +92,25 @@ export function applyEmberStack(
   return base;
 }
 
+/**
+ * playerDotStacks에서 ember 스택을 정확히 count개 소모해 새 배열 반환.
+ * 부족하면 소모하지 않고 consumed=0 반환. count === stacks면 엔트리 제거.
+ */
+export function consumeEmberStacks(
+  dots: DotStackEntry[] | undefined | null,
+  count: number,
+): { dots: DotStackEntry[]; consumed: number } {
+  const base = dots ? [...dots] : [];
+  const idx = base.findIndex(d => d.id === EMBER_ID);
+  if (idx < 0) return { dots: base, consumed: 0 };
+  const entry = base[idx];
+  if (entry.stacks < count) return { dots: base, consumed: 0 };
+  const remaining = entry.stacks - count;
+  if (remaining === 0) base.splice(idx, 1);
+  else base[idx] = { ...entry, stacks: remaining };
+  return { dots: base, consumed: count };
+}
+
 /** playerDotStacks에서 ember 엔트리만 제거 (전투 리셋용) */
 export function removeEmberStacks(
   dots: DotStackEntry[] | undefined | null,

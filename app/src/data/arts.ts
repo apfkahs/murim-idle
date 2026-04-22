@@ -38,6 +38,19 @@ export interface MasteryEffects {
   synergyArtId?: string;
   dodgeCounterEnabled?: boolean;  // 회피 성공 시 50% 확률 카운터 공격 활성화
   dodgeCounterMultiplier?: number; // 회피 카운터 공격 배율 (기본 1.2, 녹림보법 1.3)
+  dodgeCounterChance?: number;     // 회피 카운터 발동 확률 (기본 0.5 하드코드 대체, 집계=MAX)
+  minAtkSpeedOverride?: number;    // 공속 하한 오버라이드 (B.ATK_SPEED_MIN 보다 낮게 허용, 집계=MIN)
+  enableBaehwagyoEmberTick?: boolean;  // 배화교 식화심법 불씨 소각 틱 활성화 (Phase 2 baehwagyoEffects.ts에서 세팅)
+  // ── 배화교 식화심법 per-level 효과 (Phase 2) ──
+  qiRatioOverride?: number;              // 전투 중 기운 비율 오버라이드 (0.25/0.35/0.50)
+  emberBurnIntervalSec?: number;         // 불씨 소각 주기(초, 재의 빠름 Lv 기반)
+  emberUltDeleteChance?: number;         // 절초 발동 시 불씨 1스택 삭제 확률
+  emberUltDeleteDoubleChance?: number;   // 절초 삭제가 발동한 경우, 2스택 전환 확률
+  emberBurnHpRecoveryPerStack?: number;  // 재의 묵념: 소각 시 스택당 maxHp % 회복 (0.002 = 0.2%)
+  emberBurnHpRecoveryStackCap?: number;  // 재의 묵념 상한 (20)
+  emberBurnAtkBuffPerStack?: number;     // 재의 맹세: 소각 시 스택당 ATK % 버프 (0.001 = 0.1%)
+  emberBurnAtkBuffStackMax?: number;     // 재의 맹세 중첩 상한 (3)
+  emberBurnAtkBuffDurationSec?: number;  // 재의 맹세 지속 (20)
   bonusDmgReductionPercent?: number;   // % 피해 감소 (철포삼 기본 15%, 비전서 +10%)
   bonusHpPercent?: number;             // 최대 HP % 증가 (철포삼 비전서 +10%)
   bonusCombatQiRatioFlat?: number;     // 전투 기운 비율 절대 덧셈 (삼재심법 오의 +0.10)
@@ -138,6 +151,7 @@ export interface ArtDef {
   autoActivateMastery?: boolean;   // true이면 craftArtRecipe로 심득 해금 시 자동 활성화 (pointCost 무시)
   externalDefenseGrade?: number;   // 외공 등급 (철포삼 = 1)
   proficiencyGainMultiplier?: number; // 숙련도 획득 배율 (마령심법 = 0.5)
+  exclusiveGroup?: string;         // 동일 그룹의 다른 무공은 장착 시 자동 해제 (예: 'footwork')
 }
 
 // ============================================================
@@ -391,6 +405,7 @@ export const ARTS: ArtDef[] = [
     baseGrade: 8,
     imageKey: 'nokrim_bobeop',
     autoActivateMastery: true,
+    exclusiveGroup: 'footwork',
 
     proficiencyType: 'footwork',
     proficiencyCoefficient: 0,  // 0이면 숙련도 스케일링 비활성 (성급 배율로 대체)
@@ -425,7 +440,7 @@ export const ARTS: ArtDef[] = [
         pointCost: 0,
         discovery: { type: 'bijup' },
         requiredArtGrade: 8,
-        effects: { bonusAtkSpeed: 0.1, dodgeCounterEnabled: true, dodgeCounterMultiplier: 1.3 },
+        effects: { bonusAtkSpeed: 0.1, dodgeCounterEnabled: true, dodgeCounterMultiplier: 1.3, dodgeCounterChance: 0.5 },
       },
       {
         stage: 2,
@@ -631,6 +646,52 @@ export const ARTS: ArtDef[] = [
         effects: { bonusDmgReductionPercent: 10, bonusHpPercent: 0.10 },
       },
     ],
+  },
+
+  // ── 식화심법 (배화교, 심법) ──
+  // 실제 per-level 효과는 baehwagyoEffects.ts 가 bahwagyoSlice 의 nodeLevels 를 읽어 계산.
+  // arts.ts 에는 장착/심법 슬롯 판정을 위한 최소 엔트리만 둔다.
+  {
+    id: 'baehwa_sikhwa_simbeop',
+    name: '식화심법(息火心法)',
+    faction: 'baehwagyo',
+    artType: 'simbeop',
+    cost: 1,
+    baseGrade: 5,
+    proficiencyType: 'mental',
+    proficiencyCoefficient: 0,  // 실제 coeff 는 baehwagyoEffects 가 심법 개방 노드 레벨로 계산
+    imageKey: 'baehwa_sikhwa',
+    descriptionByStage: [
+      '성화(聖火) 앞에서 숨을 고르는 배화교의 호흡법. 이단자의 손에서는 자신에게 옮겨붙은 불씨를 잠재우는 역습의 심법이 된다. 배화교 비급 트리에서 레벨을 올려 효과를 키운다.',
+    ],
+    growth: {
+      baseQiPerSec: 2.0,
+      maxQiPerSec: 100_000_000,
+      baseCombatQiRatio: 0.25,  // qiRatioOverride 미설정 시 fallback
+      maxCombatQiRatio: 0.5,    // 심법 개방 30Lv 특성이 도달 가능한 상한 (스펙 §5-1)
+    },
+    masteries: [],
+    baseEffects: {},
+  },
+
+  // ── 성화보법 (배화교, 보법) ──
+  {
+    id: 'baehwa_seonghwa_bobeop',
+    name: '성화보법(聖火步法)',
+    faction: 'baehwagyo',
+    artType: 'passive',
+    cost: 1,
+    baseGrade: 5,
+    exclusiveGroup: 'footwork',
+    proficiencyType: 'footwork',
+    proficiencyCoefficient: 0,
+    imageKey: 'baehwa_seonghwa',
+    descriptionByStage: [
+      '아타르(Atar)의 걸음. 불씨를 밟고 걷듯 가볍고 빠른 보법. 배화교 비급 트리의 성화보법 개방 노드 레벨에 따라 회피·카운터·공속 하한이 성장한다.',
+    ],
+    growth: {},
+    masteries: [],
+    baseEffects: {},
   },
 
   // ── 마령심법 (심법, evil) ──

@@ -9,7 +9,6 @@ interface Props {
 const TABS: { id: BranchId; label: string }[] = [
   { id: 'sword', label: '검법' },
   { id: 'mind', label: '심법' },
-  { id: 'step', label: '보법' },
   { id: 'outer', label: '외법' },
   { id: 'mystery', label: '???' },
 ];

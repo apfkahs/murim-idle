@@ -21,6 +21,7 @@ export type InventorySlice = {
   // ── actions ──
   learnScroll: (itemId: string) => void;
   discardItem: (itemId: string) => void;
+  discardMaterial: (materialId: string, count: number) => void;
   craft: (recipeId: string, materialCount: number) => boolean;
   unlockRecipe: (recipeId: string) => void;
   craftArtRecipe: (recipeId: string) => boolean;
@@ -66,6 +67,14 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
   discardItem: (itemId) => {
     const state = get() as GameStore;
     set({ inventory: state.inventory.filter(i => i.id !== itemId) });
+  },
+
+  discardMaterial: (materialId, count) => {
+    const state = get() as GameStore;
+    const have = state.materials[materialId] ?? 0;
+    const actual = Math.max(0, Math.min(count, have));
+    if (actual <= 0) return;
+    set({ materials: { ...state.materials, [materialId]: have - actual } });
   },
 
   craft: (recipeId, materialCount) => {

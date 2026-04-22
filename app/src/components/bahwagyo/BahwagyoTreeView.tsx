@@ -94,6 +94,78 @@ function LockedBlock({
   );
 }
 
+function OuterBranchView({
+  nodeLevels,
+  unlockedTiers,
+  expandLevel,
+  resources,
+  scrolls,
+  onNodeClick,
+  onLockedClick,
+}: Pick<Props, 'nodeLevels' | 'unlockedTiers' | 'expandLevel' | 'resources' | 'scrolls' | 'onNodeClick' | 'onLockedClick'>) {
+  const tier1Nodes = ALL_NODES.filter(n => n.branch === 'outer' && n.tier === 1);
+  const tier2Nodes = ALL_NODES.filter(n => n.branch === 'outer' && n.tier === 2);
+  const tier3Nodes = ALL_NODES.filter(n => n.branch === 'outer' && n.tier === 3);
+  const tier2Unlocked = unlockedTiers['outer-2'] ?? false;
+  const tier3Unlocked = unlockedTiers['outer-3'] ?? false;
+
+  function renderNode(node: SkillNodeDef) {
+    const level = nodeLevels[node.id] ?? 0;
+    const state = getNodeState(node, level, nodeLevels, expandLevel, resources, scrolls);
+    return (
+      <BahwagyoNodeBox
+        key={node.id}
+        node={node}
+        level={level}
+        expandLevel={expandLevel}
+        nodeState={state}
+        onClick={() => onNodeClick(node.id)}
+      />
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+      {/* ── 1단계: 보법 + 방어법 나란히 ── */}
+      <div className="fire-tier-section">
+        <div className="fire-tier-label">1 단계</div>
+        <div className="fire-tier2-row">
+          {tier1Nodes.map(n => renderNode(n))}
+        </div>
+      </div>
+
+      <div className="fire-tier-divider" />
+
+      {/* ── 2단계 ── */}
+      {tier2Unlocked ? (
+        <div className="fire-tier-section">
+          <div className="fire-tier-label">2 단계</div>
+          <div className="fire-tier2-row">
+            {tier2Nodes.map(n => renderNode(n))}
+          </div>
+        </div>
+      ) : (
+        <LockedBlock tier={2} branch="outer" onLockedClick={onLockedClick} />
+      )}
+
+      <div className="fire-tier-divider" />
+
+      {/* ── 3단계 ── */}
+      {tier3Unlocked ? (
+        <div className="fire-tier-section">
+          <div className="fire-tier-label">3 단계</div>
+          <div className="fire-tier2-row">
+            {tier3Nodes.map(n => renderNode(n))}
+          </div>
+        </div>
+      ) : (
+        <LockedBlock tier={3} branch="outer" onLockedClick={onLockedClick} />
+      )}
+    </div>
+  );
+}
+
 export default function BahwagyoTreeView({
   branch,
   nodeLevels,
@@ -104,7 +176,22 @@ export default function BahwagyoTreeView({
   onNodeClick,
   onLockedClick,
 }: Props) {
-  // 해당 브랜치 노드 가져오기
+  // outer 브랜치: 독립 무공 병렬 노출 (tier 구조 없음)
+  if (branch === 'outer') {
+    return (
+      <OuterBranchView
+        nodeLevels={nodeLevels}
+        unlockedTiers={unlockedTiers}
+        expandLevel={expandLevel}
+        resources={resources}
+        scrolls={scrolls}
+        onNodeClick={onNodeClick}
+        onLockedClick={onLockedClick}
+      />
+    );
+  }
+
+  // sword / mind 공통 경로
   const branchNodes = ALL_NODES.filter(n => n.branch === branch);
   const tier1Nodes = branchNodes.filter(n => n.tier === 1);
   const tier2Nodes = branchNodes.filter(n => n.tier === 2);
@@ -136,7 +223,7 @@ export default function BahwagyoTreeView({
 
       {/* ── 1단계 ── */}
       <div className="fire-tier-section">
-        <div className="fire-tier-label">1단계</div>
+        <div className="fire-tier-label">1 단계</div>
 
         {/* 루트 노드 (중앙) */}
         <div className="fire-tier-root-row">
@@ -161,7 +248,7 @@ export default function BahwagyoTreeView({
       {/* ── 2단계 ── */}
       {tier2Unlocked ? (
         <div className="fire-tier-section">
-          <div className="fire-tier-label">2단계</div>
+          <div className="fire-tier-label">2 단계</div>
           <div className="fire-tier2-row">
             {tier2Nodes.map(n => renderNode(n))}
           </div>
@@ -176,7 +263,7 @@ export default function BahwagyoTreeView({
       {/* ── 3단계 ── */}
       {tier3Unlocked ? (
         <div className="fire-tier-section">
-          <div className="fire-tier-label">3단계</div>
+          <div className="fire-tier-label">3 단계</div>
           <div className="fire-tier2-row">
             {tier3Nodes.map(n => renderNode(n))}
           </div>

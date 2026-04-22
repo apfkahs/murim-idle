@@ -5,16 +5,42 @@ import { getMonsterDef } from '../../../../data/monsters';
 import { calcExternalDmgReduction } from '../../../combatCalc';
 import { calcEnemyDamage } from '../../damageCalc';
 import { applyEmberStack, getEmberStacks } from '../../emberUtils';
-import { PRE_SKILL_LOOP_HOOKS, SKILL_HANDLERS, type SkillHandlerResult } from '../registry';
+import {
+  PRE_SKILL_LOOP_HOOKS, SKILL_HANDLERS, MONSTER_STATE_FACTORIES,
+  type SkillHandlerResult,
+} from '../registry';
 
 const HAENGJA_ID = 'baehwa_haengja';
+
+export interface HaengjaState {
+  readonly kind: typeof HAENGJA_ID;
+  atarSacrificeState: {
+    skillId: string;
+    turnsLeft: number;
+    perTurnHealPercent: number;
+    reflectStacks: number;
+    endDamageMultiplier: number;
+  } | null;
+  killFailureSkipRewards: boolean;     // 이번 처치는 드랍·숙련도 미지급
+}
+
+export function createHaengjaInitialState(): HaengjaState {
+  return {
+    kind: HAENGJA_ID,
+    atarSacrificeState: null,
+    killFailureSkipRewards: false,
+  };
+}
 
 // 아타르로의 귀의 활성 중 매 공격 tick 처리 (자가회복 + 턴 카운트 + 자폭)
 function advanceAtarSacrificeTick(ctx: TickContext, pattern: BossPatternDef | null): boolean {
   if (ctx.currentEnemy?.id !== HAENGJA_ID) return false;
-  if (!ctx.bossPatternState?.atarSacrificeState || !ctx.currentEnemy) return false;
+  if (!ctx.bossPatternState || !ctx.currentEnemy) return false;
+  const st = ctx.bossPatternState.monsterState;
+  if (st?.kind !== HAENGJA_ID) return false;
+  if (!st.atarSacrificeState) return false;
 
-  const atar = ctx.bossPatternState.atarSacrificeState;
+  const atar = st.atarSacrificeState;
   const sacSkill = pattern?.skills.find(s => s.type === 'baehwa_atar_sacrifice');
   const monDef = getMonsterDef(ctx.currentEnemy.id);
   const eName = monDef?.name ?? ctx.currentEnemy.id;
@@ -53,11 +79,11 @@ function advanceAtarSacrificeTick(ctx: TickContext, pattern: BossPatternDef | nu
     ctx.hp -= selfDmg;
     // 플레이어 사망 시 처치 실패 플래그
     if (ctx.hp <= 0 && sacSkill?.sacrificeKillFailureOnDeath) {
-      ctx.bossPatternState.killFailureSkipRewards = true;
+      st.killFailureSkipRewards = true;
     }
     // 행자 자멸
     ctx.currentEnemy = { ...ctx.currentEnemy, hp: 0 };
-    ctx.bossPatternState.atarSacrificeState = null;
+    st.atarSacrificeState = null;
     const destructMsg = sacSkill?.sacrificeSelfDestructLogs?.[0] ?? '';
     ctx.logFlavor(destructMsg, 'right', { actor: 'enemy' });
     ctx.logEvent({
@@ -67,7 +93,7 @@ function advanceAtarSacrificeTick(ctx: TickContext, pattern: BossPatternDef | nu
     });
     if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
   } else {
-    ctx.bossPatternState.atarSacrificeState = { ...atar, turnsLeft: nextTurns };
+    st.atarSacrificeState = { ...atar, turnsLeft: nextTurns };
   }
   return true;
 }
@@ -115,8 +141,10 @@ function handleEmberSong(ctx: TickContext, skill: BossSkillDef, _pattern: BossPa
 function handleAtarSacrifice(ctx: TickContext, skill: BossSkillDef, _pattern: BossPatternDef): SkillHandlerResult {
   if (ctx.currentEnemy?.id !== HAENGJA_ID) return { consumed: false };
   if (!ctx.bossPatternState) return { consumed: false };
+  const st = ctx.bossPatternState.monsterState;
+  if (st?.kind !== HAENGJA_ID) return { consumed: false };
 
-  ctx.bossPatternState.atarSacrificeState = {
+  st.atarSacrificeState = {
     skillId: skill.id,
     turnsLeft: skill.sacrificeDurationTurns ?? 3,
     perTurnHealPercent: skill.sacrificeHealPercentPerTurn ?? 0.08,
@@ -136,4 +164,5 @@ export function registerBaehwaHaengja(): void {
   PRE_SKILL_LOOP_HOOKS.push(advanceAtarSacrificeTick);
   SKILL_HANDLERS['baehwa_ember_song'] = handleEmberSong;
   SKILL_HANDLERS['baehwa_atar_sacrifice'] = handleAtarSacrifice;
+  MONSTER_STATE_FACTORIES[HAENGJA_ID] = createHaengjaInitialState;
 }

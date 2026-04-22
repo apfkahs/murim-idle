@@ -128,7 +128,7 @@ export const FIELDS: FieldDef[] = [
   {
     id: 'baehwagyo_oemun',
     name: '배화교 외문',
-    monsters: ['baehwa_haengja', 'baehwa_howi'],
+    monsters: ['baehwa_haengja', 'baehwa_howi', 'baehwa_geombosa', 'baehwa_hwabosa', 'baehwa_gyeongbosa'],
     hiddenMonsters: [],
     canExplore: true,
     sequential: true,

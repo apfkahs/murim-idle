@@ -4,6 +4,8 @@
  */
 import type { ProficiencyType } from '../data/arts';
 import type { EquipSlot, EquipmentInstance } from '../data/equipment';
+import type { MonsterState } from '../utils/combat/skillHandlers/registry';
+import type { BahwagyoState } from '../components/bahwagyo/bahwagyoTypes';
 
 // ============================================================
 // 인벤토리 아이템
@@ -129,7 +131,7 @@ export interface SaveMeta {
 // ============================================================
 export interface DotStackEntry {
   id: string;
-  type: 'bleed' | 'poison' | 'stamina_drain' | 'slow' | 'ember';
+  type: 'bleed' | 'poison' | 'stamina_drain' | 'slow' | 'ember' | 'druze';
   damagePerTick: number;       // 초당 데미지 (slow=0)
   damagePerStack: number;      // 스택당 추가 초당 데미지
   stacks: number;
@@ -180,6 +182,8 @@ export interface GameState {
   hp: number;
   maxHp: number;
   tier: number;
+  selectedProfileKey: string | null;
+  customProfileUrl: string | null;
 
   // 전투 자원
   stamina: number;
@@ -290,26 +294,15 @@ export interface GameState {
     bossChargeDmgReduction?: number;
     bossChargeStunImmune?: boolean;
     chargeRegenPenalty?: number;       // 차지 중 내력 회복속도 감소량 (/초)
-    // === 배화교 행자 신규 ===
+    // === 배화교 공통: 삼행의 율법 (4개 보스 모두 baehwa_guard 보유) ===
     guardDamageTakenMultiplier?: number;  // 적이 받는 피해 배율 (0.5 또는 1.0)
     guardFirstHitLogged?: boolean;        // 첫 피격 로그 1회 출력 제어
-    atarSacrificeState?: {
-      skillId: string;
-      turnsLeft: number;
-      perTurnHealPercent: number;
-      reflectStacks: number;
-      endDamageMultiplier: number;
-    } | null;
-    killFailureSkipRewards?: boolean;     // 이번 처치는 드랍·숙련도 미지급
-    // === 배화교 호위 신규 ===
-    sraoshaTier?: number;                 // 현재 단계 (0~3)
-    sraoshaLastLoggedTier?: number;       // 마지막으로 로그 찍힌 단계 (경계 로그 중복 방지)
-    howiSacredOathState?: {
-      phase: 'awakening' | 'frenzy';
-      awakeningTurnsLeft: number;
-      breathTurnCounter: number;
-      frenzyEnterLogged: boolean;
-    } | null;
+    // === 경보사용 — 미설정 시 0 (기존 전투 동작 보존) ===
+    playerCritRateOverride?: number;        // 경보사 단언 규율용 — 설정 시 critRate 강제 대체
+    enemyDodgeRate?: number;                // 상시 적 회피율 (0..1). 경보사 규율 B 용
+    enemyNextAttackDodgeBonus?: number;     // 1회용 가산치 (0..1). 경보사 자화 용
+    // === 몬스터별 namespace (discriminated union, kind 판별자) ===
+    monsterState?: MonsterState | null;
   } | null;
   playerFinisherCharge?: {
     artId: string;
@@ -320,6 +313,8 @@ export interface GameState {
   playerStunTimer: number;
   lastEnemyAttack: { enemyName: string; attackMessage: string } | null;
   dodgeCounterActive: boolean;
+  baehwagyoEmberTimer: number;
+  baehwagyoAshOathBuffs: { expiresAtSec: number; atkMult: number }[];
   autoExploreFields: Record<string, boolean>;
 
   tutorialFlags: {
@@ -343,6 +338,7 @@ export interface GameState {
   // v2.0+ 필드
   activeMasteries: Record<string, string[]>;
   gameSpeed: number;
+  paused: boolean;
   currentSaveSlot: number;
   fieldUnlocks: Record<string, boolean>;
   inventory: InventoryItem[];
@@ -371,4 +367,7 @@ export interface GameState {
 
   // 반복 업적 달성 횟수
   repeatableAchCounts: Record<string, number>;
+
+  // 배화교 스킬트리
+  bahwagyo: BahwagyoState;
 }

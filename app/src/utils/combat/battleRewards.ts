@@ -36,7 +36,9 @@ export function processEnemyDeath(ctx: TickContext): void {
   ctx.totalKills++;
 
   // 처치 실패 여부 — 행자 자폭 등으로 보상 없이 끝난 케이스는 세션 카운트에서도 제외
-  const killFailed = ctx.bossPatternState?.killFailureSkipRewards === true;
+  const haengjaStateReward = ctx.bossPatternState?.monsterState?.kind === 'baehwa_haengja'
+    ? ctx.bossPatternState.monsterState : null;
+  const killFailed = haengjaStateReward?.killFailureSkipRewards === true;
   if (!killFailed) {
     ctx.sessionKills += 1;
     ctx.sessionBattleWins += 1;
@@ -56,9 +58,9 @@ export function processEnemyDeath(ctx: TickContext): void {
   }
 
   // 배화교 행자 — 아타르 자폭으로 플레이어 사망 시 처치 실패: 드롭·숙련도·깨달음 미지급
-  const skipRewards = ctx.bossPatternState?.killFailureSkipRewards === true;
-  if (ctx.bossPatternState?.killFailureSkipRewards) {
-    ctx.bossPatternState.killFailureSkipRewards = false;
+  const skipRewards = haengjaStateReward?.killFailureSkipRewards === true;
+  if (haengjaStateReward?.killFailureSkipRewards) {
+    haengjaStateReward.killFailureSkipRewards = false;
   }
   if (skipRewards) {
     ctx.logKill({ enemyName: monDef.name, rewards: [] });
@@ -66,12 +68,53 @@ export function processEnemyDeath(ctx: TickContext): void {
   }
 
   // 배화교 호위 처치 로그 분기
-  if (monDef.id === 'baehwa_howi' && ctx.bossPatternState) {
-    const phase = ctx.bossPatternState.howiSacredOathState?.phase;
+  if (monDef.id === 'baehwa_howi' && ctx.bossPatternState?.monsterState?.kind === 'baehwa_howi') {
+    const phase = ctx.bossPatternState.monsterState.howiSacredOathState?.phase;
     const oathSkill = BOSS_PATTERNS['baehwa_howi']?.skills.find(s => s.type === 'sacred_oath');
     const killLogs = phase === 'frenzy' ? oathSkill?.sacredOathKillFrenzyLogs : oathSkill?.sacredOathKillEarlyLogs;
     if (killLogs?.length) {
       ctx.logFlavor(killLogs[0], 'right', { actor: 'enemy' });
+    }
+  }
+
+  // 배화교 검보사 처치 로그 분기 (태세별 + 성화 발동 여부)
+  if (monDef.id === 'baehwa_geombosa' && ctx.bossPatternState?.monsterState?.kind === 'baehwa_geombosa') {
+    const attackSkill = BOSS_PATTERNS['baehwa_geombosa']?.skills.find(s => s.type === 'geombosa_attack');
+    const kl = attackSkill?.geombosaSkills?.killLogs;
+    if (kl) {
+      const ms = ctx.bossPatternState.monsterState;
+      const stance = ms.stance;
+      const firedOnce = ms.seonghwaFiredOnce;
+      let candidates: string[] | undefined;
+      if (stance === 'defense') candidates = kl.defense;
+      else if (stance === 'attack') candidates = kl.attack;
+      else candidates = [firedOnce ? kl.masterPostSeonghwa : kl.masterPreSeonghwa];
+      if (candidates && candidates.length > 0 && candidates[0]) {
+        const msg = candidates[Math.floor(Math.random() * candidates.length)];
+        ctx.logFlavor(msg, 'right', { actor: 'enemy' });
+      }
+    }
+  }
+
+  // 배화교 화보사 처치 로그 분기 (페이즈별 5갈래)
+  //   prayer(기도 중 처치) → worship 로그로 fallback
+  //   ascension 은 아타시 발동 이력(bahramFired) 으로 pre/post 분기
+  if (monDef.id === 'baehwa_hwabosa' && ctx.bossPatternState?.monsterState?.kind === 'baehwa_hwabosa') {
+    const attackSkill = BOSS_PATTERNS['baehwa_hwabosa']?.skills.find(s => s.type === 'hwabosa_attack');
+    const kl = attackSkill?.hwabosaSkills?.killLogs;
+    if (kl) {
+      const ms = ctx.bossPatternState.monsterState;
+      const phase = ms.phase;
+      const fired = ms.bahramFired;
+      let candidates: string[] | undefined;
+      if (phase === 'prayer' || phase === 'worship') candidates = kl.worship;
+      else if (phase === 'meditation') candidates = kl.meditation;
+      else if (phase === 'liberation') candidates = kl.liberation;
+      else candidates = [fired ? kl.ascensionPostBahram : kl.ascensionPreBahram];
+      if (candidates && candidates.length > 0 && candidates[0]) {
+        const msg = candidates[Math.floor(Math.random() * candidates.length)];
+        ctx.logFlavor(msg, 'right', { actor: 'enemy' });
+      }
     }
   }
 

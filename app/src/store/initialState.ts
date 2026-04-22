@@ -4,6 +4,7 @@
  */
 import { BALANCE_PARAMS } from '../data/balance';
 import type { GameState } from './types';
+import { INITIAL_BAHWAGYO_STATE } from './slices/bahwagyoSlice';
 
 const B = BALANCE_PARAMS;
 
@@ -16,6 +17,8 @@ export function createInitialState(): GameState {
     hp: B.HP_BASE,
     maxHp: B.HP_BASE,
     tier: 0,
+    selectedProfileKey: null,
+    customProfileUrl: null,
 
     stamina: 0,
     ultCooldowns: {},
@@ -74,6 +77,8 @@ export function createInitialState(): GameState {
     bossPatternState: null,
     playerStunTimer: 0,
     lastEnemyAttack: null,
+    baehwagyoEmberTimer: 0,
+    baehwagyoAshOathBuffs: [],
     tutorialFlags: {
       equippedSword: false,
       equippedSimbeop: false,
@@ -90,6 +95,7 @@ export function createInitialState(): GameState {
     enemyAnim: '',
     activeMasteries: {},
     gameSpeed: 1,
+    paused: false,
     currentSaveSlot: 0,
     fieldUnlocks: {
       training: true,
@@ -117,5 +123,6 @@ export function createInitialState(): GameState {
     dodgeCounterActive: false,
     autoExploreFields: {},
     repeatableAchCounts: {},
+    bahwagyo: INITIAL_BAHWAGYO_STATE,
   };
 }

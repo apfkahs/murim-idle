@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useGameStore, calcMaxHp, calcStamina, calcStaminaRegen, calcEffectiveRegen, calcTierMultiplier } from '../store/gameStore';
 import { getTierDef, TIERS } from '../data/tiers';
 import { getArtDef } from '../data/arts';
-import { getPlayerByTier } from '../assets';
+import { getActiveProfile, getUnlockedProfileKeys, getPlayerImageByKey, getPlayerByTier, PLAYER_TIER_KEYS } from '../assets';
 import { formatNumber } from '../utils/format';
 
 export default function NeigongTab() {
@@ -28,9 +28,14 @@ export default function NeigongTab() {
   const equipSimbeop = useGameStore(s => s.equipSimbeop);
   const unequipSimbeop = useGameStore(s => s.unequipSimbeop);
   const battleMode = useGameStore(s => s.battleMode);
+  const selectedProfileKey = useGameStore(s => s.selectedProfileKey);
+  const customProfileUrl = useGameStore(s => s.customProfileUrl);
+  const setProfileKey = useGameStore(s => s.setProfileKey);
+  const setCustomProfile = useGameStore(s => s.setCustomProfile);
 
   const battling = battleMode !== 'none';
   const [investMode, setInvestMode] = useState<1 | 10 | 100 | 'max'>(1);
+  const [profilePanelOpen, setProfilePanelOpen] = useState(false);
 
   function calcFixedCost(level: number, count: number): number {
     let total = 0;
@@ -58,7 +63,7 @@ export default function NeigongTab() {
   const tierDef = getTierDef(tier);
   const qiRate = getQiPerSec();
   const totalStats = getTotalStats();
-  const player = getPlayerByTier(tier);
+  const player = getActiveProfile(selectedProfileKey, customProfileUrl, tier);
   const atkInterval = getAttackInterval();
 
   // 파생 수치
@@ -92,7 +97,11 @@ export default function NeigongTab() {
     <div>
       {/* 캐릭터 + 자연의 기운 */}
       <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
-        <div className="char-circle">
+        <div
+          className={`char-circle${profilePanelOpen ? ' char-circle--active' : ''}`}
+          onClick={() => setProfilePanelOpen(v => !v)}
+          title="프로필 사진 변경"
+        >
           {player.url ? (
             <img src={player.url} alt="캐릭터" />
           ) : (
@@ -108,6 +117,17 @@ export default function NeigongTab() {
             : `+${qiRate.toFixed(1)}/초`}
         </div>
       </div>
+
+      {/* 프로필 선택 패널 */}
+      {profilePanelOpen && (
+        <ProfilePanel
+          tier={tier}
+          selectedProfileKey={selectedProfileKey}
+          customProfileUrl={customProfileUrl}
+          onSelectKey={setProfileKey}
+          onSelectCustom={setCustomProfile}
+        />
+      )}
 
       {/* HP 카드 */}
       <div className="card">
@@ -268,6 +288,112 @@ export default function NeigongTab() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── 경지 키 → 표시 이름 ──
+const TIER_KEY_LABEL: Record<string, string> = {
+  tier0_hucheon: '후천경',
+  tier1_seongcheon: '성천경',
+  tier2_jeoljeong: '절정경',
+  tier3_hwagyeong: '화경',
+};
+
+type ProfilePanelProps = {
+  tier: number;
+  selectedProfileKey: string | null;
+  customProfileUrl: string | null;
+  onSelectKey: (key: string | null) => void;
+  onSelectCustom: (dataUrl: string | null) => void;
+};
+
+function ProfilePanel({ tier, selectedProfileKey, customProfileUrl, onSelectKey, onSelectCustom }: ProfilePanelProps) {
+  const unlockedKeys = getUnlockedProfileKeys(tier);
+  const isAuto = !selectedProfileKey && !customProfileUrl;
+  const autoUrl = getPlayerByTier(tier).url;
+
+  function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onerror = () => {
+      alert('파일을 읽을 수 없습니다. 다른 이미지를 시도해 주세요.');
+    };
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onerror = () => {
+        alert('지원하지 않는 이미지 형식입니다. PNG·JPG 파일을 사용해 주세요.');
+      };
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 200;
+        canvas.height = 200;
+        const ctx = canvas.getContext('2d')!;
+        const size = Math.min(img.width, img.height);
+        ctx.drawImage(img, (img.width - size) / 2, (img.height - size) / 2, size, size, 0, 0, 200, 200);
+        onSelectCustom(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
+  // PLAYER_TIER_KEYS를 기준으로 해금된 키만 중복 없이 표시
+  const displayKeys = PLAYER_TIER_KEYS.filter(k => unlockedKeys.includes(k));
+
+  return (
+    <div className="profile-panel">
+      <div className="profile-panel-title">프로필 사진 선택</div>
+      <div className="profile-thumb-grid">
+        {/* 자동 (현재 경지 기준) */}
+        <div
+          className={`profile-thumb${isAuto ? ' selected' : ''}`}
+          onClick={() => onSelectKey(null)}
+        >
+          {autoUrl
+            ? <img src={autoUrl} alt="자동" />
+            : <span className="upload-icon">🧑</span>}
+          <span>자동</span>
+        </div>
+
+        {/* 해금된 게임 프로필 */}
+        {displayKeys.map(key => {
+          const url = getPlayerImageByKey(key);
+          return (
+            <div
+              key={key}
+              className={`profile-thumb${selectedProfileKey === key ? ' selected' : ''}`}
+              onClick={() => onSelectKey(key)}
+            >
+              {url
+                ? <img src={url} alt={TIER_KEY_LABEL[key] ?? key} />
+                : <span className="upload-icon">🧑</span>}
+              <span>{TIER_KEY_LABEL[key] ?? key}</span>
+            </div>
+          );
+        })}
+
+        {/* 커스텀 업로드 */}
+        <div
+          className={`profile-thumb${customProfileUrl ? ' selected' : ''}`}
+          onClick={() => document.getElementById('profile-upload-input')?.click()}
+        >
+          {customProfileUrl
+            ? <img src={customProfileUrl} alt="직접 등록" />
+            : <span className="upload-icon">+</span>}
+          <span>직접 등록</span>
+        </div>
+      </div>
+
+      <input
+        id="profile-upload-input"
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleUpload}
+      />
     </div>
   );
 }

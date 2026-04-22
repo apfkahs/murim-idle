@@ -7,13 +7,13 @@ import { calcExternalDmgReduction } from '../combatCalc';
 import { getProfStarInfo } from '../artUtils';
 import { calcEnemyDamage, calcEnemyDamageWithBonus } from './damageCalc';
 import type { TickContext } from './tickContext';
-import { handleDodge, applyIncomingDamage } from './tickContext';
+import { handleDodge, applyIncomingDamage, rollDodgeCounter } from './tickContext';
 import type { DotStackEntry } from '../../store/types';
 import {
   getEmberStacks, getEmberAttackBonusMult, DEFAULT_EMBER_ATTACK_LOGS,
 } from './emberUtils';
 import {
-  initSkillRegistry, SKILL_HANDLERS, PRE_SKILL_LOOP_HOOKS, IN_ATTACK_RESOLVE_HOOKS,
+  initSkillRegistry, SKILL_HANDLERS, PER_TICK_HOOKS, PRE_SKILL_LOOP_HOOKS, IN_ATTACK_RESOLVE_HOOKS,
 } from './skillHandlers/registry';
 
 initSkillRegistry();
@@ -26,6 +26,12 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
   if (ctx.currentEnemy.enemyStunTimer && ctx.currentEnemy.enemyStunTimer > 0) {
     ctx.currentEnemy = { ...ctx.currentEnemy, enemyStunTimer: Math.max(0, ctx.currentEnemy.enemyStunTimer - ctx.dt) };
     return;
+  }
+
+  // PER_TICK_HOOKS: 공격 이벤트와 무관하게 매 틱마다 실행 (기도 타이머 등)
+  const tickPattern = ctx.bossPatternState ? BOSS_PATTERNS[ctx.currentEnemy.id] : null;
+  for (const hook of PER_TICK_HOOKS) {
+    hook(ctx, tickPattern);
   }
 
   ctx.enemyAttackTimer -= ctx.dt;
@@ -49,7 +55,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
   const monDef = getMonsterDef(ctx.currentEnemy.id);
   const eName = monDef?.name ?? ctx.currentEnemy.id;
 
-  const pattern = ctx.bossPatternState ? BOSS_PATTERNS[ctx.currentEnemy.id] : null;
+  const pattern = tickPattern;
   let skillUsed = false;
 
   // ========================================
@@ -236,7 +242,13 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           || skill.type === 'baehwa_guard'
           // 배화교 호위 추가 skip
           || skill.type === 'baehwa_hwachang'
-          || skill.type === 'sraosha_response') continue;
+          || skill.type === 'sraosha_response'
+          // 배화교 검보사 (IN_ATTACK_RESOLVE 훅에서 처리)
+          || skill.type === 'geombosa_attack'
+          // 배화교 화보사 (IN_ATTACK_RESOLVE 훅에서 처리)
+          || skill.type === 'hwabosa_attack'
+          // 배화교 경보사 (IN_ATTACK_RESOLVE 훅에서 처리)
+          || skill.type === 'gyeongbosa_attack') continue;
 
       // ① 레지스트리 조회: 등록된 핸들러 있으면 위임 (없으면 fallthrough)
       const registeredHandler = SKILL_HANDLERS[skill.type];
@@ -630,7 +642,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
                 side: 'incoming', actor: 'enemy',
                 name: `${i + 1}타`, tag: 'dodge', value: '—', valueTier: 'muted',
               });
-              if (ctx.masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) ctx.dodgeCounterActive = true;
+              if (rollDodgeCounter(ctx)) ctx.dodgeCounterActive = true;
             } else {
               let vmhDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, tier.hitMultipliers[i] * monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
               vmhDmg = Math.floor(vmhDmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
@@ -673,7 +685,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           // 개별 회피
           ctx.currentBattleDodgeCount += 1;
           damages.push(0);
-          if (ctx.masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) {
+          if (rollDodgeCounter(ctx)) {
             ctx.dodgeCounterActive = true;
           }
         } else {
@@ -953,7 +965,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
               name: dblSkill.displayName ?? '연격',
               tag: 'dodge', value: '—', valueTier: 'muted',
             });
-            if (ctx.masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) {
+            if (rollDodgeCounter(ctx)) {
               ctx.dodgeCounterActive = true;
             }
           }
@@ -983,7 +995,7 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
                 side: 'incoming', actor: 'enemy',
                 name: `연격 ${i + 1}타`, tag: 'dodge', value: '—', valueTier: 'muted',
               });
-              if (ctx.masteryEffects?.dodgeCounterEnabled && Math.random() < 0.5) ctx.dodgeCounterActive = true;
+              if (rollDodgeCounter(ctx)) ctx.dodgeCounterActive = true;
             }
           }
           if (tripleSkill.staminaGain) {

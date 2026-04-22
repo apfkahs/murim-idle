@@ -11,7 +11,50 @@ import { createInitialState } from '../initialState';
 import { FIELDS, getFieldDef, generateExploreOrder } from '../../data/fields';
 import { getMonsterDef } from '../../data/monsters';
 import { createBossPatternState, applyBattleStartSkills } from '../../utils/combat/tickContext';
+import { MONSTER_STATE_FACTORIES, type MonsterState } from '../../utils/combat/skillHandlers/registry';
 import { BALANCE_PARAMS } from '../../data/balance';
+import { INITIAL_BAHWAGYO_STATE, migrateBaehwagyoOwnedArts, migrateBaehwagyoOuterSplit } from './bahwagyoSlice';
+
+/**
+ * Legacy flat-prefix bossPatternState → monsterState namespace 격리 마이그레이션.
+ * idempotent: 이미 신구조면 즉시 반환, 전투 밖 세이브는 null 즉시 반환.
+ */
+function migrateBossPatternState(raw: unknown): NonNullable<GameState['bossPatternState']> | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = { ...(raw as Record<string, unknown>) };
+  if ('monsterState' in r) return r as NonNullable<GameState['bossPatternState']>;
+
+  const kindMatchers: { kind: MonsterState['kind']; prefix?: string; fields?: string[] }[] = [
+    { kind: 'baehwa_geombosa', prefix: 'geombosa_' },
+    { kind: 'baehwa_hwabosa',  prefix: 'hwabosa_' },
+    { kind: 'baehwa_howi',     fields: ['sraoshaTier', 'sraoshaLastLoggedTier', 'howiSacredOathState'] },
+    { kind: 'baehwa_haengja',  fields: ['atarSacrificeState', 'killFailureSkipRewards'] },
+  ];
+
+  let monsterState: MonsterState | null = null;
+  for (const m of kindMatchers) {
+    const acc: Record<string, unknown> = {};
+    let hit = false;
+    for (const k of Object.keys(r)) {
+      const take = m.prefix ? k.startsWith(m.prefix) : m.fields?.includes(k);
+      if (take) {
+        const outKey = m.prefix ? k.slice(m.prefix.length) : k;
+        acc[outKey] = r[k];
+        delete r[k];
+        hit = true;
+      }
+    }
+    if (hit) {
+      // defensive: factory 기본값 base에 flat 필드 덮어쓰기
+      const factory = MONSTER_STATE_FACTORIES[m.kind];
+      const base = factory ? factory() : ({ kind: m.kind } as MonsterState);
+      monsterState = { ...base, ...acc, kind: m.kind } as MonsterState;
+      break; // 전투 중 세이브 = 한 몬스터만 hit
+    }
+  }
+  r.monsterState = monsterState;
+  return r as NonNullable<GameState['bossPatternState']>;
+}
 
 export type SaveSlice = {
   // ── state ──
@@ -43,7 +86,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
 
     const saveData = {
       version: '4.0',
-      dataVersion: 1,
+      dataVersion: 2,
       qi: state.qi,
       totalSpentQi: state.totalSpentQi,
       stats: state.stats,
@@ -65,6 +108,8 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
       firstEnteredFields: state.firstEnteredFields,
       bossPatternState: state.bossPatternState,
       playerStunTimer: state.playerStunTimer,
+      baehwagyoEmberTimer: state.baehwagyoEmberTimer,
+      baehwagyoAshOathBuffs: state.baehwagyoAshOathBuffs,
       lastEnemyAttack: state.lastEnemyAttack,
       tutorialFlags: state.tutorialFlags,
       battleMode: state.battleMode,
@@ -115,9 +160,20 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
       autoExploreFields: state.autoExploreFields,
       pendingAutoExplore: state.pendingAutoExplore,
       pendingHuntRetry: state.pendingHuntRetry,
+      selectedProfileKey: state.selectedProfileKey,
+      customProfileUrl: state.customProfileUrl,
       currentSaveSlot: targetSlot,
       lastTickTime: Date.now(),
       savedAt: Date.now(),
+      bahwagyo: {
+        activeBranch: state.bahwagyo.activeBranch,
+        resources: state.bahwagyo.resources,
+        scrolls: state.bahwagyo.scrolls,
+        nodeLevels: state.bahwagyo.nodeLevels,
+        unlockedTiers: state.bahwagyo.unlockedTiers,
+        expandLevel: state.bahwagyo.expandLevel,
+        mysteryFragments: state.bahwagyo.mysteryFragments,
+      },
     };
 
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -153,8 +209,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         return migrated;
       })();
 
-      const savedDataVersion = data.dataVersion ?? 0; // 미래 마이그레이션 게이팅용
-      void savedDataVersion;
+      const savedDataVersion = data.dataVersion ?? 0;
 
       const tier = data.tier ?? 0;
       const tierMult = calcTierMultiplier(tier);
@@ -171,7 +226,10 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         maxHp,
         tier,
         equippedSimbeop: data.equippedSimbeop ?? null,
-        ownedArts: (data.ownedArts ?? []).map((a: { id: string }) => ({ id: a.id })),
+        ownedArts: migrateBaehwagyoOwnedArts(
+          (data.bahwagyo?.nodeLevels ?? {}) as Record<string, number>,
+          (data.ownedArts ?? []).map((a: { id: string }) => ({ id: a.id })),
+        ),
         equippedArts: data.equippedArts ?? [],
         artPoints: data.artPoints ?? 3,
         artGradeExp: { ...(data.artGradeExp ?? {}) },
@@ -207,8 +265,10 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         ),
         hiddenRevealedInField: data.hiddenRevealedInField ?? {},
         firstEnteredFields: data.firstEnteredFields ?? {},
-        bossPatternState: data.bossPatternState ?? null,
+        bossPatternState: migrateBossPatternState(data.bossPatternState),
         playerStunTimer: data.playerStunTimer ?? 0,
+        baehwagyoEmberTimer: data.baehwagyoEmberTimer ?? 0,
+        baehwagyoAshOathBuffs: data.baehwagyoAshOathBuffs ?? [],
         lastEnemyAttack: data.lastEnemyAttack ?? null,
         tutorialFlags: {
           ...(data.tutorialFlags ?? createInitialState().tutorialFlags),
@@ -302,7 +362,25 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         pendingAutoExplore: data.pendingAutoExplore ?? false,
         pendingHuntRetry: data.pendingHuntRetry ?? false,
         repeatableAchCounts: data.repeatableAchCounts ?? {},
+        bahwagyo: (() => {
+          const rawLoaded = (data.bahwagyo ?? {}) as Partial<typeof INITIAL_BAHWAGYO_STATE>;
+          const loaded = migrateBaehwagyoOuterSplit(rawLoaded, savedDataVersion);
+          return {
+            activeBranch: loaded.activeBranch ?? INITIAL_BAHWAGYO_STATE.activeBranch,
+            resources: { ...INITIAL_BAHWAGYO_STATE.resources, ...(loaded.resources ?? {}) },
+            scrolls: { ...INITIAL_BAHWAGYO_STATE.scrolls, ...(loaded.scrolls ?? {}) },
+            nodeLevels: { ...INITIAL_BAHWAGYO_STATE.nodeLevels, ...(loaded.nodeLevels ?? {}) },
+            unlockedTiers: { ...INITIAL_BAHWAGYO_STATE.unlockedTiers, ...(loaded.unlockedTiers ?? {}) },
+            expandLevel: loaded.expandLevel ?? 0,
+            mysteryFragments: { ...INITIAL_BAHWAGYO_STATE.mysteryFragments, ...(loaded.mysteryFragments ?? {}) },
+            selectedNodeId: null,
+            showLockedModal: null,
+          };
+        })(),
+        selectedProfileKey: data.selectedProfileKey ?? null,
+        customProfileUrl: data.customProfileUrl ?? null,
         currentSaveSlot: slot,
+        paused: false,
         battleResult: null,
         battleLog: (() => {
           // 전투 재개 시 combat-header가 비지 않도록 인공 combat-start 엔트리 삽입

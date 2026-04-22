@@ -14,6 +14,7 @@ export default function InventoryTab() {
   const materials = useGameStore(s => s.materials);
   const learnScroll = useGameStore(s => s.learnScroll);
   const discardItem = useGameStore(s => s.discardItem);
+  const discardMaterial = useGameStore(s => s.discardMaterial);
   const craft = useGameStore(s => s.craft);
   const craftedRecipes = useGameStore(s => s.craftedRecipes);
   const unlockedRecipes = useGameStore(s => s.unlockedRecipes);
@@ -21,9 +22,21 @@ export default function InventoryTab() {
   const craftCompoundArtRecipe = useGameStore(s => s.craftCompoundArtRecipe);
   const discoveredMasteries = useGameStore(s => s.discoveredMasteries);
 
-  const [view, setView] = useState<'main' | 'craft'>('main');
+  const [mode, setMode] = useState<'main' | 'craft' | 'discard'>('main');
   const [materialInputs, setMaterialInputs] = useState<Record<string, number>>({});
+  const [discardCounts, setDiscardCounts] = useState<Record<string, number>>({});
   const [craftResults, setCraftResults] = useState<Record<string, 'success' | 'fail' | null>>({});
+
+  function getDCount(id: string, have: number) {
+    const v = discardCounts[id];
+    return v === undefined ? Math.min(1, have) : Math.max(1, Math.min(v, have));
+  }
+  function adjustDCount(id: string, delta: number, have: number) {
+    setDiscardCounts(prev => ({ ...prev, [id]: Math.max(1, Math.min((prev[id] ?? 1) + delta, have)) }));
+  }
+  function setDCount(id: string, count: number, have: number) {
+    setDiscardCounts(prev => ({ ...prev, [id]: Math.max(1, Math.min(count, have)) }));
+  }
 
   const scrollItems = inventory.filter(i => i.itemType === 'art_scroll');
   const hasMaterials = MATERIALS.some(m => (materials[m.id] ?? 0) > 0);
@@ -77,13 +90,13 @@ export default function InventoryTab() {
   }
 
   // ─── 제작 뷰 ───────────────────────────────────────────
-  if (view === 'craft') {
+  if (mode === 'craft') {
     return (
       <div>
         {/* 헤더 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <button
-            onClick={() => setView('main')}
+            onClick={() => setMode('main')}
             style={{
               background: 'none', border: 'none', color: 'var(--text-secondary)',
               cursor: 'pointer', fontSize: 13, padding: '2px 6px 2px 0',
@@ -346,15 +359,28 @@ export default function InventoryTab() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <span className="card-label" style={{ marginBottom: 0 }}>전낭</span>
-        <button
-          onClick={() => setView('craft')}
-          style={{
-            padding: '4px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
-            background: 'rgba(255,215,0,0.12)', color: 'rgba(255,215,0,0.75)', border: '1px solid rgba(255,215,0,0.25)', fontWeight: 600,
-          }}
-        >
-          ⚒ 제작
-        </button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            onClick={() => setMode('craft')}
+            style={{
+              padding: '4px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+              background: 'rgba(255,215,0,0.12)', color: 'rgba(255,215,0,0.75)', border: '1px solid rgba(255,215,0,0.25)', fontWeight: 600,
+            }}
+          >
+            ⚒ 제작
+          </button>
+          <button
+            onClick={() => setMode(mode === 'discard' ? 'main' : 'discard')}
+            style={{
+              padding: '4px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600,
+              background: mode === 'discard' ? 'rgba(229,115,115,0.18)' : 'rgba(120,120,120,0.1)',
+              color: mode === 'discard' ? '#e57373' : 'var(--text-dim)',
+              border: `1px solid ${mode === 'discard' ? 'rgba(229,115,115,0.5)' : 'var(--border)'}`,
+            }}
+          >
+            🗑 버리기
+          </button>
+        </div>
       </div>
 
       {/* 재료 섹션 */}
@@ -362,18 +388,76 @@ export default function InventoryTab() {
         <div style={{ marginBottom: 20 }}>
           <div className="card-label" style={{ fontSize: 12, marginBottom: 8 }}>재료</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-            {MATERIALS.filter(m => (materials[m.id] ?? 0) > 0).map(m => (
-              <div key={m.id} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                background: 'var(--bg-card)', borderRadius: 6, padding: '6px 12px',
-                border: '1px solid var(--border)',
-              }}>
-                <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{m.name}</span>
-                <span style={{ fontSize: 13, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
-                  × {materials[m.id]}
-                </span>
-              </div>
-            ))}
+            {MATERIALS.filter(m => (materials[m.id] ?? 0) > 0).map(m => {
+              const have = materials[m.id] ?? 0;
+              const dc = getDCount(m.id, have);
+              const stepBtn = (label: string, delta: number) => {
+                const disabled = delta < 0 ? dc <= -delta : dc + delta > have;
+                return (
+                  <button
+                    key={label}
+                    disabled={disabled}
+                    onClick={() => adjustDCount(m.id, delta, have)}
+                    style={{
+                      padding: '1px 5px', borderRadius: 3, fontSize: 11,
+                      border: '1px solid var(--border)', background: 'var(--bg-elevated)',
+                      color: disabled ? 'var(--text-dim)' : 'var(--text-secondary)',
+                      cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.35 : 1,
+                    }}
+                  >{label}</button>
+                );
+              };
+              return (
+                <div key={m.id} style={{
+                  background: 'var(--bg-card)', borderRadius: 6, padding: '6px 12px',
+                  border: `1px solid ${mode === 'discard' ? 'rgba(229,115,115,0.2)' : 'var(--border)'}`,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{m.name}</span>
+                    <span style={{ fontSize: 13, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
+                      × {have}
+                    </span>
+                  </div>
+                  {mode === 'discard' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 7, flexWrap: 'wrap' }}>
+                      {stepBtn('−100', -100)}
+                      {stepBtn('−10', -10)}
+                      {stepBtn('−', -1)}
+                      <input
+                        type="number" min={1} max={have} value={dc}
+                        onChange={e => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) setDCount(m.id, v, have); }}
+                        style={{
+                          width: 52, textAlign: 'center', background: 'var(--bg-elevated)',
+                          border: '1px solid var(--border)', borderRadius: 4,
+                          color: 'var(--text-primary)', fontSize: 12, padding: '1px 4px',
+                        }}
+                      />
+                      {stepBtn('+', 1)}
+                      {stepBtn('+10', 10)}
+                      {stepBtn('+100', 100)}
+                      <button
+                        disabled={dc >= have}
+                        onClick={() => setDCount(m.id, have, have)}
+                        style={{
+                          padding: '1px 5px', borderRadius: 3, fontSize: 11,
+                          border: '1px solid var(--border)', background: 'var(--bg-elevated)',
+                          color: dc >= have ? 'var(--text-dim)' : 'var(--text-secondary)',
+                          cursor: dc >= have ? 'default' : 'pointer', opacity: dc >= have ? 0.35 : 1,
+                        }}
+                      >최대</button>
+                      <button
+                        onClick={() => { discardMaterial(m.id, dc); setDiscardCounts(prev => { const n = { ...prev }; delete n[m.id]; return n; }); }}
+                        style={{
+                          marginLeft: 'auto', padding: '1px 8px', borderRadius: 3, fontSize: 11, fontWeight: 600,
+                          border: '1px solid rgba(229,115,115,0.6)', background: 'rgba(229,115,115,0.12)',
+                          color: '#e57373', cursor: 'pointer',
+                        }}
+                      >파기</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -419,7 +503,11 @@ export default function InventoryTab() {
                   )}
                   <button
                     className="inventory-btn discard"
-                    onClick={() => discardItem(item.id)}
+                    onClick={() => {
+                      if (confirm(`${artDef?.name ?? '비급'}을(를) 버리시겠습니까?`)) {
+                        discardItem(item.id);
+                      }
+                    }}
                   >
                     버리기
                   </button>

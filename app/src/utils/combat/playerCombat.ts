@@ -12,10 +12,34 @@ import {
 import { calcAttackDamage } from './damageCalc';
 import {
   getEmberEntry, getEmberOutDamageMultiplier, getEmberAtkSpeedPenaltyMult, applyEmberStack,
+  consumeEmberStacks, getEmberStacks,
 } from './emberUtils';
+import { sweepAshOathBuffs, getAshOathAtkMult } from './baehwagyoEmberTick';
 import type { TickContext } from './tickContext';
 
 const B = BALANCE_PARAMS;
+
+/**
+ * 배화교 식화심법 — 재의 빠름 10/20/30Lv 절초 연동 특성.
+ * 절초 발동 시점에 확률적으로 플레이어 불씨 스택을 즉시 삭제.
+ * 10Lv: 25% / 20Lv: 그 중 25% 2스택 / 30Lv: 100% + 20Lv 조합 유지.
+ */
+function tryEmberUltDelete(ctx: TickContext): void {
+  const del = ctx.masteryEffects?.emberUltDeleteChance ?? 0;
+  if (del <= 0) return;
+  if (Math.random() >= del) return;
+  const dots = ctx.bossPatternState?.playerDotStacks ?? [];
+  if (getEmberStacks(dots) <= 0) return;
+  const dblChance = ctx.masteryEffects?.emberUltDeleteDoubleChance ?? 0;
+  const doubleTrigger = dblChance > 0 && Math.random() < dblChance;
+  const toConsume = doubleTrigger ? Math.min(2, getEmberStacks(dots)) : 1;
+  const res = consumeEmberStacks(dots, toConsume);
+  if (res.consumed <= 0) return;
+  if (ctx.bossPatternState) {
+    ctx.bossPatternState = { ...ctx.bossPatternState, playerDotStacks: res.dots };
+  }
+  ctx.logFlavor('절초의 바람에 불씨가 끌려 꺼진다.', 'right', { actor: 'player' });
+}
 
 export function executePlayerAttackPhase(ctx: TickContext): void {
   if (ctx.playerStunTimer > 0) {
@@ -51,7 +75,12 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
     // 배화교 불씨(ember) 공속 감소: attackInterval에 곱셈 적용
     const emberEntryForSpd = getEmberEntry(ctx.bossPatternState?.playerDotStacks);
     const emberAtkSpdMult = getEmberAtkSpeedPenaltyMult(emberEntryForSpd);
-    const attackInterval = Math.max((B.BASE_ATTACK_INTERVAL - atkSpeedBonus + slowPenalty) * atkSpeedDebuffMult * emberAtkSpdMult, B.ATK_SPEED_MIN);
+    // ATK_SPEED_MIN 클램프 이후에 ember 배수 곱셈 적용 (공속 빌드에도 반드시 페널티)
+    const atkSpeedFloor = ctx.masteryEffects?.minAtkSpeedOverride !== undefined
+      ? Math.min(ctx.masteryEffects.minAtkSpeedOverride, B.ATK_SPEED_MIN)
+      : B.ATK_SPEED_MIN;
+    const baseInterval = Math.max((B.BASE_ATTACK_INTERVAL - atkSpeedBonus + slowPenalty) * atkSpeedDebuffMult, atkSpeedFloor);
+    const attackInterval = baseInterval * emberAtkSpdMult;
     ctx.playerAttackTimer += attackInterval;
 
     // playerFinisherCharge 처리
@@ -80,6 +109,32 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           const fcProfVal = getProfDamageValue(ctx.proficiency[fcProfType] ?? 0);
           const fcGradeMult = getArtDamageMultiplier(fcDef!, ctx.artGradeExp[fcId] ?? 0, artMasteryIds2);
           let fcDmg = calcAttackDamage(fcDef!.ultBaseDamage ?? 0, fcUltMultiplier, fcProfVal, fcGradeMult, ctx.equipStats.bonusAtk ?? 0);
+          // [FC-PRE] 몬스터 회피 (경보사 규율 B / 자화) — finisher 경로
+          const fcEnemyDodgeBase = ctx.bossPatternState?.enemyDodgeRate ?? 0;
+          const fcEnemyDodgeBonus = ctx.bossPatternState?.enemyNextAttackDodgeBonus ?? 0;
+          const fcEnemyTotalDodge = Math.min(fcEnemyDodgeBase + fcEnemyDodgeBonus, 0.95);
+          let fcEnemyDodged = false;
+          if (fcEnemyTotalDodge > 0) {
+            const rolled = Math.random() < fcEnemyTotalDodge;
+            if (fcEnemyDodgeBonus > 0 && ctx.bossPatternState) {
+              ctx.bossPatternState.enemyNextAttackDodgeBonus = 0;
+            }
+            if (rolled) {
+              fcEnemyDodged = true;
+              const eName = getMonsterDef(ctx.currentEnemy!.id)?.name ?? ctx.currentEnemy!.id;
+              const fcDodgeAttackName = fcDef!.ultMessages?.[0] ?? '절초';
+              ctx.logFlavor(`${eName}의 몸이 경전의 결을 따라 비껴선다.`, 'right', { actor: 'enemy' });
+              ctx.logEvent({ side: 'outgoing', actor: 'player', name: fcDodgeAttackName, subName: '· 절초', tag: 'dodge', value: '—', valueTier: 'muted' });
+              if (!ctx.isSimulating) {
+                ctx.floatingTexts = [...ctx.floatingTexts, { id: ctx.nextFloatingId++, text: 'MISS', type: 'evade' as const, timestamp: Date.now() }];
+                if (ctx.floatingTexts.length > 15) ctx.floatingTexts = ctx.floatingTexts.slice(-15);
+              }
+              ctx.playerFinisherCharge = null;
+            }
+          }
+          if (fcEnemyDodged) {
+            // 회피 성공 시 이후 전부 스킵 (charge 소모만 유지)
+          } else {
           let fcCrit = false;
           if (Math.random() < ctx.critRate) { fcDmg *= ctx.critDmg / 100; fcCrit = true; }
           fcDmg = Math.floor(fcDmg * (ctx.bossPatternState?.playerAtkDebuffMult ?? 1));
@@ -128,6 +183,19 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
                   ctx.bossPatternState.enemyBuffs = ctx.bossPatternState.enemyBuffs.filter(b => !b.removableByStun);
                 }
               }
+            } else if (fcStunDur > 0 && fcChargeStunImmune
+                       && ctx.currentEnemy?.id === 'baehwa_geombosa'
+                       && ctx.bossPatternState?.monsterState?.kind === 'baehwa_geombosa'
+                       && ctx.bossPatternState.monsterState.stunImmune
+                       && !ctx.bossPatternState.monsterState.stunImmuneLoggedOnce) {
+              ctx.bossPatternState.monsterState.stunImmuneLoggedOnce = true;
+              const gSkill = BOSS_PATTERNS['baehwa_geombosa']?.skills.find(
+                (s: BossSkillDef) => s.type === 'geombosa_attack');
+              const immLogs = gSkill?.geombosaSkills?.stunImmuneLogs ?? [];
+              if (immLogs.length) {
+                const msg = immLogs[Math.floor(Math.random() * immLogs.length)];
+                ctx.logFlavor(msg, 'right', { actor: 'enemy' });
+              }
             }
           }
           // 6-D: revenge (finisher = 절초)
@@ -150,6 +218,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
             ctx.playerAnim = 'attack';
           }
           ctx.playerFinisherCharge = null;
+          } // end !fcEnemyDodged
         }
       } else {
         // 선공격 후 딜레이: 딜레이 완료 시 null
@@ -229,6 +298,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           ctx.stamina -= effectiveUltCostFinal;
           ctx.ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
           ctx.currentBattleSkillUseCount += 1;
+          tryEmberUltDelete(ctx);
           ctx.playerFinisherCharge = { artId: chosenId, attackFirst: false, timeLeft: ultChargeTime * effectiveInterval, chargeTotal: ultChargeTime * effectiveInterval };
           ctx.logFlavor('기를 응집하기 시작했다...', 'left', { actor: 'player', minor: true });
           isUlt = false;
@@ -241,6 +311,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           ctx.stamina -= effectiveUltCostFinal;
           ctx.ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
           ctx.currentBattleSkillUseCount += 1;
+          tryEmberUltDelete(ctx);
           attackName = ultChangeName ?? chosenDef.ultMessages?.[0] ?? '절초';
           artDefForBonuses = chosenDef;
           artMasteryIdsForBonuses = artMasteryIds;
@@ -292,6 +363,38 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
         }
       }
 
+      // 배화교 재의 맹세 — ATK 버프 (식화심법 소각 시점에 쌓인 FIFO 3중첩)
+      // 치명타·회피카운터 배율 적용 전에 기본 데미지에 곱함
+      if (damage > 0 && ctx.baehwagyoAshOathBuffs.length > 0) {
+        sweepAshOathBuffs(ctx);
+        const ashOathMult = getAshOathAtkMult(ctx);
+        if (ashOathMult !== 1) damage *= ashOathMult;
+      }
+
+      // [A-PRE] 몬스터 회피 (경보사 규율 B / 자화) — 일반/절초 공용
+      const enemyDodgeBase = ctx.bossPatternState?.enemyDodgeRate ?? 0;
+      const enemyDodgeBonus = ctx.bossPatternState?.enemyNextAttackDodgeBonus ?? 0;
+      const enemyTotalDodge = Math.min(enemyDodgeBase + enemyDodgeBonus, 0.95);
+      let enemyGenericDodge = false;
+      if (enemyTotalDodge > 0) {
+        const rolled = Math.random() < enemyTotalDodge;
+        if (enemyDodgeBonus > 0 && ctx.bossPatternState) {
+          ctx.bossPatternState.enemyNextAttackDodgeBonus = 0; // 판정 완료 즉시 소모 (명중/회피 무관)
+        }
+        if (rolled) {
+          enemyGenericDodge = true;
+          damage = 0;
+          const eName = getMonsterDef(ctx.currentEnemy!.id)?.name ?? ctx.currentEnemy!.id;
+          ctx.logFlavor(`${eName}의 몸이 경전의 결을 따라 비껴선다.`, 'right', { actor: 'enemy' });
+          ctx.logEvent({ side: 'outgoing', actor: 'player', name: attackName, tag: 'dodge', value: '—', valueTier: 'muted' });
+          if (!ctx.isSimulating) {
+            ctx.floatingTexts = [...ctx.floatingTexts, { id: ctx.nextFloatingId++, text: 'MISS', type: 'evade' as const, timestamp: Date.now() }];
+            if (ctx.floatingTexts.length > 15) ctx.floatingTexts = ctx.floatingTexts.slice(-15);
+          }
+        }
+      }
+
+      if (!enemyGenericDodge) {
       // 치명타 판정
       if (Math.random() < ctx.critRate) {
         damage *= ctx.critDmg / 100;
@@ -422,7 +525,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           damage = Math.floor(damage * emberMult);
         }
 
-        // 배화교 행자 — 삼행의 율법 방호 (적이 받는 피해 0.5배)
+        // 배화교 4보스 공통 — 삼행의 율법 방호 (적이 받는 피해 0.5배)
         if (ctx.bossPatternState?.guardDamageTakenMultiplier != null
             && ctx.bossPatternState.guardDamageTakenMultiplier !== 1
             && damage > 0) {
@@ -452,6 +555,37 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           }
         }
 
+        // 배화교 화보사 — 아타르의 가호 DR (자기 불씨 × 5%, 최대 50%)
+        // 삼행의 율법(guardDamageTakenMultiplier) 바로 뒤에 순차 곱 — 둘 다 적용 시 ×0.5 × (1-dr) 성립
+        if (ctx.currentEnemy?.id === 'baehwa_hwabosa' && damage > 0) {
+          const hwabosaSkill = BOSS_PATTERNS['baehwa_hwabosa']?.skills.find(
+            (s: BossSkillDef) => s.type === 'hwabosa_attack');
+          const meta = hwabosaSkill?.hwabosaSkills;
+          const hwabosaSt = ctx.bossPatternState?.monsterState?.kind === 'baehwa_hwabosa'
+            ? ctx.bossPatternState.monsterState : null;
+          const self = hwabosaSt?.selfBurnStacks ?? 0;
+          if (meta && self > 0) {
+            const dr = Math.min(self * meta.gohoDrPerStack, meta.gohoDrMaxCap);
+            damage = Math.floor(damage * (1 - dr));
+          }
+        }
+
+        // 배화교 검보사 — 태세별 받는 피해 배율 (defense/master = 0.7, attack = 1.0)
+        if (ctx.currentEnemy?.id === 'baehwa_geombosa' && damage > 0) {
+          const geombosaSkill = BOSS_PATTERNS['baehwa_geombosa']?.skills.find(
+            (s: BossSkillDef) => s.type === 'geombosa_attack');
+          const meta = geombosaSkill?.geombosaSkills;
+          if (meta) {
+            const geombosaSt = ctx.bossPatternState?.monsterState?.kind === 'baehwa_geombosa'
+              ? ctx.bossPatternState.monsterState : null;
+            const stance = geombosaSt?.stance ?? 'defense';
+            const inMult = stance === 'defense' ? meta.defenseInMult
+                         : stance === 'attack' ? meta.attackInMult
+                         : meta.masterInMult;
+            if (inMult !== 1) damage = Math.floor(damage * inMult);
+          }
+        }
+
         ctx.currentEnemy!.hp -= damage;
         ctx.currentBattleDamageDealt += damage;
         ctx.sessionTotalDamage += damage;
@@ -459,7 +593,9 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
         if (isCritical) ctx.currentBattleCritCount += 1;
 
         // 배화교 호위 — 성화 맹세 각성 턴: 플레이어 공격 시 공격당 반사 불씨
-        if (damage > 0 && ctx.bossPatternState?.howiSacredOathState?.phase === 'awakening') {
+        const howiState = ctx.bossPatternState?.monsterState?.kind === 'baehwa_howi'
+          ? ctx.bossPatternState.monsterState : null;
+        if (damage > 0 && howiState?.howiSacredOathState?.phase === 'awakening' && ctx.bossPatternState) {
           const oathSkill = BOSS_PATTERNS[ctx.currentEnemy!.id]?.skills.find(
             (s: BossSkillDef) => s.type === 'sacred_oath');
           const reflectN = oathSkill?.sacredOathReflectPerHit ?? 1;
@@ -474,8 +610,10 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
         }
 
         // 배화교 행자 — 아타르로의 귀의: 플레이어 공격 시 공격당 불씨 +1 반사
-        if (damage > 0 && ctx.bossPatternState?.atarSacrificeState) {
-          const atar = ctx.bossPatternState.atarSacrificeState;
+        const haengjaStateReflect = ctx.bossPatternState?.monsterState?.kind === 'baehwa_haengja'
+          ? ctx.bossPatternState.monsterState : null;
+        if (damage > 0 && haengjaStateReflect?.atarSacrificeState && ctx.bossPatternState) {
+          const atar = haengjaStateReflect.atarSacrificeState;
           const reflectN = atar.reflectStacks ?? 1;
           ctx.bossPatternState.playerDotStacks = applyEmberStack(
             ctx.bossPatternState.playerDotStacks, reflectN);
@@ -520,12 +658,27 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
                 ctx.bossPatternState.enemyBuffs = ctx.bossPatternState.enemyBuffs.filter(b => !b.removableByStun);
               }
             }
-          } else if (stunDur > 0 && chargeStunImmune && ctx.bossPatternState?.howiSacredOathState?.phase === 'frenzy') {
+          } else if (stunDur > 0 && chargeStunImmune
+                     && ctx.bossPatternState?.monsterState?.kind === 'baehwa_howi'
+                     && ctx.bossPatternState.monsterState.howiSacredOathState?.phase === 'frenzy') {
             const oathSkill = BOSS_PATTERNS[ctx.currentEnemy!.id]?.skills.find(
               (s: BossSkillDef) => s.type === 'sacred_oath');
             if (oathSkill?.sacredOathStunImmuneLogs?.length) {
               const msg = oathSkill.sacredOathStunImmuneLogs[
                 Math.floor(Math.random() * oathSkill.sacredOathStunImmuneLogs.length)];
+              ctx.logFlavor(msg, 'right', { actor: 'enemy' });
+            }
+          } else if (stunDur > 0 && chargeStunImmune
+                     && ctx.currentEnemy?.id === 'baehwa_geombosa'
+                     && ctx.bossPatternState?.monsterState?.kind === 'baehwa_geombosa'
+                     && ctx.bossPatternState.monsterState.stunImmune
+                     && !ctx.bossPatternState.monsterState.stunImmuneLoggedOnce) {
+            ctx.bossPatternState.monsterState.stunImmuneLoggedOnce = true;
+            const gSkill = BOSS_PATTERNS['baehwa_geombosa']?.skills.find(
+              (s: BossSkillDef) => s.type === 'geombosa_attack');
+            const immLogs = gSkill?.geombosaSkills?.stunImmuneLogs ?? [];
+            if (immLogs.length) {
+              const msg = immLogs[Math.floor(Math.random() * immLogs.length)];
               ctx.logFlavor(msg, 'right', { actor: 'enemy' });
             }
           }
@@ -623,6 +776,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           ctx.playerAnim = 'attack';
         }
       } // end !monsterDodged
+      } // end !enemyGenericDodge
     } // end skipNormalAttack
   }
 }

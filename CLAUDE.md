@@ -51,7 +51,7 @@
 | 영역 | 파일 |
 |------|------|
 | **데이터** | `data/arts.ts`, `monsters.ts`, `materials.ts`, `equipment.ts`, `fields.ts`, `achievements.ts`, `tiers.ts`, `balance.ts` |
-| **게임 로직** | `utils/gameLoop.ts` (오케스트레이터), `utils/combat/tickContext.ts` (공유 상태), `utils/combat/damageCalc.ts` (데미지 계산), `utils/combat/playerCombat.ts` (플레이어 공격), `utils/combat/enemyCombat.ts` (적 공격/보스), `utils/combat/battleRewards.ts` (처치 보상), `utils/combat/skillHandlers/*` (몬스터별 스킬 핸들러/훅 레지스트리), `utils/combatCalc.ts` (전투 수식), `utils/artUtils.ts` (무공 유틸) |
+| **게임 로직** | `utils/gameLoop.ts` (오케스트레이터), `utils/combat/tickContext.ts` (공유 상태), `utils/combat/damageCalc.ts` (데미지 계산), `utils/combat/playerCombat.ts` (플레이어 공격), `utils/combat/enemyCombat.ts` (적 공격/보스), `utils/combat/battleRewards.ts` (처치 보상), `utils/combat/skillHandlers/*` (몬스터별 스킬 핸들러/훅 레지스트리), `utils/combat/druzeUtils.ts` (드루즈 단죄 DoT 유틸), `utils/combatCalc.ts` (전투 수식), `utils/artUtils.ts` (무공 유틸) |
 | **스토어** | `store/gameStore.ts` (진입점), `store/slices/` (artsSlice, combatSlice, inventorySlice, progressSlice, saveSlice), `store/types.ts`, `store/initialState.ts`, `store/utils/sliceHelpers.ts` (공유 헬퍼) |
 | **UI (탭)** | `components/ArtsTab.tsx`, `BattleTab.tsx`, `NeigongTab.tsx`, `InventoryTab.tsx`, `EquipmentTab.tsx`, `EncyclopediaTab.tsx`, `AchievementTab.tsx` + 서브: `arts/` (ArtGradeBar, MasteryPanel, artsUtils), `battle/` (BattleScreen, BattleLog, battleLogAdapter, BattleScene, CombatBars, CombatStatusCard, SkillTimeline, BattleLogTabs, CharacterInfoTab, CombatStatsTab, CollapsibleCard, BattleResultScreen, FieldNavigation, FieldDetailScreen), `encyclopedia/` |
 | **UI (모달)** | `components/EnlightenmentModal.tsx`, `OfflineResultModal.tsx`, `SaveSlotModal.tsx` |
@@ -118,13 +118,10 @@
 4. `enemyCombat.ts` 는 건드리지 않음
 5. balance-tester 또는 수동 플레이로 해당 전장 회귀
 
-### bossPatternState 리팩터 트리거 (일회성)
-몬스터 추가 작업 완료 시 `app/src/store/types.ts` 의 `bossPatternState` 객체 필드 수를 확인할 것.
-
-**트리거 조건** (둘 중 하나 충족 시 사용자에게 즉시 보고):
-- 전체 필드 수 **40개 초과**
-- 특정 몬스터 전용 필드 **20개 초과** (prefix 기준: `atarX_`, `howiX_`, `sraoshaX_` 등 단일 몬스터 소유 필드 카운트)
-
-**보고 메시지 예시**: "bossPatternState가 현재 N개 필드. namespace 격리 리팩터 권장 시점입니다. 계획 참조 필요."
-
-**자가 삭제 조건**: `bossPatternState` 에 `monsterState: Record<string, unknown>` 필드가 생기고 기존 몬스터 전용 필드 대부분(80% 이상)이 해당 namespace로 이관되면, **이 섹션을 CLAUDE.md에서 삭제**할 것. 리팩터가 완료되었다는 신호이므로 트리거 규칙은 더 이상 불필요.
+### 새 몬스터 전용 state 추가 절차 (namespace 격리 완료)
+`bossPatternState.monsterState` 는 discriminated union. 새 몬스터에 전용 상태가 필요하면:
+1. `skillHandlers/<문파>/<몬스터>.ts` 에 `XxxState` interface (readonly `kind: 'mon_id'` discriminator 포함) + `createXxxInitialState` export
+2. `skillHandlers/registry.ts` 의 `MonsterState` union 에 한 줄 추가
+3. `register*` 함수 끝에서 `MONSTER_STATE_FACTORIES[MON_ID] = createXxxInitialState`
+4. 접근은 `ctx.bossPatternState?.monsterState` 에 `kind` 분기로 좁혀서 직접 참조 — 캐스팅 금지
+5. `types.ts`·`tickContext.ts` 는 건드리지 않음

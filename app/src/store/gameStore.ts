@@ -3,52 +3,56 @@
  * 슬라이스 패턴으로 분리된 스토어. 슬라이스를 조합하여 GameStore를 구성한다.
  */
 import { create } from 'zustand';
-import { BALANCE_PARAMS } from '../data/balance';
-
 import { createCombatSlice, type CombatSlice } from './slices/combatSlice';
 import { createArtsSlice, type ArtsSlice } from './slices/artsSlice';
 import { createProgressSlice, type ProgressSlice } from './slices/progressSlice';
 import { createInventorySlice, type InventorySlice } from './slices/inventorySlice';
 import { createSaveSlice, type SaveSlice } from './slices/saveSlice';
+import { createBahwagyoSlice, type BahwagyoSlice } from './slices/bahwagyoSlice';
 import { simulateTick } from '../utils/gameLoop';
-import { gatherMasteryEffects, gatherEquipmentStats } from '../utils/combatCalc';
+import { calcPlayerAttackInterval } from '../utils/combatCalc';
 
 // ============================================================
 // GameStore 타입 조합
 // ============================================================
-export type GameStore = CombatSlice & ArtsSlice & ProgressSlice & InventorySlice & SaveSlice & {
+export type GameStore = CombatSlice & ArtsSlice & ProgressSlice & InventorySlice & SaveSlice & BahwagyoSlice & {
   tick: (forceDt?: number) => void;
   setGameSpeed: (speed: number) => void;
+  setPaused: (paused: boolean) => void;
   getAttackInterval: () => number;
 };
 
 // ============================================================
 // Zustand 스토어 생성
 // ============================================================
-const B = BALANCE_PARAMS;
-
 export const useGameStore = create<GameStore>()((...args) => ({
   ...createCombatSlice(...args),
   ...createArtsSlice(...args),
   ...createProgressSlice(...args),
   ...createInventorySlice(...args),
   ...createSaveSlice(...args),
+  ...createBahwagyoSlice(...args),
 
   // ─── 루트 레벨 액션 ───
   setGameSpeed: (speed: number) => {
     args[0]({ gameSpeed: speed });
   },
 
+  setPaused: (paused: boolean) => {
+    args[0]({ paused });
+  },
+
   getAttackInterval: () => {
     const state = args[1]() as GameStore;
-    const effects = gatherMasteryEffects(state);
-    const equipStats = gatherEquipmentStats(state);
-    const bonus = (effects.bonusAtkSpeed ?? 0) + (equipStats.bonusAtkSpeed ?? 0);
-    return Math.max(B.BASE_ATTACK_INTERVAL - bonus, B.ATK_SPEED_MIN);
+    return calcPlayerAttackInterval(state);
   },
 
   tick: (forceDt?: number) => {
     args[0](state => {
+      const s = state as GameStore;
+      if (s.paused && forceDt === undefined) {
+        return { lastTickTime: Date.now() };
+      }
       let dt: number;
       let now: number;
       if (forceDt !== undefined) {

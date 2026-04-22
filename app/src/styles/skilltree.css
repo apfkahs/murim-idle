@@ -1,37 +1,128 @@
-/* styles/skilltree.css — 배화교 스킬트리 전용 스타일 */
+/* styles/skilltree.css — 배화교 스킬트리 전용 스타일 (시안 B · 흑단 비단) */
 
 /* ────────────────────────────────
-   CSS 변수 (배화교 전용)
-   기존 UI(#1e1e2e 베이스)와 어울리도록
-   채도를 낮추고 배경을 투명 오버레이 방식으로 변경
+   CSS 변수 (배화교 전용) — 흑단 비단 팔레트
+   `--fire-*` 는 이름 유지, 값만 silk/gold/vermilion 으로 swap
    ──────────────────────────────── */
 :root {
-  --fire-ember: #a84e30;          /* 더 차분한 주황-갈색 */
-  --fire-flame: #7a2828;          /* 더 어두운 적갈색 */
-  --fire-divine: #9a7622;         /* 더 차분한 금색 */
-  --fire-bg-dark: #1a1624;        /* bg-primary(#1e1e2e)에 가깝게 */
+  /* 비단 본체 */
+  --silk-0: #1a1310;
+  --silk-1: #241915;
+  /* 금사 */
+  --gold-1: #c9a043;
+  --gold-2: #8a6a25;
+  /* 주사(朱砂) */
+  --vermilion: #a8331e;
+  --vermilion-deep: #5e1a0e;
+  /* 잉크 (글자 톤) */
+  --ink-light: #d8c89a;
+  --ink-mid: #a08456;
+  --ink-dim: #6b5535;
+  /* 붓/한자/세리프 */
+  --font-brush: 'Ma Shan Zheng', 'Nanum Myeongjo', serif;
+  --font-han: 'ZCOOL XiaoWei', 'Ma Shan Zheng', 'Nanum Myeongjo', serif;
+  --font-serif: 'Noto Serif KR', 'Gowun Batang', 'Batang', serif;
+
+  /* 기존 토큰 이름 유지 (파일 내에서만 사용됨) — 값만 swap */
+  --fire-ember: var(--vermilion);                 /* 주사 기본 */
+  --fire-flame: #8a3e1a;                           /* 주홍 어두운 톤 */
+  --fire-divine: var(--gold-1);                    /* 금 */
+  --fire-bg-dark: var(--silk-0);
   --fire-bg-tier1: rgba(75, 24, 10, 0.22);
   --fire-bg-tier2: rgba(58, 18, 6, 0.30);
   --fire-bg-tier3: rgba(42, 10, 3, 0.40);
-  --fire-border: rgba(120, 48, 20, 0.16);
-  --fire-border-bright: rgba(135, 54, 22, 0.42);
-  --fire-gold-accent: rgba(168, 134, 44, 0.52);
-  --fire-gold-dim: rgba(168, 134, 44, 0.20);
-  --fire-node-size: 76px;
-  --fire-node-size-sm: 64px;
+  --fire-border: rgba(201, 160, 67, 0.18);
+  --fire-border-bright: rgba(201, 160, 67, 0.35);
+  --fire-gold-accent: rgba(201, 160, 67, 0.55);
+  --fire-gold-dim: rgba(201, 160, 67, 0.20);
+  --fire-node-size: 80px;
+  --fire-node-size-sm: 68px;
 }
 
 /* ────────────────────────────────
-   전체 레이아웃
+   전체 레이아웃 — 비단 베이스
+   (레이아웃 속성은 절대 변경 금지: display/flex/height/overflow)
    ──────────────────────────────── */
 .fire-skilltree {
   display: flex;
   flex-direction: column;
   /* 독립 탭으로 렌더 시: app-content 내부 고정 높이 */
   height: calc(100dvh - 47px - 48px);
-  background: var(--fire-bg-dark);
   border-radius: 12px;
   overflow: hidden;
+  position: relative;
+  color: var(--ink-light);
+  font-family: var(--font-serif);
+  /* 비단 베이스: 먹얼룩 · 가로 구김 · 직조 · 광택 · 그라디언트 */
+  background:
+    radial-gradient(ellipse 90px 55px at 14% 22%, rgba(0,0,0,.42), transparent 65%),
+    radial-gradient(ellipse 70px 48px at 86% 16%, rgba(40,18,6,.50), transparent 62%),
+    radial-gradient(ellipse 110px 75px at 78% 70%, rgba(0,0,0,.38), transparent 65%),
+    radial-gradient(ellipse 55px 38px at 22% 86%, rgba(60,28,8,.40), transparent 60%),
+    radial-gradient(ellipse 35px 24px at 48% 48%, rgba(80,38,18,.22), transparent 60%),
+    radial-gradient(ellipse 28px 18px at 62% 30%, rgba(0,0,0,.30), transparent 60%),
+    radial-gradient(ellipse 22px 14px at 8% 60%, rgba(50,22,8,.32), transparent 60%),
+    linear-gradient(180deg, transparent 0 30%, rgba(0,0,0,.18) 30.3%, rgba(255,210,140,.04) 30.6%, transparent 31% 62%, rgba(0,0,0,.14) 62.3%, rgba(255,210,140,.03) 62.6%, transparent 63% 100%),
+    repeating-linear-gradient(45deg, rgba(201,160,67,.05) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(-45deg, rgba(201,160,67,.04) 0 1px, transparent 1px 6px),
+    radial-gradient(ellipse at 20% 20%, rgba(168,51,30,.06), transparent 55%),
+    radial-gradient(ellipse at 80% 80%, rgba(201,160,67,.07), transparent 55%),
+    linear-gradient(180deg, var(--silk-1) 0%, var(--silk-0) 100%);
+  box-shadow:
+    inset 0 0 110px rgba(0,0,0,.45),
+    inset 0 0 60px rgba(0,0,0,.55),
+    inset 0 0 0 6px rgba(0,0,0,.30);
+}
+
+/* 모서리 닳음 · 비네팅 */
+.fire-skilltree::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background:
+    radial-gradient(circle at 0% 0%,    rgba(0,0,0,.55), transparent 110px),
+    radial-gradient(circle at 100% 0%,  rgba(0,0,0,.50), transparent 95px),
+    radial-gradient(circle at 0% 100%,  rgba(0,0,0,.60), transparent 120px),
+    radial-gradient(circle at 100% 100%,rgba(0,0,0,.55), transparent 110px),
+    radial-gradient(ellipse 14px 6px at 1% 32%, rgba(0,0,0,.55), transparent 70%),
+    radial-gradient(ellipse 8px 14px at 98% 58%, rgba(0,0,0,.55), transparent 70%),
+    radial-gradient(ellipse 18px 8px at 40% 99%, rgba(0,0,0,.50), transparent 70%);
+}
+
+/* 종이결 · 점 노이즈 */
+.fire-skilltree::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  opacity: .55;
+  background:
+    radial-gradient(circle at 28% 60%, rgba(255,220,150,.045) 1px, transparent 2px),
+    radial-gradient(circle at 72% 40%, rgba(255,220,150,.04) 1px, transparent 2px),
+    radial-gradient(circle at 50% 80%, rgba(0,0,0,.20) 1px, transparent 2px),
+    radial-gradient(circle at 18% 12%, rgba(0,0,0,.18) 1px, transparent 2px),
+    radial-gradient(circle at 84% 88%, rgba(255,220,150,.04) 1px, transparent 2px);
+  background-size: 32px 32px, 48px 48px, 26px 26px, 40px 40px, 36px 36px;
+}
+
+/* 본문 자식은 얼룩 위로 */
+.fire-skilltree > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* 팝업 오버레이는 viewport 전체를 덮도록 fixed 복원 (skilltree > * 규칙 오버라이드) */
+.fire-skilltree .popup-overlay,
+.fire-skilltree-overlay .popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
 }
 
 /* 오버레이 내부에서는 높이 100% (헤더가 별도) */
@@ -41,51 +132,95 @@
 }
 
 /* ────────────────────────────────
-   내부 탭 바
+   내부 탭 바 — 죽간(竹簡) 스타일
    ──────────────────────────────── */
 .fire-tab-bar {
   flex-shrink: 0;
   display: flex;
-  gap: 2px;
-  padding: 8px 8px 0;
-  background: rgba(0, 0, 0, 0.4);
-  border-bottom: 1px solid var(--fire-border);
+  gap: 6px;
+  padding: 10px 14px 0;
+  background: transparent;
+  border-bottom: 1px solid rgba(201, 160, 67, .25);
 }
 
 .fire-tab-btn {
   flex: 1;
-  padding: 8px 4px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
-  color: rgba(200, 130, 90, 0.45);
-  font-family: var(--font-body);
-  font-size: 13px;
+  padding: 0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #2a1f15 0%, #1a120c 100%);
+  border: 1px solid #3a2814;
+  border-top: 2px solid #5a4020;
+  border-radius: 2px 2px 0 0;
+  color: var(--ink-dim);
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
   white-space: nowrap;
+  box-shadow: inset 0 -2px 4px rgba(0, 0, 0, .6);
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+/* 탭 닳음 */
+.fire-tab-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 30px 12px at 10% 100%, rgba(0,0,0,.5), transparent 70%),
+    radial-gradient(ellipse 22px 10px at 90% 0%, rgba(0,0,0,.45), transparent 70%);
 }
 
 .fire-tab-btn:hover {
-  background: rgba(140, 55, 25, 0.10);
-  color: rgba(200, 130, 90, 0.7);
+  color: var(--ink-mid);
 }
 
 .fire-tab-btn.active {
-  background: rgba(90, 28, 12, 0.28);
-  border-color: var(--fire-border);
-  color: var(--fire-ember);
+  color: var(--gold-1);
+  background:
+    radial-gradient(ellipse at top, rgba(201,160,67,.18), transparent 60%),
+    linear-gradient(180deg, #3a2614 0%, #1f1409 100%);
+  border-color: var(--gold-2);
+  border-top-color: var(--gold-1);
+  text-shadow: 0 0 6px rgba(201, 160, 67, .5);
+}
+
+.fire-tab-btn.active::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: -2px;
+  height: 2px;
+  background: var(--gold-1);
+  box-shadow: 0 0 8px rgba(201, 160, 67, .7);
 }
 
 .fire-tab-btn.mystery {
-  color: rgba(130, 95, 180, 0.5);
+  color: #6b5b85;
 }
 
 .fire-tab-btn.mystery.active {
   color: #a87ed4;
-  background: rgba(65, 28, 100, 0.3);
-  border-color: rgba(120, 70, 170, 0.3);
+  background:
+    radial-gradient(ellipse at top, rgba(140,115,190,.18), transparent 60%),
+    linear-gradient(180deg, #2a1e36 0%, #14091f 100%);
+  border-color: rgba(120, 70, 170, 0.35);
+  border-top-color: #a87ed4;
+  text-shadow: 0 0 6px rgba(168, 126, 212, .45);
+}
+
+.fire-tab-btn.mystery.active::after {
+  background: #a87ed4;
+  box-shadow: 0 0 8px rgba(168, 126, 212, .65);
 }
 
 /* ────────────────────────────────
@@ -93,12 +228,37 @@
    ──────────────────────────────── */
 .fire-inventory {
   flex-shrink: 0;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.3);
-  border-bottom: 1px solid var(--fire-border);
+  padding: 14px 18px;
+  margin: 14px 14px 4px;
+  background: rgba(0, 0, 0, 0.40);
+  border: 1px solid rgba(201, 160, 67, .18);
+  border-radius: 3px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 3px 12px;
+  gap: 6px 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 점선 내부 보더 */
+.fire-inventory::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px dashed rgba(201, 160, 67, .10);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* 인벤 위 작은 얼룩 */
+.fire-inventory::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 28px 12px at 75% 30%, rgba(0,0,0,.35), transparent 70%),
+    radial-gradient(ellipse 14px 8px at 18% 78%, rgba(40,18,6,.40), transparent 70%);
 }
 
 .fire-inventory-row {
@@ -108,13 +268,36 @@
 .fire-inventory-cell {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 10px;
+  font-size: 13px;
   padding: 2px 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* 이모지 배지 (🔥/✨/💎/📜) — 28×28 silk+gold 인장 */
+.fire-inventory-cell > span:first-child {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, rgba(42, 26, 18, .85) 0%, rgba(22, 14, 10, .95) 100%);
+  border: 1px solid rgba(201, 160, 67, .35);
+  box-shadow:
+    inset 0 1px 0 rgba(201, 160, 67, .18),
+    0 0 0 1px rgba(0, 0, 0, .5);
 }
 
 .fire-inventory-label {
-  color: rgba(190, 130, 90, 0.65);
+  font-family: var(--font-serif);
+  color: var(--ink-light);
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -122,58 +305,74 @@
 }
 
 .fire-inventory-value {
-  color: var(--fire-ember);
-  font-weight: 600;
+  margin-left: auto;
+  color: var(--gold-1);
+  font-weight: 700;
+  font-size: 16px;
+  font-family: var(--font-han);
+  text-shadow: 0 0 6px rgba(201, 160, 67, .30);
   white-space: nowrap;
 }
 
 .fire-inventory-value.flame {
-  color: var(--fire-flame);
+  color: #d97a3a;
+  text-shadow: 0 0 6px rgba(217, 122, 58, .30);
 }
 
 .fire-inventory-value.divine {
-  color: var(--fire-divine);
+  color: var(--gold-1);
+  text-shadow: 0 0 8px rgba(201, 160, 67, .40);
 }
 
 .fire-inventory-scroll {
-  color: rgba(180, 160, 110, 0.65);
+  font-family: var(--font-serif);
+  color: var(--ink-light);
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
   white-space: nowrap;
 }
 
 .fire-inventory-scroll-value {
-  color: rgba(195, 175, 120, 0.8);
-  font-weight: 600;
+  margin-left: auto;
+  color: var(--ink-light);
+  font-weight: 700;
+  font-size: 15px;
+  font-family: var(--font-han);
+  white-space: nowrap;
 }
 
 .fire-reset-btn {
   grid-column: 1 / -1;
   margin-top: 4px;
   padding: 4px 12px;
-  background: rgba(60, 22, 8, 0.45);
-  border: 1px solid rgba(140, 50, 18, 0.3);
-  border-radius: 6px;
-  color: rgba(180, 100, 60, 0.6);
-  font-family: var(--font-body);
+  background: rgba(30, 18, 10, 0.55);
+  border: 1px solid rgba(201, 160, 67, .22);
+  border-radius: 2px;
+  color: var(--ink-dim);
+  font-family: var(--font-serif);
   font-size: 11px;
+  letter-spacing: 1px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .fire-reset-btn:hover {
-  background: rgba(90, 32, 10, 0.55);
-  color: var(--fire-ember);
+  background: rgba(60, 38, 18, 0.55);
+  color: var(--ink-mid);
+  border-color: rgba(201, 160, 67, .35);
 }
 
 /* ────────────────────────────────
-   트리 스크롤 영역
+   트리 스크롤 영역 (레이아웃 유지)
    ──────────────────────────────── */
 .fire-tree-scroll {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 16px 12px 32px;
+  padding: 16px 18px 32px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(140, 55, 25, 0.25) transparent;
+  scrollbar-color: rgba(201, 160, 67, .30) transparent;
 }
 
 .fire-tree-scroll::-webkit-scrollbar {
@@ -185,7 +384,7 @@
 }
 
 .fire-tree-scroll::-webkit-scrollbar-thumb {
-  background: rgba(140, 55, 25, 0.25);
+  background: rgba(201, 160, 67, .30);
   border-radius: 2px;
 }
 
@@ -201,12 +400,20 @@
 }
 
 .fire-tier-label {
-  font-size: 10px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: rgba(150, 65, 30, 0.45);
-  align-self: flex-start;
-  padding-left: 4px;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: var(--gold-1);
+  padding: 6px 22px;
+  background:
+    radial-gradient(ellipse at center, rgba(201, 160, 67, .10), transparent 70%),
+    rgba(0, 0, 0, .55);
+  border: 1px solid rgba(201, 160, 67, .35);
+  border-radius: 2px;
+  text-shadow: 0 0 6px rgba(201, 160, 67, .4);
+  text-align: center;
+  align-self: center;
   margin-bottom: 2px;
 }
 
@@ -243,10 +450,26 @@
 }
 
 .fire-connector-line {
-  width: 2px;
-  height: 16px;
-  background: linear-gradient(to bottom, rgba(140, 55, 25, 0.45), rgba(140, 55, 25, 0.15));
+  width: 1px;
+  height: 32px;
+  background: linear-gradient(180deg, rgba(201, 160, 67, .7) 0%, rgba(201, 160, 67, .2) 100%);
+  position: relative;
 }
+
+.fire-connector-line::before,
+.fire-connector-line::after {
+  content: "◆";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--gold-1);
+  font-size: 8px;
+  line-height: 1;
+  text-shadow: 0 0 4px rgba(201, 160, 67, .6);
+}
+
+.fire-connector-line::before { top: -6px; }
+.fire-connector-line::after  { bottom: -6px; }
 
 .fire-connector-branch {
   display: flex;
@@ -264,57 +487,82 @@
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 2px;
+  width: 1px;
   height: 10px;
-  background: rgba(140, 55, 25, 0.40);
+  background: linear-gradient(180deg, rgba(201, 160, 67, .6), transparent);
 }
 
 .fire-connector-branch::after {
   content: '';
   position: absolute;
   top: 10px;
-  /* 3 노드 기준 가로선 */
   left: calc(50% - 80px);
   width: 160px;
-  height: 2px;
-  background: rgba(140, 55, 25, 0.30);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201, 160, 67, .5) 15%, rgba(201, 160, 67, .5) 85%, transparent);
 }
 
-/* 구분선 */
+/* 구분선 — 금사 hairline */
 .fire-tier-divider {
   width: 100%;
   height: 1px;
   background: linear-gradient(
-    to right,
+    90deg,
     transparent,
-    rgba(120, 48, 20, 0.20) 20%,
-    rgba(168, 134, 44, 0.12) 50%,
-    rgba(120, 48, 20, 0.20) 80%,
+    rgba(201, 160, 67, .4) 30%,
+    rgba(201, 160, 67, .4) 70%,
     transparent
   );
-  margin: 16px 0;
+  margin: 20px 0;
 }
 
 /* ────────────────────────────────
-   블러 영역
+   잠긴 단계 블록 — 주사 봉랍
    ──────────────────────────────── */
 .fire-locked-area {
   position: relative;
   width: 100%;
-  border-radius: 10px;
-  border: 1px solid rgba(140, 55, 25, 0.12);
+  margin: 20px 0 0;
+  padding: 30px 24px;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 4px, rgba(0,0,0,.20) 4px 5px),
+    linear-gradient(180deg, rgba(20, 12, 8, .7), rgba(10, 6, 4, .85));
+  border: 1px solid rgba(201, 160, 67, .18);
+  border-radius: 3px;
+  text-align: center;
   overflow: hidden;
   cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+/* 잠긴 영역 위 얼룩 */
+.fire-locked-area::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80px 30px at 20% 30%, rgba(0,0,0,.30), transparent 70%),
+    radial-gradient(ellipse 60px 24px at 82% 70%, rgba(40,18,6,.30), transparent 70%);
+}
+
+.fire-locked-area:hover {
+  border-color: rgba(201, 160, 67, .4);
+  background:
+    repeating-linear-gradient(0deg, transparent 0 4px, rgba(0,0,0,.20) 4px 5px),
+    linear-gradient(180deg, rgba(28, 18, 12, .7), rgba(14, 9, 6, .85));
 }
 
 .fire-locked-blur {
   filter: blur(3px) brightness(0.4);
-  padding: 16px;
+  padding: 0 0 14px;
   display: flex;
   justify-content: center;
   gap: 16px;
   pointer-events: none;
   user-select: none;
+  position: relative;
+  z-index: 1;
 }
 
 .fire-locked-overlay {
@@ -324,31 +572,75 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  background: rgba(0, 0, 0, 0.2);
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 2;
 }
 
 .fire-locked-overlay-text {
-  font-size: 12px;
-  color: rgba(210, 175, 130, 0.75);
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: var(--ink-light);
   text-align: center;
   line-height: 1.6;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+  position: relative;
+  z-index: 1;
 }
 
+/* 주사 봉랍 "封" */
 .fire-locked-icon {
-  font-size: 16px;
-  margin-bottom: 2px;
+  position: relative;
+  width: 84px;
+  height: 84px;
+  font-size: 0;
+  color: transparent;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(168, 51, 30, .45), transparent 55%),
+    radial-gradient(circle, var(--vermilion) 0 60%, var(--vermilion-deep) 61% 100%);
+  border: 2px solid var(--gold-2);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 0, 0, .5),
+    inset 0 -4px 10px rgba(0, 0, 0, .6),
+    0 0 24px rgba(168, 51, 30, .25),
+    0 4px 12px rgba(0, 0, 0, .6);
+  z-index: 1;
+}
+
+.fire-locked-icon::before {
+  content: "封";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-brush);
+  font-size: 48px;
+  font-weight: 400;
+  color: #f4d597;
+  text-shadow: 0 0 8px rgba(255, 200, 120, .4), 0 2px 3px rgba(0, 0, 0, .85);
+}
+
+.fire-locked-icon::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px dashed rgba(201, 160, 67, .4);
+  border-radius: 2px;
 }
 
 /* ────────────────────────────────
-   노드 박스 (디아블로2 스타일)
+   노드 박스 — 흑비단 카드
+   (position/display/inset 등 레이아웃 속성 전면 교체 전 원본 유지)
    ──────────────────────────────── */
 .fire-node {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   cursor: pointer;
   position: relative;
 }
@@ -357,153 +649,216 @@
   width: var(--fire-node-size);
   height: var(--fire-node-size);
   position: relative;
-  border-radius: 5px;
-  /* 조금 더 밝고 따뜻한 다크 베이스 */
-  background:
-    radial-gradient(ellipse at 30% 30%, rgba(55, 26, 12, 0.45) 0%, transparent 60%),
-    linear-gradient(145deg, rgba(44, 30, 22, 0.92) 0%, rgba(32, 22, 18, 0.95) 50%, rgba(24, 18, 16, 0.98) 100%);
-  /* bevel 테두리 — 대비 완화 */
-  border: 2px solid;
-  border-top-color: rgba(95, 48, 22, 0.50);
-  border-left-color: rgba(80, 40, 18, 0.40);
-  border-right-color: rgba(35, 20, 12, 0.70);
-  border-bottom-color: rgba(22, 14, 10, 0.75);
-  /* 내부 음영 — 부드럽게 */
-  box-shadow:
-    inset 0 1px 0 rgba(130, 65, 28, 0.18),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.40),
-    inset 1px 0 0 rgba(105, 52, 20, 0.12),
-    inset -1px 0 0 rgba(0, 0, 0, 0.25),
-    0 2px 6px rgba(0, 0, 0, 0.35);
-  transition: box-shadow 0.15s, filter 0.15s;
+  border-radius: 3px;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: box-shadow 0.15s, filter 0.15s, border-color 0.15s;
+  /* 흑비단 카드: 얼룩 + 광택 + 베이스 */
+  background:
+    radial-gradient(ellipse 18px 10px at 78% 22%, rgba(0,0,0,.45), transparent 70%),
+    radial-gradient(ellipse 12px 8px at 18% 82%, rgba(0,0,0,.40), transparent 70%),
+    radial-gradient(ellipse at 30% 25%, rgba(201,160,67,.18), transparent 55%),
+    linear-gradient(160deg, #2c1d14 0%, #160c08 100%);
+  border: 1px solid var(--gold-2);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, .7),
+    inset 0 0 22px rgba(0, 0, 0, .55),
+    inset 0 1px 0 rgba(201, 160, 67, .25),
+    0 4px 14px rgba(0, 0, 0, .6);
 }
 
-/* 단계별 색상 톤 */
+/* 내부 금색 1px 보더 */
+.fire-node-box::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 1px solid rgba(201, 160, 67, .32);
+  pointer-events: none;
+  border-radius: 2px;
+}
+
+/* 카드 모서리 닳음 */
+.fire-node-box::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 0% 0%,    rgba(0,0,0,.45), transparent 18px),
+    radial-gradient(circle at 100% 0%,  rgba(0,0,0,.40), transparent 16px),
+    radial-gradient(circle at 0% 100%,  rgba(0,0,0,.50), transparent 22px),
+    radial-gradient(circle at 100% 100%,rgba(0,0,0,.45), transparent 18px);
+}
+
+/* 단계별 미세 톤 — 2/3단계 약간 어둡게 */
 .fire-node-box.tier1 {
-  border-top-color: rgba(118, 48, 20, 0.52);
-  border-left-color: rgba(100, 40, 16, 0.44);
+  border-color: var(--gold-2);
 }
 
 .fire-node-box.tier2 {
   background:
-    radial-gradient(ellipse at 30% 30%, rgba(68, 34, 12, 0.48) 0%, transparent 60%),
-    linear-gradient(145deg, rgba(46, 26, 14, 0.93) 0%, rgba(34, 20, 12, 0.96) 50%, rgba(24, 16, 12, 0.98) 100%);
-  border-top-color: rgba(140, 110, 20, 0.46);
-  border-left-color: rgba(115, 88, 16, 0.38);
-  border-right-color: rgba(44, 24, 8, 0.70);
-  border-bottom-color: rgba(28, 16, 6, 0.78);
+    radial-gradient(ellipse 18px 10px at 78% 22%, rgba(0,0,0,.45), transparent 70%),
+    radial-gradient(ellipse 12px 8px at 18% 82%, rgba(0,0,0,.40), transparent 70%),
+    radial-gradient(ellipse at 30% 25%, rgba(201,160,67,.14), transparent 55%),
+    linear-gradient(160deg, #261810 0%, #120905 100%);
+  border-color: rgba(138, 106, 37, .85);
 }
 
 .fire-node-box.tier3 {
   background:
-    radial-gradient(ellipse at 30% 30%, rgba(52, 20, 6, 0.55) 0%, transparent 60%),
-    linear-gradient(145deg, rgba(36, 18, 10, 0.95) 0%, rgba(26, 14, 8, 0.97) 50%, rgba(20, 12, 8, 0.98) 100%);
-  border-top-color: rgba(152, 122, 26, 0.52);
-  border-left-color: rgba(125, 98, 22, 0.44);
-  border-right-color: rgba(50, 26, 8, 0.70);
-  border-bottom-color: rgba(32, 18, 6, 0.78);
+    radial-gradient(ellipse 18px 10px at 78% 22%, rgba(0,0,0,.50), transparent 70%),
+    radial-gradient(ellipse 12px 8px at 18% 82%, rgba(0,0,0,.45), transparent 70%),
+    radial-gradient(ellipse at 30% 25%, rgba(201,160,67,.12), transparent 55%),
+    linear-gradient(160deg, #20140d 0%, #0e0604 100%);
+  border-color: rgba(138, 106, 37, .75);
 }
 
-/* 노드 아이콘 (플레이스홀더) */
+/* 노드 아이콘 — 붓글씨 한자 1글자 (레이아웃 속성 유지) */
 .fire-node-icon {
   position: absolute;
   inset: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  color: rgba(215, 165, 105, 0.80);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-  background: rgba(0, 0, 0, 0.15);
+  font-family: var(--font-brush);
+  font-size: 44px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--gold-1);
+  text-shadow: 0 0 10px rgba(201, 160, 67, .4), 0 2px 3px rgba(0, 0, 0, .85);
+  filter: contrast(1.08);
+  background: transparent;
   border-radius: 2px;
-  line-height: 1.2;
   text-align: center;
-  word-break: break-all;
+  word-break: keep-all;
+  z-index: 1;
 }
 
 /* 레벨 표시 배지 */
 .fire-node-level {
   position: absolute;
   bottom: 3px;
-  right: 4px;
-  font-size: 10px;
-  color: rgba(218, 180, 112, 0.88);
-  font-weight: 600;
+  right: 5px;
+  font-family: var(--font-han);
+  font-size: 11px;
+  color: var(--ink-mid);
+  background: rgba(0, 0, 0, .7);
+  padding: 1px 6px;
+  border-radius: 2px;
+  border: 1px solid rgba(201, 160, 67, .25);
   line-height: 1;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  z-index: 2;
 }
 
 /* 노드 이름 */
 .fire-node-name {
-  font-size: 11px;
-  color: rgba(195, 148, 95, 0.75);
+  font-family: var(--font-serif);
+  font-size: 12px;
+  color: var(--ink-light);
+  letter-spacing: 0.3px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
   text-align: center;
-  max-width: var(--fire-node-size);
+  max-width: calc(var(--fire-node-size) + 50px);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.2;
 }
 
-/* 상태별 스타일 */
-/* 흐림 (선행 미충족) */
-.fire-node.dimmed .fire-node-box {
-  filter: brightness(0.42) saturate(0.3);
-}
-
-.fire-node.dimmed .fire-node-name {
-  color: rgba(120, 68, 35, 0.45);
-}
-
-/* 자원 부족 */
-.fire-node.no-resource .fire-node-box {
-  filter: brightness(0.68) saturate(0.6);
-}
-
-/* 만렙 glow — 채도 낮춘 금빛 */
-.fire-node.maxed .fire-node-box {
+/* ────────────────────────────────
+   루트 노드 — 104×104 주사 봉랍
+   ──────────────────────────────── */
+.fire-tier-root-row .fire-node-box.tier1 {
+  width: 104px;
+  height: 104px;
+  background:
+    radial-gradient(ellipse 22px 12px at 72% 18%, rgba(0,0,0,.40), transparent 70%),
+    radial-gradient(ellipse 16px 10px at 22% 78%, rgba(0,0,0,.35), transparent 70%),
+    radial-gradient(ellipse at 30% 25%, rgba(255, 180, 140, .25), transparent 55%),
+    linear-gradient(160deg, #6a1d10 0%, #2a0a06 100%);
+  border: 2px solid var(--gold-1);
   box-shadow:
-    inset 0 1px 0 rgba(140, 70, 30, 0.22),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.55),
-    0 0 7px rgba(185, 148, 50, 0.45),
-    0 0 14px rgba(185, 120, 40, 0.22),
-    0 2px 5px rgba(0, 0, 0, 0.45);
+    inset 0 0 0 1px rgba(0, 0, 0, .7),
+    inset 0 0 22px rgba(0, 0, 0, .5),
+    inset 0 2px 0 rgba(201, 160, 67, .35),
+    0 0 18px rgba(168, 51, 30, .4),
+    0 6px 20px rgba(0, 0, 0, .7);
+}
+
+.fire-tier-root-row .fire-node-box.tier1::before {
+  inset: 7px;
+  border-color: rgba(201, 160, 67, .5);
+}
+
+.fire-tier-root-row .fire-node-box.tier1 .fire-node-icon {
+  font-size: 58px;
+  letter-spacing: 0;
+  color: #f4d597;
+  text-shadow: 0 0 14px rgba(255, 200, 120, .5), 0 2px 3px rgba(0, 0, 0, .85);
+}
+
+.fire-tier-root-row .fire-node-name {
+  color: var(--gold-1);
+  font-size: 14px;
+  text-shadow: 0 0 6px rgba(201, 160, 67, .3);
+}
+
+/* ────────────────────────────────
+   노드 상태 — 호버 / 만렙 / 흐림 / 자원부족
+   ──────────────────────────────── */
+.fire-node:not(.dimmed) .fire-node-box:hover {
+  border-color: var(--gold-1);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, .7),
+    inset 0 0 22px rgba(0, 0, 0, .55),
+    inset 0 1px 0 rgba(201, 160, 67, .35),
+    0 0 0 2px rgba(201, 160, 67, .4),
+    0 6px 18px rgba(0, 0, 0, .7);
+}
+
+.fire-node.maxed .fire-node-box {
   animation: fire-glow 2s ease-in-out infinite alternate;
 }
 
 .fire-node.maxed .fire-node-icon {
-  color: var(--fire-divine);
+  color: #f4d597;
+  text-shadow: 0 0 14px rgba(255, 200, 120, .55), 0 2px 3px rgba(0, 0, 0, .85);
 }
 
 @keyframes fire-glow {
   from {
     box-shadow:
-      inset 0 1px 0 rgba(140, 70, 30, 0.22),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.55),
-      0 0 5px rgba(185, 148, 50, 0.35),
-      0 0 10px rgba(168, 110, 35, 0.18),
-      0 2px 5px rgba(0, 0, 0, 0.45);
+      inset 0 0 0 1px rgba(0, 0, 0, .7),
+      inset 0 0 22px rgba(0, 0, 0, .55),
+      inset 0 1px 0 rgba(201, 160, 67, .30),
+      0 0 7px rgba(201, 160, 67, .40),
+      0 0 14px rgba(201, 160, 67, .20),
+      0 4px 14px rgba(0, 0, 0, .6);
   }
   to {
     box-shadow:
-      inset 0 1px 0 rgba(140, 70, 30, 0.22),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.55),
-      0 0 9px rgba(185, 148, 50, 0.55),
-      0 0 18px rgba(168, 110, 35, 0.32),
-      0 2px 5px rgba(0, 0, 0, 0.45);
+      inset 0 0 0 1px rgba(0, 0, 0, .7),
+      inset 0 0 22px rgba(0, 0, 0, .55),
+      inset 0 1px 0 rgba(201, 160, 67, .40),
+      0 0 11px rgba(201, 160, 67, .60),
+      0 0 20px rgba(201, 160, 67, .32),
+      0 4px 14px rgba(0, 0, 0, .6);
   }
 }
 
-/* 호버 */
-.fire-node:not(.dimmed) .fire-node-box:hover {
-  box-shadow:
-    inset 0 1px 0 rgba(140, 70, 30, 0.22),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.55),
-    0 0 5px rgba(140, 55, 25, 0.38),
-    0 2px 7px rgba(0, 0, 0, 0.55);
+.fire-node.dimmed .fire-node-box {
+  filter: saturate(.3) brightness(.55);
+}
+
+.fire-node.dimmed .fire-node-name {
+  color: var(--ink-dim);
+}
+
+.fire-node.no-resource .fire-node-box {
+  filter: brightness(.68) saturate(.6);
 }
 
 /* ────────────────────────────────
@@ -520,21 +875,23 @@
   width: 52px;
   height: 52px;
   flex-shrink: 0;
-  border-radius: 4px;
+  border-radius: 3px;
   background:
-    radial-gradient(ellipse at 30% 30%, rgba(60, 28, 14, 0.6) 0%, transparent 60%),
-    linear-gradient(145deg, rgba(38, 24, 16, 0.95) 0%, rgba(18, 14, 12, 1) 100%);
-  border: 2px solid;
-  border-top-color: rgba(130, 52, 22, 0.65);
-  border-left-color: rgba(110, 44, 18, 0.55);
-  border-right-color: rgba(30, 15, 8, 0.85);
-  border-bottom-color: rgba(15, 8, 4, 0.90);
+    radial-gradient(ellipse at 30% 25%, rgba(201,160,67,.18), transparent 55%),
+    linear-gradient(160deg, #2c1d14 0%, #160c08 100%);
+  border: 1px solid var(--gold-2);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, .7),
+    inset 0 1px 0 rgba(201, 160, 67, .25);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: rgba(210, 155, 90, 0.75);
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: -1px;
+  color: var(--gold-1);
+  text-shadow: 0 0 6px rgba(201, 160, 67, .4), 0 2px 3px rgba(0, 0, 0, .85);
 }
 
 .fire-modal-title {
@@ -543,33 +900,41 @@
 }
 
 .fire-modal-title h3 {
-  font-size: 15px;
-  color: var(--fire-ember);
+  font-family: var(--font-serif);
+  font-size: 17px;
+  letter-spacing: 2px;
+  color: var(--gold-1);
   margin-bottom: 2px;
+  text-shadow: 0 0 6px rgba(201, 160, 67, .3);
 }
 
 .fire-modal-title .fire-modal-level {
+  font-family: var(--font-serif);
   font-size: 12px;
-  color: rgba(200, 168, 100, 0.65);
+  color: var(--ink-mid);
 }
 
 .fire-modal-divider {
   width: 100%;
   height: 1px;
-  background: var(--fire-border);
+  background: linear-gradient(90deg, transparent, rgba(201, 160, 67, .35) 30%, rgba(201, 160, 67, .35) 70%, transparent);
   margin: 10px 0;
 }
 
 .fire-modal-desc {
+  font-family: var(--font-serif);
   font-size: 12px;
   font-style: italic;
-  color: rgba(190, 152, 88, 0.55);
+  color: var(--ink-mid);
   margin-bottom: 4px;
+  line-height: 1.5;
 }
 
 .fire-modal-func {
+  font-family: var(--font-serif);
   font-size: 12px;
-  color: rgba(210, 185, 130, 0.75);
+  color: var(--ink-light);
+  line-height: 1.5;
 }
 
 .fire-modal-effect-row {
@@ -581,32 +946,164 @@
 }
 
 .fire-modal-effect-label {
-  color: rgba(190, 160, 100, 0.58);
+  font-family: var(--font-serif);
+  color: var(--ink-mid);
 }
 
 .fire-modal-effect-value {
-  color: rgba(210, 185, 125, 0.88);
-  font-weight: 600;
+  font-family: var(--font-serif);
+  color: var(--ink-light);
+  font-weight: 700;
 }
 
 .fire-modal-effect-next {
-  color: rgba(100, 190, 110, 0.75);
+  color: rgba(100, 190, 110, .75);
   font-size: 12px;
 }
 
 .fire-modal-maxed {
   text-align: center;
-  color: var(--fire-divine);
+  font-family: var(--font-serif);
+  color: var(--gold-1);
   font-size: 13px;
+  letter-spacing: 2px;
   padding: 4px 0;
+  text-shadow: 0 0 6px rgba(201, 160, 67, .4);
 }
 
 .fire-modal-locked-msg {
   text-align: center;
-  color: rgba(185, 148, 90, 0.58);
+  color: var(--ink-dim);
+  font-family: var(--font-serif);
   font-size: 12px;
   font-style: italic;
   padding: 4px 0;
+}
+
+/* 효과 요약 (레벨당 성장 한 줄) */
+.fire-modal-effect-summary {
+  font-family: var(--font-serif);
+  font-size: 11px;
+  color: var(--ink-dim);
+  line-height: 1.5;
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: rgba(201, 160, 67, 0.05);
+  border-left: 2px solid rgba(201, 160, 67, 0.3);
+  border-radius: 2px;
+}
+
+/* 특성 패널 — 10/20/30Lv 단계 해금 */
+.fire-modal-traits-label {
+  font-family: var(--font-serif);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--gold-1);
+  margin-bottom: 6px;
+  text-shadow: 0 0 4px rgba(201, 160, 67, 0.3);
+}
+
+.fire-modal-traits {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+
+.fire-trait-item {
+  padding: 6px 9px;
+  border-radius: 3px;
+  border: 1px solid rgba(201, 160, 67, 0.14);
+  background: rgba(22, 16, 10, 0.55);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.fire-trait-item--unlocked {
+  border-color: rgba(201, 160, 67, 0.55);
+  background: rgba(60, 38, 18, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(201, 160, 67, 0.15);
+}
+
+.fire-trait-item--preview {
+  border-color: rgba(100, 190, 110, 0.35);
+  background: rgba(30, 45, 28, 0.4);
+}
+
+.fire-trait-item--hidden {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.fire-trait-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.fire-trait-level {
+  font-family: var(--font-serif);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--ink-dim);
+  padding: 1px 5px;
+  border: 1px solid rgba(201, 160, 67, 0.3);
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.fire-trait-item--unlocked .fire-trait-level {
+  color: var(--gold-1);
+  border-color: rgba(201, 160, 67, 0.6);
+}
+
+.fire-trait-name {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: var(--ink-light);
+  text-shadow: 0 0 4px rgba(201, 160, 67, 0.12);
+  flex: 1;
+}
+
+.fire-trait-item--unlocked .fire-trait-name {
+  color: var(--gold-1);
+  text-shadow: 0 0 4px rgba(201, 160, 67, 0.25);
+}
+
+.fire-trait-item--hidden .fire-trait-name {
+  color: var(--ink-dim);
+}
+
+.fire-trait-badge {
+  font-family: var(--font-serif);
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: rgba(201, 160, 67, 0.2);
+  color: var(--gold-1);
+  letter-spacing: 1px;
+}
+
+.fire-trait-badge--preview {
+  background: rgba(100, 190, 110, 0.18);
+  color: rgba(140, 220, 150, 0.9);
+}
+
+.fire-trait-desc {
+  font-family: var(--font-serif);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ink-light);
+}
+
+.fire-trait-item--hidden .fire-trait-desc,
+.fire-trait-item--preview .fire-trait-desc {
+  color: var(--ink-mid);
+}
+
+.fire-trait-item--hidden .fire-trait-desc {
+  font-style: italic;
 }
 
 /* 자원 선택 버튼 */
@@ -618,39 +1115,41 @@
 }
 
 .fire-resource-label {
+  font-family: var(--font-serif);
   font-size: 11px;
-  color: rgba(185, 148, 90, 0.48);
+  color: var(--ink-dim);
   margin-bottom: 2px;
+  letter-spacing: 1px;
 }
 
 .fire-resource-btn {
   width: 100%;
   padding: 8px 12px;
-  background: rgba(30, 16, 8, 0.55);
-  border: 1px solid rgba(140, 62, 24, 0.28);
-  border-radius: 6px;
-  color: rgba(195, 152, 95, 0.75);
-  font-family: var(--font-body);
+  background: rgba(30, 20, 12, 0.60);
+  border: 1px solid rgba(201, 160, 67, .22);
+  border-radius: 2px;
+  color: var(--ink-light);
+  font-family: var(--font-serif);
   font-size: 12px;
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .fire-resource-btn:hover:not(:disabled) {
-  background: rgba(62, 28, 12, 0.65);
-  border-color: var(--fire-ember);
-  color: var(--fire-ember);
+  background: rgba(60, 38, 18, 0.65);
+  border-color: var(--gold-1);
+  color: var(--gold-1);
 }
 
 .fire-resource-btn.selected {
-  background: rgba(75, 32, 12, 0.65);
-  border-color: var(--fire-ember);
-  color: var(--fire-ember);
+  background: rgba(75, 50, 22, 0.65);
+  border-color: var(--gold-1);
+  color: var(--gold-1);
 }
 
 .fire-resource-btn:disabled {
-  opacity: 0.32;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
@@ -658,24 +1157,35 @@
   width: 100%;
   margin-top: 10px;
   padding: 10px;
-  background: linear-gradient(135deg, rgba(130, 44, 16, 0.55) 0%, rgba(88, 30, 8, 0.75) 100%);
-  border: 1px solid rgba(140, 55, 22, 0.55);
-  border-radius: 8px;
-  color: rgba(230, 210, 185, 0.92);
-  font-family: var(--font-body);
+  background:
+    radial-gradient(ellipse at 30% 30%, rgba(168, 51, 30, .45), transparent 55%),
+    linear-gradient(180deg, #6a1d10 0%, #2a0a06 100%);
+  border: 1px solid var(--gold-1);
+  border-radius: 3px;
+  color: #f4d597;
+  font-family: var(--font-serif);
   font-size: 14px;
-  font-weight: 600;
+  letter-spacing: 2px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s, box-shadow 0.15s;
+  text-shadow: 0 0 6px rgba(255, 200, 120, .4), 0 1px 2px rgba(0, 0, 0, .85);
+  box-shadow:
+    inset 0 1px 0 rgba(201, 160, 67, .35),
+    0 0 12px rgba(168, 51, 30, .3),
+    0 4px 10px rgba(0, 0, 0, .5);
+  transition: box-shadow 0.15s, filter 0.15s;
 }
 
 .fire-levelup-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(155, 55, 20, 0.65) 0%, rgba(110, 38, 10, 0.85) 100%);
-  box-shadow: 0 0 7px rgba(175, 80, 32, 0.32);
+  filter: brightness(1.15);
+  box-shadow:
+    inset 0 1px 0 rgba(201, 160, 67, .45),
+    0 0 18px rgba(168, 51, 30, .45),
+    0 4px 12px rgba(0, 0, 0, .6);
 }
 
 .fire-levelup-btn:disabled {
-  opacity: 0.28;
+  opacity: 0.32;
   cursor: not-allowed;
 }
 
@@ -683,9 +1193,13 @@
    잠긴 영역 모달
    ──────────────────────────────── */
 .fire-locked-modal-title {
+  font-family: var(--font-serif);
   font-size: 15px;
-  color: rgba(200, 162, 98, 0.88);
-  margin-bottom: 4px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--gold-1);
+  margin-bottom: 6px;
+  text-shadow: 0 0 6px rgba(201, 160, 67, .4), 0 1px 1px rgba(0, 0, 0, 0.6);
 }
 
 .fire-unlock-section {
@@ -693,47 +1207,55 @@
 }
 
 .fire-unlock-path-title {
+  font-family: var(--font-han);
   font-size: 11px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: rgba(175, 120, 55, 0.45);
+  letter-spacing: 3px;
+  color: var(--ink-mid);
   margin-bottom: 6px;
+  text-transform: uppercase;
 }
 
 .fire-unlock-req {
+  font-family: var(--font-serif);
   font-size: 12px;
-  color: rgba(192, 158, 95, 0.68);
+  color: var(--ink-light);
   margin-bottom: 3px;
   line-height: 1.5;
 }
 
 .fire-unlock-progress {
   font-size: 11px;
-  color: rgba(255, 180, 80, 0.5);
+  color: var(--ink-dim);
   margin-left: 8px;
   margin-bottom: 6px;
 }
 
 .fire-unlock-progress.met {
-  color: rgba(100, 220, 120, 0.7);
+  color: rgba(100, 220, 120, .75);
 }
 
 .fire-unlock-btn {
   width: 100%;
   padding: 10px;
   margin-top: 8px;
-  background: linear-gradient(135deg, rgba(88, 44, 12, 0.62) 0%, rgba(58, 26, 4, 0.82) 100%);
-  border: 1px solid rgba(150, 75, 22, 0.42);
-  border-radius: 8px;
-  color: rgba(200, 162, 96, 0.88);
-  font-family: var(--font-body);
+  background:
+    linear-gradient(180deg, rgba(60, 40, 18, .85), rgba(28, 18, 10, .95));
+  border: 1px solid var(--gold-2);
+  border-radius: 3px;
+  color: var(--gold-1);
+  font-family: var(--font-han);
   font-size: 13px;
+  letter-spacing: 3px;
   cursor: pointer;
-  transition: background 0.15s;
+  text-shadow: 0 0 6px rgba(201, 160, 67, .3), 0 1px 2px rgba(0, 0, 0, .85);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .fire-unlock-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(120, 55, 16, 0.72) 0%, rgba(82, 36, 8, 0.88) 100%);
+  background:
+    linear-gradient(180deg, rgba(90, 62, 28, .85), rgba(40, 26, 14, .95));
+  border-color: var(--gold-1);
+  color: #f4d597;
 }
 
 .fire-unlock-btn:disabled {
@@ -742,45 +1264,49 @@
 }
 
 /* ────────────────────────────────
-   ??? 탭 스타일
+   ??? 탭 스타일 — plum 정체성 유지, silk 톤 조정
    ──────────────────────────────── */
 .fire-exchange-section {
   margin-bottom: 8px;
 }
 
 .fire-exchange-section-title {
+  font-family: var(--font-han);
   font-size: 11px;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
+  color: var(--ink-mid);
   text-transform: uppercase;
-  color: rgba(175, 138, 72, 0.45);
   margin-bottom: 8px;
   padding-bottom: 4px;
-  border-bottom: 1px solid var(--fire-border);
+  border-bottom: 1px solid rgba(201, 160, 67, .18);
 }
 
 .fire-exchange-block {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(140, 62, 24, 0.15);
-  border-radius: 8px;
+  background: rgba(20, 14, 22, .55);
+  border: 1px solid rgba(201, 160, 67, .15);
+  border-radius: 3px;
   padding: 10px 12px;
   margin-bottom: 8px;
 }
 
 .fire-exchange-title {
+  font-family: var(--font-serif);
   font-size: 12px;
-  color: rgba(192, 152, 95, 0.75);
+  color: var(--ink-light);
   margin-bottom: 6px;
 }
 
 .fire-exchange-rate {
+  font-family: var(--font-serif);
   font-size: 11px;
-  color: rgba(175, 138, 72, 0.55);
+  color: var(--ink-mid);
   margin-bottom: 4px;
 }
 
 .fire-exchange-have {
+  font-family: var(--font-serif);
   font-size: 11px;
-  color: rgba(190, 158, 98, 0.48);
+  color: var(--ink-dim);
   margin-bottom: 6px;
 }
 
@@ -792,19 +1318,20 @@
 .fire-exchange-btn {
   flex: 1;
   padding: 5px 4px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(130, 58, 18, 0.22);
-  border-radius: 5px;
-  color: rgba(185, 148, 92, 0.65);
-  font-family: var(--font-body);
+  background: rgba(30, 20, 12, 0.55);
+  border: 1px solid rgba(201, 160, 67, .18);
+  border-radius: 2px;
+  color: var(--ink-mid);
+  font-family: var(--font-serif);
   font-size: 11px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .fire-exchange-btn:hover:not(:disabled) {
-  background: rgba(90, 38, 12, 0.55);
-  color: var(--fire-ember);
+  background: rgba(60, 38, 18, 0.55);
+  border-color: var(--gold-1);
+  color: var(--gold-1);
 }
 
 .fire-exchange-btn:disabled {
@@ -812,45 +1339,55 @@
   cursor: not-allowed;
 }
 
-/* 어둠의 노드 */
+/* 어둠의 노드 — plum 정체성 유지 */
 .fire-mystery-node {
   margin-top: 16px;
   padding: 16px;
-  background: rgba(10, 5, 20, 0.8);
-  border: 1px solid rgba(100, 50, 180, 0.25);
-  border-radius: 10px;
+  background: rgba(20, 14, 22, .85);
+  border: 1px solid rgba(120, 70, 170, .28);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 30px rgba(0, 0, 0, .45),
+    0 0 18px rgba(100, 50, 180, .15);
 }
 
 .fire-mystery-node-icon {
   width: 64px;
   height: 64px;
   margin: 0 auto 12px;
-  background: rgba(5, 2, 15, 0.9);
-  border: 2px solid rgba(80, 40, 140, 0.5);
-  border-radius: 4px;
+  background:
+    radial-gradient(ellipse at 30% 25%, rgba(140, 115, 190, .15), transparent 60%),
+    linear-gradient(160deg, #231629 0%, #0b0410 100%);
+  border: 2px solid rgba(120, 70, 170, .5);
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
   box-shadow:
-    0 0 12px rgba(100, 50, 200, 0.3),
-    inset 0 0 12px rgba(0, 0, 0, 0.8);
+    inset 0 0 12px rgba(0, 0, 0, .8),
+    0 0 14px rgba(120, 70, 180, .3);
 }
 
 .fire-mystery-title {
   text-align: center;
-  font-size: 14px;
-  color: rgba(180, 130, 255, 0.8);
+  font-family: var(--font-brush);
+  font-size: 18px;
+  letter-spacing: 4px;
+  color: rgba(180, 130, 255, .85);
   margin-bottom: 6px;
   font-style: italic;
+  text-shadow: 0 0 8px rgba(140, 90, 200, .4);
 }
 
 .fire-mystery-subtitle {
   text-align: center;
+  font-family: var(--font-serif);
   font-size: 11px;
-  color: rgba(120, 80, 180, 0.6);
+  color: rgba(150, 110, 200, .65);
   margin-bottom: 12px;
   font-style: italic;
+  letter-spacing: 2px;
 }
 
 .fire-mystery-fragments {
@@ -864,37 +1401,43 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  font-family: var(--font-serif);
   font-size: 12px;
-  color: rgba(180, 150, 220, 0.7);
+  color: rgba(180, 150, 220, .72);
 }
 
 .fire-mystery-fragment .check {
-  color: rgba(100, 220, 120, 0.8);
+  color: rgba(100, 220, 120, .8);
 }
 
 .fire-mystery-fragment .cross {
-  color: rgba(200, 80, 80, 0.6);
+  color: rgba(200, 80, 80, .6);
 }
 
 .fire-mystery-narrative {
   text-align: center;
+  font-family: var(--font-serif);
   font-size: 12px;
   font-style: italic;
-  color: rgba(140, 100, 200, 0.6);
+  color: rgba(155, 115, 205, .65);
   line-height: 1.6;
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid rgba(100, 50, 180, 0.2);
+  border-top: 1px solid rgba(120, 70, 170, .22);
 }
 
 /* ────────────────────────────────
    모달 공통 오버라이드
    ──────────────────────────────── */
 .fire-popup.popup-content {
-  background: rgba(20, 16, 14, 0.97);
-  border: 1px solid rgba(140, 55, 20, 0.28);
+  background: linear-gradient(180deg, var(--silk-1) 0%, var(--silk-0) 100%);
+  border: 1px solid rgba(201, 160, 67, .35);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, .4),
+    inset 0 0 60px rgba(0, 0, 0, .45),
+    0 20px 50px rgba(0, 0, 0, .7);
   text-align: left;
-  max-width: 340px;
+  max-width: 360px;
   position: relative;
 }
 
@@ -904,19 +1447,21 @@
   right: 12px;
   background: transparent;
   border: none;
-  color: rgba(185, 140, 90, 0.45);
+  color: var(--ink-dim);
   font-size: 16px;
   cursor: pointer;
   line-height: 1;
   padding: 0;
+  transition: color 0.15s;
 }
 
 .fire-popup-close:hover {
-  color: var(--fire-ember);
+  color: var(--gold-1);
 }
 
 /* ────────────────────────────────
    오버레이 모드 (ArtsTab에서 열릴 때)
+   (position/inset/z-index/display/flex 는 유지)
    ──────────────────────────────── */
 .fire-skilltree-overlay {
   position: fixed;
@@ -924,13 +1469,80 @@
   z-index: 80;
   display: flex;
   flex-direction: column;
-  background: var(--bg-primary);
+  overflow: hidden;
+  color: var(--ink-light);
+  font-family: var(--font-serif);
+  /* 비단 베이스 */
+  background:
+    radial-gradient(ellipse 90px 55px at 14% 22%, rgba(0,0,0,.42), transparent 65%),
+    radial-gradient(ellipse 70px 48px at 86% 16%, rgba(40,18,6,.50), transparent 62%),
+    radial-gradient(ellipse 110px 75px at 78% 70%, rgba(0,0,0,.38), transparent 65%),
+    radial-gradient(ellipse 55px 38px at 22% 86%, rgba(60,28,8,.40), transparent 60%),
+    radial-gradient(ellipse 35px 24px at 48% 48%, rgba(80,38,18,.22), transparent 60%),
+    radial-gradient(ellipse 28px 18px at 62% 30%, rgba(0,0,0,.30), transparent 60%),
+    radial-gradient(ellipse 22px 14px at 8% 60%, rgba(50,22,8,.32), transparent 60%),
+    linear-gradient(180deg, transparent 0 30%, rgba(0,0,0,.18) 30.3%, rgba(255,210,140,.04) 30.6%, transparent 31% 62%, rgba(0,0,0,.14) 62.3%, rgba(255,210,140,.03) 62.6%, transparent 63% 100%),
+    repeating-linear-gradient(45deg, rgba(201,160,67,.05) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(-45deg, rgba(201,160,67,.04) 0 1px, transparent 1px 6px),
+    radial-gradient(ellipse at 20% 20%, rgba(168,51,30,.06), transparent 55%),
+    radial-gradient(ellipse at 80% 80%, rgba(201,160,67,.07), transparent 55%),
+    linear-gradient(180deg, var(--silk-1) 0%, var(--silk-0) 100%);
+  box-shadow:
+    inset 0 0 110px rgba(0,0,0,.45),
+    inset 0 0 60px rgba(0,0,0,.55),
+    inset 0 0 0 6px rgba(0,0,0,.30);
 }
 
+/* 모서리 닳음 · 비네팅 (overlay 전용) */
+.fire-skilltree-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background:
+    radial-gradient(circle at 0% 0%,    rgba(0,0,0,.55), transparent 110px),
+    radial-gradient(circle at 100% 0%,  rgba(0,0,0,.50), transparent 95px),
+    radial-gradient(circle at 0% 100%,  rgba(0,0,0,.60), transparent 120px),
+    radial-gradient(circle at 100% 100%,rgba(0,0,0,.55), transparent 110px),
+    radial-gradient(ellipse 14px 6px at 1% 32%, rgba(0,0,0,.55), transparent 70%),
+    radial-gradient(ellipse 8px 14px at 98% 58%, rgba(0,0,0,.55), transparent 70%),
+    radial-gradient(ellipse 18px 8px at 40% 99%, rgba(0,0,0,.50), transparent 70%);
+}
+
+.fire-skilltree-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  opacity: .55;
+  background:
+    radial-gradient(circle at 28% 60%, rgba(255,220,150,.045) 1px, transparent 2px),
+    radial-gradient(circle at 72% 40%, rgba(255,220,150,.04) 1px, transparent 2px),
+    radial-gradient(circle at 50% 80%, rgba(0,0,0,.20) 1px, transparent 2px),
+    radial-gradient(circle at 18% 12%, rgba(0,0,0,.18) 1px, transparent 2px),
+    radial-gradient(circle at 84% 88%, rgba(255,220,150,.04) 1px, transparent 2px);
+  background-size: 32px 32px, 48px 48px, 26px 26px, 40px 40px, 36px 36px;
+}
+
+.fire-skilltree-overlay > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* overlay 내부 skilltree 는 silk 가 이미 뒤에 깔려 있으므로 투명 */
 .fire-skilltree-overlay .fire-skilltree {
   flex: 1;
   height: 100%;
   border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.fire-skilltree-overlay .fire-skilltree::before,
+.fire-skilltree-overlay .fire-skilltree::after {
+  display: none;
 }
 
 /* 오버레이 상단 헤더 */
@@ -938,60 +1550,95 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  background: rgba(0, 0, 0, 0.3);
-  border-bottom: 1px solid var(--fire-border);
+  gap: 12px;
+  padding: 14px 20px 14px;
+  background: transparent;
+  border-bottom: 1px solid rgba(201, 160, 67, .25);
 }
 
 .fire-overlay-back {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  font-family: var(--font-body);
-  font-size: 12px;
-  padding: 5px 10px;
+  border: 1px solid rgba(201, 160, 67, .35);
+  border-radius: 2px;
+  color: var(--ink-light);
+  font-family: var(--font-serif);
+  font-size: 13px;
+  letter-spacing: 1px;
+  padding: 5px 12px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .fire-overlay-back:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-primary);
+  background: rgba(201, 160, 67, .08);
+  border-color: var(--gold-1);
+  color: var(--gold-1);
 }
 
+/* 타이틀 — 한자 + 영어 서브 (pseudo 로 치환, JSX 무수정) */
 .fire-overlay-title {
-  font-size: 13px;
-  color: rgba(200, 158, 95, 0.75);
-  font-weight: 600;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0;
+  color: transparent;
+  line-height: 1;
+}
+
+.fire-overlay-title::before {
+  content: "拜火敎 秘笈";
+  font-family: var(--font-brush);
+  font-weight: 400;
+  font-size: 32px;
+  letter-spacing: 12px;
+  text-indent: 12px;
+  color: var(--gold-1);
+  text-shadow: 0 0 12px rgba(201, 160, 67, .45), 0 1px 0 #000, 1px 1px 0 rgba(0, 0, 0, .4);
+  filter: contrast(1.05);
+  line-height: 1.15;
+}
+
+.fire-overlay-title::after {
+  content: "BAEHWAGYO SECRET MANUAL";
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 10px;
+  letter-spacing: 6px;
+  text-indent: 6px;
+  color: var(--ink-mid);
+  margin-top: 4px;
+  filter: none;
+  line-height: 1;
 }
 
 /* 약안 모드 토글 버튼 */
 .fire-softmode-btn {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  color: rgba(160, 140, 180, 0.45);
-  font-family: var(--font-body);
+  border: 1px solid rgba(201, 160, 67, .35);
+  border-radius: 2px;
+  color: var(--ink-mid);
+  font-family: var(--font-serif);
   font-size: 11px;
-  padding: 4px 9px;
+  letter-spacing: 1px;
+  padding: 4px 10px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
   white-space: nowrap;
 }
 
 .fire-softmode-btn:hover {
-  background: rgba(120, 100, 160, 0.10);
-  color: rgba(185, 165, 210, 0.70);
-  border-color: rgba(120, 100, 160, 0.20);
+  background: rgba(201, 160, 67, .08);
+  color: var(--gold-1);
+  border-color: var(--gold-1);
 }
 
 .fire-softmode-btn.active {
-  background: rgba(80, 62, 120, 0.22);
-  border-color: rgba(140, 115, 190, 0.35);
-  color: rgba(195, 175, 225, 0.85);
+  background: rgba(80, 62, 120, .22);
+  border-color: rgba(140, 115, 190, .35);
+  color: rgba(195, 175, 225, .85);
 }
 
 /* ArtsTab 내 배화교 무공서 카드 */
@@ -1001,16 +1648,16 @@
   gap: 12px;
   padding: 12px 14px;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(140, 55, 20, 0.18);
-  border-radius: 10px;
+  border: 1px solid rgba(201, 160, 67, .20);
+  border-radius: 3px;
   margin-bottom: 12px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 
 .fire-arts-entry:hover {
-  background: rgba(90, 35, 12, 0.12);
-  border-color: rgba(140, 55, 20, 0.32);
+  background: rgba(60, 38, 18, .18);
+  border-color: rgba(201, 160, 67, .35);
 }
 
 .fire-arts-entry-icon {
@@ -1018,14 +1665,15 @@
   height: 40px;
   flex-shrink: 0;
   background:
-    radial-gradient(ellipse at 30% 30%, rgba(60, 28, 14, 0.6) 0%, transparent 60%),
-    linear-gradient(145deg, rgba(38, 24, 16, 0.95) 0%, rgba(18, 14, 12, 1) 100%);
-  border: 1px solid rgba(130, 52, 22, 0.50);
-  border-radius: 4px;
+    radial-gradient(ellipse at 30% 25%, rgba(201, 160, 67, .18), transparent 55%),
+    linear-gradient(160deg, #2c1d14 0%, #160c08 100%);
+  border: 1px solid var(--gold-2);
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 18px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .6);
 }
 
 .fire-arts-entry-info {
@@ -1033,239 +1681,369 @@
 }
 
 .fire-arts-entry-name {
-  font-size: 13px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .fire-arts-entry-desc {
+  font-family: var(--font-body);
   font-size: 11px;
+  font-style: italic;
+  line-height: 1.6;
   color: var(--text-dim);
 }
 
 /* ────────────────────────────────
-   약안 모드 (눈 부담 경감)
-   따뜻한 적갈색 → 쿨 뉴트럴 회청색
-   높은 명도 대비 → 부드러운 저채도
+   약안 모드 (청회색 silk) — 동일 텍스처, cool 팔레트
    ──────────────────────────────── */
 .fire-theme-soft {
-  --fire-ember: #7a8fa8;
+  --silk-0: #1b1f28;
+  --silk-1: #252a35;
+  --gold-1: #a0b8c5;
+  --gold-2: #6a7f8c;
+  --vermilion: #6a7a90;
+  --vermilion-deep: #3a4656;
+  --ink-light: #c9d4dd;
+  --ink-mid: #8898a6;
+  --ink-dim: #5b6775;
+
+  --fire-ember: var(--vermilion);
   --fire-flame: #5e7290;
-  --fire-divine: #8fa0b2;
-  --fire-bg-dark: #1e1e2e;        /* 메인 앱과 동일 */
-  --fire-bg-tier1: rgba(40, 50, 75, 0.20);
-  --fire-bg-tier2: rgba(30, 40, 65, 0.28);
-  --fire-bg-tier3: rgba(22, 30, 55, 0.36);
-  --fire-border: rgba(80, 100, 145, 0.16);
-  --fire-border-bright: rgba(90, 115, 160, 0.38);
-  --fire-gold-accent: rgba(130, 155, 185, 0.48);
-  --fire-gold-dim: rgba(110, 135, 165, 0.18);
+  --fire-divine: var(--gold-1);
+  --fire-bg-dark: var(--silk-0);
+  --fire-border: rgba(160, 184, 197, .18);
+  --fire-border-bright: rgba(160, 184, 197, .35);
+  --fire-gold-accent: rgba(160, 184, 197, .50);
+  --fire-gold-dim: rgba(160, 184, 197, .20);
 }
 
-/* 노드 박스 — 쿨 뉴트럴 베이스 */
+/* 약안 모드 silk 베이스 — 동일 직조, cool 틴트 */
+.fire-theme-soft.fire-skilltree-overlay,
+.fire-theme-soft .fire-skilltree {
+  background:
+    radial-gradient(ellipse 90px 55px at 14% 22%, rgba(0,0,0,.42), transparent 65%),
+    radial-gradient(ellipse 70px 48px at 86% 16%, rgba(20,30,50,.45), transparent 62%),
+    radial-gradient(ellipse 110px 75px at 78% 70%, rgba(0,0,0,.38), transparent 65%),
+    radial-gradient(ellipse 55px 38px at 22% 86%, rgba(30,42,62,.40), transparent 60%),
+    radial-gradient(ellipse 35px 24px at 48% 48%, rgba(40,58,78,.22), transparent 60%),
+    radial-gradient(ellipse 28px 18px at 62% 30%, rgba(0,0,0,.30), transparent 60%),
+    radial-gradient(ellipse 22px 14px at 8% 60%, rgba(26,38,56,.32), transparent 60%),
+    linear-gradient(180deg, transparent 0 30%, rgba(0,0,0,.18) 30.3%, rgba(180,200,220,.04) 30.6%, transparent 31% 62%, rgba(0,0,0,.14) 62.3%, rgba(180,200,220,.03) 62.6%, transparent 63% 100%),
+    repeating-linear-gradient(45deg, rgba(160,184,197,.05) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(-45deg, rgba(160,184,197,.04) 0 1px, transparent 1px 6px),
+    radial-gradient(ellipse at 20% 20%, rgba(106,122,144,.06), transparent 55%),
+    radial-gradient(ellipse at 80% 80%, rgba(160,184,197,.07), transparent 55%),
+    linear-gradient(180deg, var(--silk-1) 0%, var(--silk-0) 100%);
+}
+
+.fire-theme-soft .fire-skilltree-overlay .fire-skilltree {
+  background: transparent;
+}
+
+.fire-theme-soft .fire-overlay-title::before {
+  color: var(--gold-1);
+  text-shadow: 0 0 10px rgba(160, 184, 197, .35), 0 1px 0 #000;
+}
+
+.fire-theme-soft .fire-overlay-title::after {
+  color: var(--ink-mid);
+}
+
+.fire-theme-soft .fire-overlay-back {
+  border-color: rgba(160, 184, 197, .35);
+  color: var(--ink-light);
+}
+
+.fire-theme-soft .fire-overlay-back:hover {
+  background: rgba(160, 184, 197, .08);
+  border-color: var(--gold-1);
+  color: var(--gold-1);
+}
+
+.fire-theme-soft .fire-overlay-header {
+  border-bottom-color: rgba(160, 184, 197, .25);
+}
+
+.fire-theme-soft .fire-tab-bar {
+  border-bottom-color: rgba(160, 184, 197, .25);
+}
+
+.fire-theme-soft .fire-inventory {
+  background: rgba(0, 0, 0, .40);
+  border-color: rgba(160, 184, 197, .20);
+}
+
+.fire-theme-soft .fire-tab-btn {
+  background: linear-gradient(180deg, #2a323d 0%, #1a2028 100%);
+  border: 1px solid #323a44;
+  border-top: 2px solid #49545e;
+  color: var(--ink-dim);
+}
+
+.fire-theme-soft .fire-tab-btn.active {
+  color: var(--gold-1);
+  background:
+    radial-gradient(ellipse at top, rgba(160,184,197,.18), transparent 60%),
+    linear-gradient(180deg, #2f3844 0%, #1a2028 100%);
+  border-color: var(--gold-2);
+  border-top-color: var(--gold-1);
+  text-shadow: 0 0 6px rgba(160, 184, 197, .45);
+}
+
+.fire-theme-soft .fire-tab-btn.active::after {
+  background: var(--gold-1);
+  box-shadow: 0 0 8px rgba(160, 184, 197, .6);
+}
+
+/* 약안 노드 박스 */
 .fire-theme-soft .fire-node-box {
   background:
-    radial-gradient(ellipse at 30% 30%, rgba(40, 52, 78, 0.38) 0%, transparent 60%),
-    linear-gradient(145deg, rgba(36, 40, 58, 0.90) 0%, rgba(28, 32, 48, 0.93) 50%, rgba(22, 26, 40, 0.96) 100%);
-  border-top-color: rgba(75, 95, 140, 0.42);
-  border-left-color: rgba(62, 80, 120, 0.34);
-  border-right-color: rgba(20, 24, 40, 0.65);
-  border-bottom-color: rgba(14, 18, 32, 0.70);
+    radial-gradient(ellipse 18px 10px at 78% 22%, rgba(0,0,0,.40), transparent 70%),
+    radial-gradient(ellipse 12px 8px at 18% 82%, rgba(0,0,0,.35), transparent 70%),
+    radial-gradient(ellipse at 30% 25%, rgba(160,184,197,.16), transparent 55%),
+    linear-gradient(160deg, #2a323c 0%, #141a22 100%);
+  border-color: var(--gold-2);
   box-shadow:
-    inset 0 1px 0 rgba(90, 115, 165, 0.14),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.30),
-    inset 1px 0 0 rgba(80, 100, 145, 0.10),
-    inset -1px 0 0 rgba(0, 0, 0, 0.20),
-    0 2px 6px rgba(0, 0, 0, 0.28);
+    inset 0 0 0 1px rgba(0, 0, 0, .6),
+    inset 0 0 22px rgba(0, 0, 0, .50),
+    inset 0 1px 0 rgba(160, 184, 197, .22),
+    0 4px 14px rgba(0, 0, 0, .55);
 }
 
-.fire-theme-soft .fire-node-box.tier1 {
-  border-top-color: rgba(85, 108, 158, 0.44);
-  border-left-color: rgba(72, 92, 138, 0.36);
+.fire-theme-soft .fire-node-box::before {
+  border-color: rgba(160, 184, 197, .28);
 }
 
-.fire-theme-soft .fire-node-box.tier2 {
-  background:
-    radial-gradient(ellipse at 30% 30%, rgba(48, 62, 92, 0.42) 0%, transparent 60%),
-    linear-gradient(145deg, rgba(38, 44, 66, 0.92) 0%, rgba(30, 36, 56, 0.95) 50%, rgba(24, 28, 46, 0.97) 100%);
-  border-top-color: rgba(100, 125, 172, 0.40);
-  border-left-color: rgba(85, 108, 152, 0.32);
-  border-right-color: rgba(24, 28, 50, 0.65);
-  border-bottom-color: rgba(16, 20, 38, 0.72);
-}
-
-.fire-theme-soft .fire-node-box.tier3 {
-  background:
-    radial-gradient(ellipse at 30% 30%, rgba(38, 48, 78, 0.48) 0%, transparent 60%),
-    linear-gradient(145deg, rgba(30, 35, 58, 0.94) 0%, rgba(22, 28, 48, 0.96) 50%, rgba(18, 22, 42, 0.98) 100%);
-  border-top-color: rgba(112, 138, 188, 0.46);
-  border-left-color: rgba(95, 120, 168, 0.38);
-  border-right-color: rgba(26, 30, 54, 0.65);
-  border-bottom-color: rgba(18, 22, 42, 0.72);
-}
-
-/* 노드 아이콘 텍스트 */
 .fire-theme-soft .fire-node-icon {
-  color: rgba(175, 195, 220, 0.82);
+  color: var(--gold-1);
+  text-shadow: 0 0 10px rgba(160, 184, 197, .35), 0 2px 3px rgba(0, 0, 0, .85);
 }
 
-/* 노드 이름 */
 .fire-theme-soft .fire-node-name {
-  color: rgba(155, 175, 205, 0.72);
+  color: var(--ink-light);
 }
 
-/* 레벨 배지 */
 .fire-theme-soft .fire-node-level {
-  color: rgba(165, 185, 215, 0.85);
+  color: var(--ink-mid);
+  border-color: rgba(160, 184, 197, .22);
 }
 
-/* 만렙 glow — 쿨 블루 */
-.fire-theme-soft .fire-node.maxed .fire-node-box {
+/* 약안 루트 — cool 봉랍 */
+.fire-theme-soft .fire-tier-root-row .fire-node-box.tier1 {
+  background:
+    radial-gradient(ellipse 22px 12px at 72% 18%, rgba(0,0,0,.40), transparent 70%),
+    radial-gradient(ellipse 16px 10px at 22% 78%, rgba(0,0,0,.35), transparent 70%),
+    radial-gradient(ellipse at 30% 25%, rgba(200,218,228,.22), transparent 55%),
+    linear-gradient(160deg, #3d4a5a 0%, #1a2230 100%);
+  border-color: var(--gold-1);
   box-shadow:
-    inset 0 1px 0 rgba(90, 115, 165, 0.14),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.30),
-    0 0 8px rgba(100, 135, 200, 0.38),
-    0 0 16px rgba(80, 110, 180, 0.18),
-    0 2px 6px rgba(0, 0, 0, 0.30);
+    inset 0 0 0 1px rgba(0, 0, 0, .6),
+    inset 0 0 22px rgba(0, 0, 0, .45),
+    inset 0 2px 0 rgba(160, 184, 197, .30),
+    0 0 18px rgba(106, 122, 144, .35),
+    0 6px 20px rgba(0, 0, 0, .65);
+}
+
+.fire-theme-soft .fire-tier-root-row .fire-node-box.tier1 .fire-node-icon {
+  color: #dbe6ef;
+  text-shadow: 0 0 14px rgba(200, 220, 235, .45), 0 2px 3px rgba(0, 0, 0, .85);
+}
+
+.fire-theme-soft .fire-tier-root-row .fire-node-name {
+  color: var(--gold-1);
+  text-shadow: 0 0 6px rgba(160, 184, 197, .3);
+}
+
+/* 약안 만렙 glow — cool 블루 */
+.fire-theme-soft .fire-node.maxed .fire-node-box {
+  animation: fire-glow-soft 2s ease-in-out infinite alternate;
 }
 
 .fire-theme-soft .fire-node.maxed .fire-node-icon {
-  color: rgba(175, 200, 235, 0.92);
+  color: #dbe6ef;
+  text-shadow: 0 0 14px rgba(200, 220, 235, .5), 0 2px 3px rgba(0, 0, 0, .85);
 }
 
 @keyframes fire-glow-soft {
   from {
     box-shadow:
-      inset 0 1px 0 rgba(90, 115, 165, 0.14),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.30),
-      0 0 6px rgba(100, 135, 200, 0.28),
-      0 0 12px rgba(80, 110, 180, 0.14),
-      0 2px 6px rgba(0, 0, 0, 0.28);
+      inset 0 0 0 1px rgba(0, 0, 0, .6),
+      inset 0 0 22px rgba(0, 0, 0, .50),
+      inset 0 1px 0 rgba(160, 184, 197, .25),
+      0 0 8px rgba(160, 184, 197, .38),
+      0 0 14px rgba(160, 184, 197, .18),
+      0 4px 14px rgba(0, 0, 0, .55);
   }
   to {
     box-shadow:
-      inset 0 1px 0 rgba(90, 115, 165, 0.14),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.30),
-      0 0 10px rgba(100, 135, 200, 0.46),
-      0 0 20px rgba(80, 110, 180, 0.26),
-      0 2px 6px rgba(0, 0, 0, 0.30);
+      inset 0 0 0 1px rgba(0, 0, 0, .6),
+      inset 0 0 22px rgba(0, 0, 0, .50),
+      inset 0 1px 0 rgba(160, 184, 197, .35),
+      0 0 12px rgba(160, 184, 197, .58),
+      0 0 22px rgba(160, 184, 197, .30),
+      0 4px 14px rgba(0, 0, 0, .55);
   }
 }
 
-.fire-theme-soft .fire-node.maxed .fire-node-box {
-  animation: fire-glow-soft 2s ease-in-out infinite alternate;
+/* 약안 인벤토리 */
+.fire-theme-soft .fire-inventory-cell > span:first-child {
+  background: linear-gradient(180deg, rgba(42, 50, 62, .85) 0%, rgba(22, 28, 36, .95) 100%);
+  border-color: rgba(160, 184, 197, .35);
+  box-shadow:
+    inset 0 1px 0 rgba(160, 184, 197, .18),
+    0 0 0 1px rgba(0, 0, 0, .5);
 }
 
-/* 인벤토리 라벨 */
 .fire-theme-soft .fire-inventory-label {
-  color: rgba(155, 175, 205, 0.62);
+  color: var(--ink-mid);
 }
 
 .fire-theme-soft .fire-inventory-value {
-  color: var(--fire-ember);
+  color: var(--gold-1);
+  text-shadow: 0 0 6px rgba(160, 184, 197, .30);
 }
 
 .fire-theme-soft .fire-inventory-value.flame {
-  color: var(--fire-flame);
+  color: #8aa0b8;
+  text-shadow: 0 0 6px rgba(138, 160, 184, .30);
 }
 
 .fire-theme-soft .fire-inventory-value.divine {
-  color: var(--fire-divine);
+  color: var(--gold-1);
 }
 
-/* 탭 버튼 */
-.fire-theme-soft .fire-tab-btn {
-  color: rgba(140, 160, 195, 0.42);
-}
-
-.fire-theme-soft .fire-tab-btn:hover {
-  background: rgba(60, 80, 120, 0.10);
-  color: rgba(155, 178, 215, 0.65);
-}
-
-.fire-theme-soft .fire-tab-btn.active {
-  background: rgba(45, 62, 100, 0.28);
-  border-color: rgba(80, 100, 145, 0.22);
-  color: var(--fire-ember);
-}
-
-/* 연결선 */
+/* 약안 연결선 */
 .fire-theme-soft .fire-connector-line {
-  background: linear-gradient(to bottom, rgba(80, 100, 145, 0.38), rgba(80, 100, 145, 0.12));
+  background: linear-gradient(180deg, rgba(160, 184, 197, .6) 0%, rgba(160, 184, 197, .15) 100%);
+}
+
+.fire-theme-soft .fire-connector-line::before,
+.fire-theme-soft .fire-connector-line::after {
+  color: var(--gold-1);
+  text-shadow: 0 0 4px rgba(160, 184, 197, .5);
 }
 
 .fire-theme-soft .fire-connector-branch::before {
-  background: rgba(80, 100, 145, 0.32);
+  background: linear-gradient(180deg, rgba(160, 184, 197, .5), transparent);
 }
 
 .fire-theme-soft .fire-connector-branch::after {
-  background: rgba(80, 100, 145, 0.22);
+  background: linear-gradient(90deg, transparent, rgba(160, 184, 197, .4) 15%, rgba(160, 184, 197, .4) 85%, transparent);
 }
 
-/* 구분선 */
+/* 약안 구분선 */
 .fire-theme-soft .fire-tier-divider {
   background: linear-gradient(
-    to right,
+    90deg,
     transparent,
-    rgba(80, 100, 145, 0.18) 20%,
-    rgba(110, 135, 175, 0.10) 50%,
-    rgba(80, 100, 145, 0.18) 80%,
+    rgba(160, 184, 197, .32) 30%,
+    rgba(160, 184, 197, .32) 70%,
     transparent
   );
 }
 
-/* 잠금 영역 */
-.fire-theme-soft .fire-locked-overlay-text {
-  color: rgba(165, 185, 215, 0.70);
+/* 약안 단(段) 라벨 */
+.fire-theme-soft .fire-tier-label {
+  color: var(--gold-1);
+  background:
+    radial-gradient(ellipse at center, rgba(160, 184, 197, .10), transparent 70%),
+    rgba(0, 0, 0, .55);
+  border-color: rgba(160, 184, 197, .35);
+  text-shadow: 0 0 6px rgba(160, 184, 197, .35);
 }
 
-/* 모달 */
+/* 약안 잠금 영역 · 봉랍 — cool 팔레트 */
+.fire-theme-soft .fire-locked-area {
+  border-color: rgba(160, 184, 197, .18);
+}
+
+.fire-theme-soft .fire-locked-icon {
+  background:
+    radial-gradient(circle at 30% 30%, rgba(106, 122, 144, .45), transparent 55%),
+    radial-gradient(circle, var(--vermilion) 0 60%, var(--vermilion-deep) 61% 100%);
+  border-color: var(--gold-2);
+}
+
+.fire-theme-soft .fire-locked-icon::before {
+  color: #dbe6ef;
+  text-shadow: 0 0 8px rgba(200, 220, 235, .4), 0 2px 3px rgba(0, 0, 0, .85);
+}
+
+.fire-theme-soft .fire-locked-icon::after {
+  border-color: rgba(160, 184, 197, .4);
+}
+
+.fire-theme-soft .fire-locked-overlay-text {
+  color: var(--ink-mid);
+}
+
+/* 약안 모달 */
 .fire-theme-soft .fire-popup.popup-content {
-  background: rgba(22, 24, 38, 0.97);
-  border-color: rgba(75, 95, 140, 0.24);
+  background: linear-gradient(180deg, var(--silk-1) 0%, var(--silk-0) 100%);
+  border-color: rgba(160, 184, 197, .30);
+}
+
+.fire-theme-soft .fire-modal-icon {
+  background:
+    radial-gradient(ellipse at 30% 25%, rgba(160, 184, 197, .18), transparent 55%),
+    linear-gradient(160deg, #2a323c 0%, #141a22 100%);
+  border-color: var(--gold-2);
+  color: var(--gold-1);
+  text-shadow: 0 0 6px rgba(160, 184, 197, .35);
 }
 
 .fire-theme-soft .fire-modal-title h3 {
-  color: var(--fire-ember);
+  color: var(--gold-1);
+  text-shadow: 0 0 6px rgba(160, 184, 197, .3);
+}
+
+.fire-theme-soft .fire-modal-divider {
+  background: linear-gradient(90deg, transparent, rgba(160, 184, 197, .32) 30%, rgba(160, 184, 197, .32) 70%, transparent);
 }
 
 .fire-theme-soft .fire-resource-btn {
-  background: rgba(28, 32, 52, 0.55);
-  border-color: rgba(75, 95, 140, 0.24);
-  color: rgba(155, 178, 215, 0.72);
+  background: rgba(28, 34, 44, .60);
+  border-color: rgba(160, 184, 197, .22);
+  color: var(--ink-light);
 }
 
 .fire-theme-soft .fire-resource-btn.selected,
 .fire-theme-soft .fire-resource-btn:hover:not(:disabled) {
-  border-color: var(--fire-ember);
-  color: var(--fire-ember);
-  background: rgba(45, 62, 100, 0.55);
+  border-color: var(--gold-1);
+  color: var(--gold-1);
+  background: rgba(50, 62, 76, .65);
 }
 
 .fire-theme-soft .fire-levelup-btn {
-  background: linear-gradient(135deg, rgba(50, 70, 115, 0.55) 0%, rgba(34, 50, 90, 0.75) 100%);
-  border-color: rgba(80, 105, 155, 0.48);
-  color: rgba(200, 215, 235, 0.92);
-}
-
-.fire-theme-soft .fire-levelup-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(62, 85, 135, 0.65) 0%, rgba(44, 62, 108, 0.85) 100%);
-  box-shadow: 0 0 8px rgba(90, 120, 185, 0.28);
+  background:
+    radial-gradient(ellipse at 30% 30%, rgba(106, 122, 144, .45), transparent 55%),
+    linear-gradient(180deg, #3d4a5a 0%, #1a2230 100%);
+  border-color: var(--gold-1);
+  color: #dbe6ef;
+  text-shadow: 0 0 6px rgba(200, 220, 235, .35), 0 1px 2px rgba(0, 0, 0, .85);
+  box-shadow:
+    inset 0 1px 0 rgba(160, 184, 197, .30),
+    0 0 12px rgba(106, 122, 144, .25),
+    0 4px 10px rgba(0, 0, 0, .5);
 }
 
 .fire-theme-soft .fire-unlock-btn {
-  background: linear-gradient(135deg, rgba(45, 62, 105, 0.62) 0%, rgba(30, 44, 82, 0.82) 100%);
-  border-color: rgba(80, 105, 155, 0.38);
-  color: rgba(175, 195, 225, 0.88);
+  background: linear-gradient(180deg, rgba(40, 52, 68, .85), rgba(20, 28, 38, .95));
+  border-color: var(--gold-2);
+  color: var(--gold-1);
+  text-shadow: 0 0 6px rgba(160, 184, 197, .25);
 }
 
-/* 환전 버튼 */
+.fire-theme-soft .fire-unlock-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(60, 76, 92, .85), rgba(30, 38, 50, .95));
+  border-color: var(--gold-1);
+  color: #dbe6ef;
+}
+
 .fire-theme-soft .fire-exchange-btn:hover:not(:disabled) {
-  background: rgba(45, 62, 105, 0.50);
-  color: var(--fire-ember);
-}
-
-/* 오버레이 헤더 타이틀 */
-.fire-theme-soft .fire-overlay-title {
-  color: rgba(155, 178, 215, 0.72);
+  background: rgba(50, 62, 76, .55);
+  color: var(--gold-1);
 }

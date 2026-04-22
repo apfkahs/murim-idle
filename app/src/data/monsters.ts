@@ -37,7 +37,11 @@ export interface BossSkillDef {
      // ── 배화교 호위 신규 ──
      | 'baehwa_hwachang'       // 화창격 (확률 분기 3-way: 평타/1타/2격)
      | 'sraosha_response'      // 스라오샤의 응답 (ember 스택 연동 자기 버프)
-     | 'sacred_oath';          // 성화 맹세 (HP 30% 임계 → 각성+광화 시퀀스)
+     | 'sacred_oath'           // 성화 맹세 (HP 30% 임계 → 각성+광화 시퀀스)
+     // ── 배화교 검보사 신규 ──
+     | 'geombosa_attack'       // 검보사 공격 라우터 (검술/화염검/연격/점화/성화 + 3태세)
+     | 'hwabosa_attack'       // 화보사 공격 라우터 (성화술 + 4페이즈)
+     | 'gyeongbosa_attack';   // 경보사 공격 라우터 (경전 낭송 3종 + 규율 스택·카운터 + 절대 규율)
   triggerCondition: 'stamina_full' | 'hp_threshold' | 'default' | 'battle_start';
   staminaCost?: number;
   staminaGain?: number;
@@ -168,6 +172,7 @@ export interface BossSkillDef {
   // ── 배화교 행자 신규 ──
   conditionRequiredFaction?: import('./arts').Faction;  // 이 faction 무공 하나라도 장착 시 조건 충족
   damageTakenMultiplierIfCondition?: number;            // 조건 불충족 시 적이 받는 피해 배율 (0.5)
+  damageTakenMultiplierWhenFactionEquipped?: number;    // 조건 충족 시 적이 받는 피해 배율 (미지정 시 1.0 = 기존 동작)
   battleStartLogs?: string[];                            // 전투 시작 즉시 출력될 로그
   firstHitLogMessagesNoArt?: string[];                  // 조건 불충족 플레이어 첫 공격 시 로그(A/B/C)
   firstHitLogMessagesWithArt?: string[];                // 조건 충족 플레이어 첫 공격 시 로그
@@ -216,6 +221,187 @@ export interface BossSkillDef {
   sacredOathStunImmuneLogs?: string[];
   sacredOathKillFrenzyLogs?: string[];
   sacredOathKillEarlyLogs?: string[];
+  // ── 배화교 검보사 신규 ──
+  geombosaSkills?: {
+    swordsmanship: { mult: number; logs?: string[] };
+    flameSword:    { mult: number; emberApplyChance: number; logs: string[] };
+    flameCombo:    { mult: number; hits: number; emberApplyChancePerHit: number; logs: string[] };
+    emberIgnition: {
+      baseMult: number;
+      perStackMult: number;
+      consumeStacks: number;
+      logs: string[];
+      dodgeLogs: string[];
+    };
+    sacredFlame: {
+      mult: number;
+      emberApply: number;
+      logs: string[];
+      dodgeLogs: string[];
+      warningLog: string;
+      grogyEnterLog: string;
+      grogyExitLog: string;
+      gaugePerNormalAttack: number;
+      gaugeMax: number;
+      warningThreshold: number;
+      grogyDurationMs: number;   // 초 단위(이름은 유지; ms 아님)
+    };
+    stanceTransitionLogs: { defenseToAttack: string; attackToMaster: string };
+    stunImmuneLogs: string[];
+    killLogs: {
+      defense: string[];
+      attack: string[];
+      masterPreSeonghwa: string;
+      masterPostSeonghwa: string;
+    };
+    // 공격 태세 분포 (ember>=2)
+    attackStanceDistWithEmber: { swordsmanship: number; flameSword: number; flameCombo: number; emberIgnition: number };
+    // 공격 태세 분포 (ember<2) — 점화 슬롯을 검술로 치환
+    attackStanceDistNoEmber: { swordsmanship: number; flameSword: number; flameCombo: number };
+    // 방어 태세 분포
+    defenseStanceDist: { swordsmanship: number; flameSword: number; flameCombo: number };
+    // 명인 태세 분포 (성화 충전 중 일반 공격)
+    masterStanceDist: { swordsmanship: number; flameSword: number; flameCombo: number };
+    // 태세별 주는 피해 배율
+    defenseOutMult: number;
+    attackOutMult: number;
+    masterOutMult: number;
+    // 태세별 받는 피해 배율 (playerCombat.ts 참조)
+    defenseInMult: number;
+    attackInMult: number;
+    masterInMult: number;
+  };
+  hwabosaSkills?: {
+    flameSwing: { mult: number };
+    atarBrand: {
+      mult: number;
+      selfEmberGain: number;
+      playerEmberGain: number;
+      logs: string[];
+    };
+    ashaMeditation: {
+      maxAbsorbPerUse: number;
+      healPercentPerStack: number;
+      nextAttackBonusPerStack: number;
+      logs: string[];
+      emptyLogs: string[];
+    };
+    verethragna: {
+      mult: number;
+      selfEmberGain: number;
+      playerEmberGain: number;
+      logs: string[];
+    };
+    druzVerdict: {
+      dotCoefficient: number;
+      durationSec: number;
+      selfEmberGain: number;
+      log: string;
+      tickLogs: string[];
+    };
+    atashBahram: {
+      selfEmberGain: number;
+      playerEmberGain: number;
+      warningLog: string;
+      activationLog: string;
+    };
+    phase1Dist: { flameSwing: number; atarBrand: number; ashaMeditation: number };
+    phase2Dist: { flameSwing: number; atarBrand: number; ashaMeditation: number; verethragna: number };
+    phase3Dist: { flameSwing: number; atarBrand: number; ashaMeditation: number; verethragna: number; druzVerdict: number };
+    phase4Dist: { atarBrand: number; ashaMeditation: number; verethragna: number; druzVerdict: number; atashBahram: number };
+    prayerDurationSec: number;
+    prayerTickIntervalSec: number;
+    prayerStackPerTick: number;
+    prayerStartLog: string;
+    prayerTickLogs: string[];
+    prayerEndLog: string;
+    bahramGaugeMax: number;
+    bahramGainPerAttack: number;
+    bahramGainPerAbsorbStack: number;
+    bahramWarningThreshold: number;
+    phaseAbsorptionThresholds: [number, number, number];
+    phaseEntrySelfEmber: number;
+    phaseTransitionLogs: {
+      worshipToMeditation: string;
+      gohoActivationLog: string;
+      meditationToLiberation: string;
+      liberationToAscension: string;
+    };
+    gohoDrPerStack: number;
+    gohoDrMaxCap: number;
+    druzBurnSelfOnly: boolean;
+    killLogs: {
+      worship: string[];
+      meditation: string[];
+      liberation: string[];
+      ascensionPreBahram: string;
+      ascensionPostBahram: string;
+    };
+  };
+  // ── 배화교 경보사 (외문 상위 일반) ──
+  gyeongbosaSkills?: {
+    normal: { mult: number; logs: string[] };
+    suppression: {
+      mult: number;
+      debuffAtkPercent: number;       // 0.25 = -25%
+      debuffAtkSpeedPercent: number;  // 0.25 = -25%
+      durationSec: number;            // 8
+      playerEmberGain: number;        // 1
+      logs: string[];                 // A/B/C/D
+      hitSuffix: string;              // chip용 표시 문자열
+    };
+    selfHarmony: {
+      healPercent: number;            // 0.006 (초당)
+      tickIntervalSec: number;        // 1
+      durationSec: number;            // 8
+      nextAttackDodgeBonus: number;   // 0.30
+      firstLogs: string[];            // A/B/C
+      resetLogs: string[];            // A/B
+    };
+    verdict: {
+      dotCoefficient: number;         // 0.35
+      durationSec: number;            // 8
+      playerEmberGain: number;        // 1
+      logs: string[];                 // A/B/C
+      tickLogs: string[];             // A/B
+    };
+    skillDist: {
+      normal: number;
+      suppression: number;
+      selfHarmony: number;
+      verdict: number;
+    };
+    discipline: {
+      stackCap: number;               // 6
+      hpHalfTriggerRatio: number;     // 0.5
+      rngPool: ('declaration' | 'lightStep' | 'enforcement')[];
+      absoluteMod: number;            // 4 (4의 배수마다 절대 규율)
+      buffDurationSec: number;        // 20
+      declaration: { playerCritRateOverride: number; log: string; banner: string };
+      lightStep:   { enemyDodgeBonus: number;         log: string; banner: string };
+      enforcement: { enemyAtkMult: number;            log: string; banner: string };
+      absolute: {
+        stunSec: number;              // 15
+        dotCoefficient: number;       // 0.75
+        dotDurationSec: number;       // 15
+        ceremonySec: number;          // 15
+        openLog: string;
+        phraseLog5s: string;
+        phraseLog10s: string;
+        dotTickLogs: string[];
+        endLog: string;
+        stunBreakLog: string;
+        stunResumeLog: string;
+      };
+      resetLog: string;               // 같은 규율 재발동 시 지속시간만 리셋
+    };
+    killLogs: {
+      prePhase: string[];             // A/B — HP 50% 진입 전 처치
+      midPhase: string[];             // A/B — 규율 1~3회차 구간
+      nearAbsolute: string[];         // A/B — 절대 규율 발동 전 4회차 임박
+      postAbsolute: string;           // 고정 — 절대 규율 이후 처치
+    };
+  };
 }
 
 export interface BossPatternDef {
@@ -856,6 +1042,417 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
       },
     ],
   },
+  // ── 배화교 검보사 패턴 ──
+  baehwa_geombosa: {
+    stamina: { initial: 0, max: 0, regenPerSec: 0 },
+    skills: [
+      {
+        id: 'geombosa_three_law',
+        displayName: '삼행의 율법(三行律法)',
+        type: 'baehwa_guard',
+        triggerCondition: 'battle_start',
+        oneTime: true,
+        priority: 10,
+        conditionRequiredFaction: 'baehwagyo',
+        damageTakenMultiplierIfCondition: 0.5,
+        battleStartLogs: [
+          '*검보사가 검을 아래로 드리운 채 한 걸음 물러선다. 가볍게 목례한다.*',
+          '*「삼행(三行)의 율법 아래, 먼저 한 수 양보해 드리지요. 선수(先手)는 그대의 것입니다.」*',
+        ],
+        firstHitLogMessagesNoArt: [
+          '*당신의 일격이 검보사의 검신(劍身) 표면을 스치는가 싶더니, 힘없이 미끄러진다.*\n*「…아직 길이 세 갈래로 나뉜 이의 검이군요.」*',
+          '*검보사의 검이 당신의 공격을 종이 한 장 차이로 흘려보낸다. 한 발도 물러서지 않는다.*\n*「삼행을 걷지 않은 자에게는 저의 갑주가 너무 두껍습니다.」*',
+          '*당신의 공격이 검보사의 옷자락을 스치고 그친다.*\n*「그대의 검에는 아직 성화의 결이 없군요.」*',
+        ],
+        firstHitLogMessagesWithArt: [
+          '*당신의 일격이 검보사의 자세를 처음으로 무너뜨린다. 검보사의 눈빛이 조금 진지해진다.*\n*「…그대도 길을 걷는 분이셨군요. 결례했습니다.」*',
+        ],
+        logMessages: [],
+      },
+      {
+        id: 'geombosa_router',
+        displayName: '검보사 검술',
+        type: 'geombosa_attack',
+        triggerCondition: 'default',
+        priority: 5,
+        logMessages: [],
+        geombosaSkills: {
+          swordsmanship: { mult: 1.0 },
+          flameSword: {
+            mult: 1.8,
+            emberApplyChance: 1.0,
+            logs: [
+              '*검보사의 검신(劍身)이 붉게 달아오른다. 검 끝이 그린 호(弧)가 당신의 살갗을 긋는다.*',
+              '*「화염이 검의 혀(舌)가 되어.」 검보사의 검이 한 호흡에 당신의 간격으로 들어온다.*',
+              '*검보사의 검이 공기를 베자 그 궤적에 붉은 실금이 남는다. 실금이 당신의 몸 위에서 살아난다.*',
+              '*검보사가 검을 수평으로 뻗는다. 검끝이 스친 자리에서 잔불이 일렁인다.*',
+            ],
+          },
+          flameCombo: {
+            mult: 1.2,
+            hits: 2,
+            emberApplyChancePerHit: 0.6,
+            logs: [
+              '*검보사의 검이 두 번 번쩍인다. 올려베기 직후에 내려베기. 두 호(弧)가 X자로 당신의 몸을 가른다.*',
+              '*「한 번은 경고이고, 두 번째는 응답입니다.」 검보사의 검이 좌우로 두 차례 뻗는다.*',
+              '*검보사가 검을 몸 옆으로 끌어당기며 반 바퀴 돈다. 회전의 끝에서 두 줄기의 붉은 궤적이 당신의 몸에 닿는다.*',
+            ],
+          },
+          emberIgnition: {
+            baseMult: 2.2,
+            perStackMult: 0.6,
+            consumeStacks: 2,
+            logs: [
+              '*검보사가 왼손으로 당신의 몸에 남은 불씨를 향해 수인(手印)을 긋는다. 불씨가 검에 빨려 들어가듯 모여들더니, 검끝에서 폭발한다.*',
+              '*「그대의 불, 제가 먼저 쓰겠습니다.」 검보사가 검 끝으로 당신의 몸을 가리킨다. 옮겨 붙어 있던 불꽃이 검을 타고 역류한다. 검이 한 호흡 만에 당신을 꿰뚫는다.*',
+              '*검보사가 검을 가볍게 떤다. 당신의 살갗에서 번지던 불꽃 두 점이 허공으로 끌어올려지더니, 검신(劍身)을 타고 내려와 그대로 당신을 찌른다.*',
+              '*검보사의 검이 붉다 못해 하얗게 달아오른다. 그가 한 걸음 내딛자, 당신의 몸에 붙어 있던 불씨가 사라지고 — 같은 양의 열이 검끝을 타고 돌아온다.*',
+            ],
+            dodgeLogs: [
+              '*검보사가 불씨를 끌어모으려 하던 순간, 당신이 반 보 물러선다. 끌려가려던 불꽃이 허공에서 흩어진다.*',
+              '*『…』 검보사의 검이 당신의 몸을 스치기 직전, 당신의 체술이 궤적을 흘린다. 검끝에 매달려 있던 불꽃이 바닥에 떨어져 꺼진다.*',
+            ],
+          },
+          sacredFlame: {
+            mult: 8.0,
+            emberApply: 3,
+            logs: [
+              '*검보사가 한 호흡에 검을 수직으로 쳐올린다. 검끝에 모여 있던 흰 불꽃이 하늘 높이 치솟더니, 그대로 당신의 정수리를 향해 내리꽂힌다.*\n*「성화 — 하나.」*\n*일섬(一閃). 당신의 몸을 가로지른 궤적 위로 흰 불꽃이 타오른다.*',
+            ],
+            dodgeLogs: [
+              '*검보사의 일격이 내리꽂히기 직전, 당신이 몸을 틀어 궤적을 비켜낸다. 흰 불꽃이 바닥에 내리꽂히며 돌바닥을 쪼갠다.*\n*그러나 검보사 자신도 그 일격을 다 토해냈다. 그는 검을 회수하지 못하고 한쪽 무릎을 꿇는다.*',
+            ],
+            warningLog: '*검보사의 검신을 타고 오르던 흰 불꽃이 검끝에 모인다. 검 주변 공기가 일렁이기 시작한다.*\n*「…준비되셨습니까.」*',
+            grogyEnterLog: '*일격을 쏟아낸 검보사가 한쪽 무릎을 꿇고 검을 지팡이처럼 짚는다. 어깨가 크게 오르내리며 숨을 몰아쉰다.*\n*당분간은 — 당신의 시간이다.*',
+            grogyExitLog: '*검보사가 천천히 일어선다. 검을 다시 세우는 그의 호흡이 고르게 돌아와 있다.*\n*「…다시 한 번. 성화의 이름으로.」*',
+            gaugePerNormalAttack: 20,
+            gaugeMax: 100,
+            warningThreshold: 80,
+            grogyDurationMs: 6,   // 초 단위
+          },
+          stanceTransitionLogs: {
+            defenseToAttack: '*검보사가 검을 수직으로 세우며 한 걸음 뒤로 물러선다. 검의 결에 스며 있던 빛이 한 차례 갈라졌다가, 다시 모인다.*\n*「제법이시군요. 그럼 — 이후로는 제대로 해 보겠습니다.」*',
+            attackToMaster: '*검보사가 검을 땅에 꽂고 잠시 눈을 감는다. 호흡을 고르는가 싶더니, 검을 뽑아 들 때 그의 자세가 완전히 달라져 있다.*\n*검신(劍身)을 따라 흰 불꽃 한 줄기가 아래에서 위로 천천히 올라간다.*\n*「…이제부터는 진심으로 상대하겠습니다. 성화의 이름으로.」*',
+          },
+          stunImmuneLogs: [
+            '*당신의 스턴 기술이 검보사의 급소를 정확히 찍었다. 그러나 검보사는 흔들리지 않는다. 이미 반쯤 넘어간 그의 의식은 성화에 매여 있다.*',
+            '*검보사의 몸이 한순간 비틀린다. 하지만 검을 놓지 않는다. 그의 호흡이 흐트러지지 않는다.*',
+          ],
+          killLogs: {
+            defense: [
+              '*검보사가 검을 떨어뜨리며 천천히 앉는다. 자세를 고쳐잡기도 전에 싸움이 끝났다.*\n*「…선수를 양보한 것이…… 결례가 되었군요.」*',
+              '*검보사가 검 끝을 바닥에 짚으며 한쪽 무릎을 꿇는다. 그의 검신에는 아직 불꽃이 채 오르지도 않았다.*\n*「…죄송합니다. 아직 제 진심을…… 보여드리지 못했는데.」*',
+            ],
+            attack: [
+              '*검보사의 검이 반쯤 올라가다 멈춘다. 검신의 불꽃이 일렁이다 꺼져간다.*\n*「그대의 불을 빌려 쓰려 했는데…… 그대가 한 수 빨랐군요.」*',
+              '*검보사가 검을 내려놓는다. 검 끝의 잔불이 바닥에 떨어져 작은 선을 그리며 사라진다.*\n*「…삼행의 율법 아래에서 패한 것이라면, 원망할 것이 없습니다.」*',
+            ],
+            masterPreSeonghwa: '*검보사의 검이 허공에서 멈춘다. 검신에 오르던 흰 불꽃이 바닥으로 흘러내린다.*\n*「…성화여. 이 몸으로는 일격에 도달하지 못했습니다.」*\n*검보사가 검을 땅에 꽂고 고개를 숙인다.*',
+            masterPostSeonghwa: '*검보사가 검을 놓고 두 손을 모은다. 그의 몸을 감싸던 흰 불꽃이 하나씩 꺼져간다.*\n*「…성화여. 한 번의 일격은…… 올리지 못한 것이 아닙니다.」*\n*「…그대가, 그 일격을 넘어선 것입니다.」*',
+          },
+          defenseStanceDist: { swordsmanship: 0.50, flameSword: 0.35, flameCombo: 0.15 },
+          attackStanceDistWithEmber: { swordsmanship: 0.30, flameSword: 0.25, flameCombo: 0.25, emberIgnition: 0.20 },
+          attackStanceDistNoEmber:  { swordsmanship: 0.50, flameSword: 0.25, flameCombo: 0.25 },
+          masterStanceDist: { swordsmanship: 0.40, flameSword: 0.35, flameCombo: 0.25 },
+          defenseOutMult: 1.0,
+          attackOutMult: 1.3,
+          masterOutMult: 1.3,
+          defenseInMult: 0.7,
+          attackInMult: 1.0,
+          masterInMult: 0.7,
+        },
+      },
+    ],
+  },
+  // ── 배화교 화보사 패턴 ──
+  baehwa_hwabosa: {
+    stamina: { initial: 0, max: 0, regenPerSec: 0 },
+    skills: [
+      {
+        id: 'hwabosa_three_law',
+        displayName: '삼행의 율법(三行律法)',
+        type: 'baehwa_guard',
+        triggerCondition: 'battle_start',
+        oneTime: true,
+        priority: 10,
+        conditionRequiredFaction: 'baehwagyo',
+        damageTakenMultiplierIfCondition: 0.5,
+        battleStartLogs: [
+          '*화보사가 두 손을 모은 채 눈을 감고 있다. 그의 앞에 작은 성화 한 점이 공중에 떠 있다.*',
+          '*「삼행(三行)의 율법 아래에서 — 저는 지금 기도 중입니다. 지나가십시오.」*',
+        ],
+        firstHitLogMessagesNoArt: [
+          '*당신의 일격이 화보사의 어깨를 스쳤으나, 옷자락 안쪽에서 희미한 불꽃이 일어나 그 힘을 받아낸다.*\n*「삼행의 길을 걷지 않은 이의 손은…… 저의 성화에 닿을 수 없습니다.」*',
+          '*화보사가 눈을 뜨지 않은 채 한 걸음 비킨다. 당신의 공격이 허공을 가른다.*\n*「불경한 분이시군요. 성화가 당신의 걸음을 가엽게 여기고 있습니다.」*',
+          '*당신의 타격이 화보사의 몸에 닿기 전에, 그의 주위를 도는 불씨 한 점이 타격의 결을 눅인다.*\n*「…아직은, 제 기도를 끊으실 자격이 없습니다.」*',
+        ],
+        firstHitLogMessagesWithArt: [
+          '*당신의 일격이 화보사의 자세를 처음으로 흔든다. 그의 눈꺼풀이 떨리듯 열린다.*\n*「…같은 길을 걷는 분이시로군요. 그렇다면 — 진심으로 상대하겠습니다.」*',
+        ],
+        logMessages: [],
+      },
+      {
+        id: 'hwabosa_router',
+        displayName: '화보사 성화술',
+        type: 'hwabosa_attack',
+        triggerCondition: 'default',
+        priority: 5,
+        logMessages: [],
+        hwabosaSkills: {
+          flameSwing: { mult: 1.0 },
+          atarBrand: {
+            mult: 1.9,
+            selfEmberGain: 1,
+            playerEmberGain: 1,
+            logs: [
+              '*화보사가 손끝의 성화를 허공에 그어 한 점의 표식을 새긴다. 같은 표식이 그의 가슴과 당신의 살갗에 동시에 떠오른다.*',
+              '*「아타르의 은총을 — 그대에게도.」 화보사의 손 안에서 불꽃이 갈라져, 하나는 자신에게, 하나는 당신에게 내려앉는다.*',
+              '*화보사가 두 손을 모으자 그 사이에서 불꽃이 한 번 폭발한다. 퍼진 불씨가 자신과 당신의 몸에 각각 한 점씩 낙인을 찍는다.*',
+              '*공중의 성화가 두 갈래로 갈라진다. 하나는 화보사의 이마에, 하나는 당신의 가슴에 새겨진다.*',
+            ],
+          },
+          ashaMeditation: {
+            maxAbsorbPerUse: 2,
+            healPercentPerStack: 0.02,
+            nextAttackBonusPerStack: 0.5,
+            logs: [
+              '*화보사가 눈을 감고 숨을 한 번 길게 들이쉰다. 그의 몸을 둘러싸던 불씨 몇 점이, 들숨을 따라 그의 가슴 안쪽으로 빨려 들어간다.*',
+              '*「아샤여 — 당신의 진리로 이 불꽃을 다스리소서.」 화보사의 주위를 떠돌던 불씨가 그의 심장 부근으로 모여 사라진다.*',
+              '*화보사가 왼손의 성화를 가슴에 품자, 그의 몸에 붙어 있던 불씨가 하나씩 그 안으로 빨려 들어간다. 그의 숨이 조금 길어진다.*',
+            ],
+            emptyLogs: [
+              '*화보사가 눈을 감고 묵상을 시도하지만, 그의 주위에 거두어들일 불씨가 남아 있지 않다. 그가 천천히 눈을 뜬다.*',
+              '*화보사가 숨을 길게 들이쉰다. 그러나 몸에 남은 성화의 결이 옅어, 묵상은 흐름만을 그리고 끝난다.*',
+            ],
+          },
+          verethragna: {
+            mult: 2.5,
+            selfEmberGain: 2,
+            playerEmberGain: 2,
+            logs: [
+              '*화보사의 손 위에서 성화가 창날 모양으로 뭉친다. 그가 팔을 뻗자, 창끝의 불꽃이 한 호흡에 당신의 몸을 관통한다.*',
+              '*「베레트라그나 — 승리의 결을 이 일격에.」 화보사가 손바닥을 앞으로 내지른다. 그 앞에서 공기가 불꽃이 되어 당신을 내려친다.*',
+              '*화보사의 성화가 한순간 푸른빛을 띤다. 다음 순간, 그 푸른 불꽃이 당신의 앞에서 되살아나 붉게 폭발한다.*',
+              '*화보사가 공중의 성화를 움켜쥐자 성화가 한 자루의 짧은 검으로 응결된다. 그가 한 걸음 내딛자 — 그 불검이 당신을 가른다.*',
+            ],
+          },
+          druzVerdict: {
+            dotCoefficient: 0.07,
+            durationSec: 5,
+            selfEmberGain: 2,
+            log: '*화보사가 눈을 뜬다. 그의 눈동자 안쪽에서 성화가 타고 있다.*\n*「드루즈(druj) — 거짓의 자여. 이 불꽃은 당신의 몸을 태우는 것이 아니라, 당신 안의 거짓을 태우는 것입니다.」*\n*그의 손에서 퍼진 불꽃이 당신의 몸을 휘감는다. 화상은 금방 가시지 않는다.*',
+            tickLogs: [
+              '*당신의 몸에서 성화가 한 번 더 타오른다.*',
+              '*거짓을 태우는 불꽃이 당신의 살결을 파고든다.*',
+              '*당신의 몸 위에서 성화의 낙인이 한 번 더 깊어진다.*',
+            ],
+          },
+          atashBahram: {
+            selfEmberGain: 15,
+            playerEmberGain: 15,
+            warningLog: '*화보사의 머리 위의 성화가 한 층 더 크게 부풀어오른다. 그 빛이 주위의 공기를 녹아내리게 한다.*\n*「이제 — 곧.」*',
+            activationLog: '*화보사가 두 팔을 하늘 높이 들어올린다. 그의 머리 위의 성화가 폭발하듯 퍼지며, 온 천지가 한순간 붉게 물든다.*\n*「아타시 바흐람(Ātash Bahrām) — 승리의 성화시여. 이 자리의 모든 거짓을 태우소서.」*\n*불꽃의 비가 쏟아진다. 당신의 몸에도, 화보사의 몸에도 — 똑같은 무게의 성화가 내려앉는다.*',
+          },
+          phase1Dist: { flameSwing: 0.333, atarBrand: 0.333, ashaMeditation: 0.334 },
+          phase2Dist: { flameSwing: 0.25, atarBrand: 0.25, ashaMeditation: 0.25, verethragna: 0.25 },
+          phase3Dist: { flameSwing: 0.20, atarBrand: 0.20, ashaMeditation: 0.20, verethragna: 0.20, druzVerdict: 0.20 },
+          phase4Dist: { atarBrand: 0.20, ashaMeditation: 0.20, verethragna: 0.20, druzVerdict: 0.20, atashBahram: 0.20 },
+          prayerDurationSec: 7.5,
+          prayerTickIntervalSec: 1.5,
+          prayerStackPerTick: 1,
+          prayerStartLog: '*화보사가 공중의 성화 앞으로 한 걸음 더 다가선다. 그의 숨에 맞춰 성화가 천천히 흔들리고, 그의 주위로 작은 불씨들이 하나둘씩 피어오른다.*\n*「아타르시여. 이 불경한 자리에서 — 당신을 모십니다.」*',
+          prayerTickLogs: [
+            '*화보사의 손 끝에서 피어난 불씨 한 점이 당신의 몸에 옮겨붙는다.*',
+            '*공중의 성화에서 두 가닥의 불씨가 갈라져 나와, 하나는 화보사의 가슴에, 하나는 당신의 몸에 내려앉는다.*',
+            '*화보사가 짧은 주문을 읊조리자, 주위의 공기에서 불씨가 맺혀 두 사람에게 나뉘어 붙는다.*',
+          ],
+          prayerEndLog: '*화보사가 눈을 뜬다. 공중의 성화가 그의 왼손 위로 내려앉는다.*\n*「기도를 방해하다니 — 불경한 자로군요. 성화께서 당신의 거짓을 아시게 될 겁니다.」*',
+          bahramGaugeMax: 30,
+          bahramGainPerAttack: 5,
+          bahramGainPerAbsorbStack: 2,
+          bahramWarningThreshold: 24,
+          phaseAbsorptionThresholds: [6, 16, 31],
+          phaseEntrySelfEmber: 5,
+          phaseTransitionLogs: {
+            worshipToMeditation: '*화보사가 두 팔을 천천히 벌린다. 그의 몸 안으로 삼켜졌던 성화가, 이번에는 그의 피부 바깥으로 다시 피어오른다. 한 점, 두 점, 다섯 점.*\n*「아타르께서 저를 감싸주시는군요. 이 몸이 불씨를 두른 채 — 그대를 맞이하겠습니다.」*',
+            gohoActivationLog: '*화보사의 몸을 감싸는 불씨가 한 겹의 막을 이룬다. 당신의 공격이 그 막에 닿는 순간 조금씩 흐려진다.*',
+            meditationToLiberation: '*화보사가 하늘을 향해 두 손을 벌린다. 그의 몸을 짓누르던 불씨의 무게가, 한 번의 숨과 함께 사라진다.*\n*그의 눈빛이 한 꺼풀 벗겨진다.*\n*「성화가 이 몸을 다 태우기 전에는 — 이 몸의 검은 무뎌지지 않습니다.」*',
+            liberationToAscension: '*화보사가 한 걸음 앞으로 나온다. 그의 발걸음에는 이제 어떠한 지연도 없다.*\n*공중의 성화가 그의 정수리 위로 올라오더니, 점점 커져 그의 몸보다 커진다.*\n*「이 몸은 더 이상 저의 것이 아닙니다. 아타시 바흐람(Ātash Bahrām)께서 — 이 그릇을 거두어 주시기를.」*',
+          },
+          gohoDrPerStack: 0.05,
+          gohoDrMaxCap: 0.50,
+          druzBurnSelfOnly: false,
+          killLogs: {
+            worship: [
+              '*화보사가 두 손을 모은 채 무릎을 꿇는다. 그의 앞에 떠 있던 성화가 한 번 크게 흔들리다, 꺼진다.*\n*「…아타르시여. 제 기도가, 이렇게 끝나도…… 괜찮은 것입니까.」*',
+              '*화보사가 가슴에 손을 얹고 천천히 쓰러진다. 그의 몸을 감싸던 불씨들이 한 점씩 바닥으로 떨어져 사라진다.*\n*「성화의 결이 아직 얕은 몸이었군요. 그대의…… 불경이 이긴 것이 아닙니다.」*',
+            ],
+            meditation: [
+              '*화보사가 숨을 짧게 몰아쉰다. 그의 몸을 두르던 불씨 막이 한 겹씩 벗겨져 나간다.*\n*「아타르의 가호가…… 이 몸에서 떠나기 전에. 부디, 다음 생에는.」*',
+              '*화보사가 검(劍) 대신 가슴 앞에 두 손을 엇갈려 모은다. 그의 주위의 불씨가 천천히 꺼진다.*\n*「제가 거둔 불꽃이, 제 몸을 온전히 태우지 못했군요. 그대는…… 그 정도의 자격은 있는 분이시군요.」*',
+            ],
+            liberation: [
+              '*화보사가 두 팔을 벌린 채 뒤로 넘어간다. 그의 몸에서 단죄의 불꽃이 한 번 더 타오르려다, 주인을 잃고 꺼진다.*\n*「…드루즈(druj)의 불이 저의 불보다 빨랐군요. 이상한 일입니다.」*',
+              '*화보사가 한 손으로 가슴의 성화를 움켜쥔 채 천천히 앉는다. 그 불꽃이 그의 손가락 사이로 흘러내려 사라진다.*\n*「…성화의 결을 풀었지만 — 결국, 이 몸은 그 결을 다 받지 못했습니다.」*',
+            ],
+            ascensionPreBahram: '*화보사가 하늘을 향해 두 손을 든 채 멈춘다. 그의 머리 위에서 자라던 성화가, 더 이상 커지지 않고 그 자리에서 흔들린다.*\n*「아타시 바흐람(Ātash Bahrām)…… 이 그릇은, 당신을 다 담을 수 없었습니다.」*\n*성화가 한 번 크게 터지듯 흩어지더니, 그의 몸과 함께 천천히 무너진다.*',
+            ascensionPostBahram: '*화보사가 두 손을 내린다. 그의 몸을 둘러싸던 불꽃이 이제 더는 타지 않는다.*\n*「저는…… 성화를 강림시켰습니다. 그대는, 그 강림 앞에서도 쓰러지지 않으셨군요.」*\n*「…이것은 — 삼행의 율법이 그대를 택했다는 뜻인지도 모르겠습니다. 부디, 길을 잃지 마시기를.」*\n*그의 몸이 마지막 한 번의 불꽃과 함께, 재가 되어 흩어진다.*',
+          },
+        },
+      },
+    ],
+  },
+  // ── 배화교 경보사 패턴 ──
+  baehwa_gyeongbosa: {
+    stamina: { initial: 0, max: 0, regenPerSec: 0 },
+    skills: [
+      {
+        id: 'gyeongbosa_iron_rule',
+        displayName: '삼행의 철칙(三行鐵則)',
+        type: 'baehwa_guard',
+        triggerCondition: 'battle_start',
+        oneTime: true,
+        priority: 10,
+        conditionRequiredFaction: 'baehwagyo',
+        damageTakenMultiplierIfCondition: 0.25,
+        damageTakenMultiplierWhenFactionEquipped: 0.75,
+        battleStartLogs: [
+          '*경보사가 한 권의 낡은 경전을 가슴 앞에 받쳐 들고 있다. 그가 눈을 감은 채, 경전의 첫 장을 손가락으로 천천히 쓸어내린다.*',
+          '*「삼행(三行)의 철칙(鐵則) 아래에서 — 그대는 아직 경(經)의 결을 읽지 못한 자입니다. 함부로 이 자리를 어지럽히지 마십시오.」*',
+        ],
+        firstHitLogMessagesNoArt: [
+          '*당신의 일격이 경보사의 어깨 앞에서 멎는다. 그의 입에서 흘러나오는 경전의 구절이 그 힘을 조용히 깎아낸다.*\n*「율법이 아닌 철칙입니다. 미력한 자의 손으로는 이 한 구절조차 끊으실 수 없습니다.」*',
+          '*경보사가 고개를 들지 않는다. 당신의 타격이 그의 몸에 닿기 전에, 읊조려진 문장 한 줄이 공기를 굳게 만든다.*\n*「그대의 손은 아직 경(經)의 무게를 지지 못하였습니다. 물러나십시오.」*',
+          '*경보사의 손에서 경전이 한 번 떨린다. 그 떨림을 따라 공기가 조여들며, 당신의 일격이 힘을 잃는다.*\n*「철칙 앞에서는 — 정돈되지 않은 모든 것이 무력합니다.」*',
+        ],
+        firstHitLogMessagesWithArt: [
+          '*당신의 일격이 경보사의 경전 한 귀퉁이를 찢는다. 그의 눈꺼풀이 천천히 열린다.*\n*「경(經)의 결을 어느 정도 읽을 줄 아는 분이시로군요. 그렇다면 — 저도 이 구절로 그대에게 응하겠습니다.」*',
+        ],
+        logMessages: [],
+      },
+      {
+        id: 'gyeongbosa_router',
+        displayName: '경보사 경전 낭송',
+        type: 'gyeongbosa_attack',
+        triggerCondition: 'default',
+        priority: 5,
+        logMessages: [],
+        gyeongbosaSkills: {
+          normal: {
+            mult: 1.0,
+            logs: [
+              '*경보사가 경전을 한 손에 받친 채, 남은 손끝으로 허공에 짧은 구절을 쓴다. 그 획의 결이 당신의 몸을 한 번 베고 지나간다.*',
+              '*경보사가 읊조리던 구절을 잠시 끊고, 손등으로 공기를 스친다. 경(經)의 무게가 그 궤적을 따라 당신에게 닿는다.*',
+            ],
+          },
+          suppression: {
+            mult: 1.3,
+            debuffAtkPercent: 0.25,
+            debuffAtkSpeedPercent: 0.25,
+            durationSec: 8,
+            playerEmberGain: 1,
+            logs: [
+              '*경보사가 한 구절을 소리 내어 읊자, 그 문장이 공기 중에 한 줄의 결로 새겨진다. 당신의 몸이 그 결에 묶이는 듯 무거워진다.*',
+              '*「움직임을 규(規)로 묶고, 호흡을 율(律)로 매단다.」 경보사의 목소리가 당신의 숨에 스며든다.*',
+              '*경보사가 경전의 한 장을 손톱으로 짚는다. 그 자국 위로 문장이 떠오르고, 문장이 당신의 어깨에 앉는다.*',
+              '*「그대의 기(氣)는 아직 경(經)의 위에 있지 않습니다 — 이 구절로 잠시 그대를 단정히 합니다.」 경보사의 읊조림이 당신의 움직임을 무디게 한다.*',
+            ],
+            hitSuffix: '(적 ATK/ATS -25% · 8s / 불씨 +1)',
+          },
+          selfHarmony: {
+            healPercent: 0.006,
+            tickIntervalSec: 1,
+            durationSec: 8,
+            nextAttackDodgeBonus: 0.30,
+            firstLogs: [
+              '*경보사가 눈을 감고 경전의 한 구절을 길게 읊는다. 그 구절이 그의 몸 안쪽으로 스며들며, 상처가 조용히 아물기 시작한다.*',
+              '*「몸을 경(經)으로 단정히 하고, 흐트러진 결을 구절로 여민다.」 경보사의 몸에서 어지러운 숨결이 가라앉는다.*',
+              '*경보사가 한 손으로 가슴의 경전을 덮고, 남은 손으로 공중에 한 줄의 문장을 그린다. 그 문장이 그의 몸을 한 바퀴 돌며, 흐트러진 결을 다시 꿰맨다.*',
+            ],
+            resetLogs: [
+              '*경보사가 같은 구절을 다시 읊는다. 그의 몸을 두르던 문장의 결이 한 번 더 단단히 여며진다.*',
+              '*「한 번 단정히 한 것은 — 또 한 번 단정히 합니다.」 경보사의 숨이 한 번 더 길어진다.*',
+            ],
+          },
+          verdict: {
+            dotCoefficient: 0.35,
+            durationSec: 8,
+            playerEmberGain: 1,
+            logs: [
+              '*경보사가 경전의 한 단락을 펼쳐 소리 내어 읊는다. 그 단락의 이름은 — 단죄(斷罪).*\n*「그대의 언행이 교리와 어긋나 있습니다. 이 구절이 그 어긋남을 대신 베어내겠습니다.」*',
+              '*「경(經)의 이름으로 — 그대를 불의(不義)로 규정합니다.」 경보사의 읊조림이 당신의 몸 주위에 원을 그리며, 그 원 안에서 당신의 살결이 미세하게 그을리기 시작한다.*',
+              '*경보사가 손끝으로 경전의 한 글자를 짚는다. 그 글자가 떨어져 나와 당신의 가슴 위에 낙인처럼 새겨진다. 낙인은 경전의 낭송이 이어지는 동안 계속 달아오른다.*',
+            ],
+            tickLogs: [
+              '*경보사의 읊조림이 한 줄 더 이어지자, 당신의 가슴에 새겨진 글자가 다시 달아오른다.*',
+              '*경(經)의 낭송이 끊기지 않는다. 그 소리에 맞춰 낙인이 당신의 살결을 한 번 더 태운다.*',
+            ],
+          },
+          skillDist: {
+            normal: 0.30,
+            suppression: 0.2333,
+            selfHarmony: 0.2333,
+            verdict: 0.2334,
+          },
+          discipline: {
+            stackCap: 6,
+            hpHalfTriggerRatio: 0.5,
+            rngPool: ['declaration', 'lightStep', 'enforcement'],
+            absoluteMod: 4,
+            buffDurationSec: 20,
+            declaration: {
+              playerCritRateOverride: 0,
+              log: '*경보사가 경전의 한 장을 크게 펼친다. 그 장의 제목은 **단언(斷言)** — 그의 목소리가 공기를 가르며 당신의 움직임 위로 내려앉는다.*\n*「그대의 검은 — 오늘 이 자리에서 예리함을 논할 자격이 없습니다.」*',
+              banner: '플레이어 크리티컬 확률 0 · 20s',
+            },
+            lightStep: {
+              enemyDodgeBonus: 0.65,
+              log: '*경보사의 발끝이 경전의 결을 따라 한 걸음 비껴선다. 그의 몸이 문장 위를 밟고 선 듯, 무게를 잃는다.*\n*「경(經)의 결을 따라 걷는 발은 — 허공의 칼끝조차 밟지 않습니다.」*',
+              banner: '경보사 회피 +65% · 20s',
+            },
+            enforcement: {
+              enemyAtkMult: 2.0,
+              log: '*경보사가 경전을 한 손에 말아 쥔다. 그 권(卷)이 그의 팔을 따라 길게 풀리며, 한 자루의 채찍처럼 굳어진다.*\n*「이 손은 — 경(經)을 지키는 손입니다. 오늘은 조금 더 무겁게 움직이겠습니다.」*',
+              banner: '경보사 공격력 +100% · 20s',
+            },
+            absolute: {
+              stunSec: 15,
+              dotCoefficient: 0.75,
+              dotDurationSec: 15,
+              ceremonySec: 15,
+              openLog: '*경보사가 경전을 양손으로 들어 가슴 앞에 펼친다. 그의 눈빛이 처음으로, 글자의 결이 아닌 사람의 결을 향한다.*\n*「그대는 세 번의 규율 앞에서도 고쳐지지 않으셨군요. 그렇다면 — 경(經)의 서문(序文)을 읊겠습니다. 이 몸도, 이 시간 동안은 오로지 그 구절에만 매이겠습니다.」*\n*「**서(序)하되 어지럽지 않고**,」*\n*그의 첫 구절이 공기 전체를 얼어붙게 한다. 당신의 말과 움직임이 한꺼번에 멎는다.*',
+              phraseLog5s: '*경보사가 눈을 감은 채 다음 구절을 이어 읊는다. 그의 몸은 움직이지 않고, 입만이 경전의 결을 따라 천천히 열리고 닫힌다.*\n*「**······율(律)하되 무겁지 않으며**,」*',
+              phraseLog10s: '*경보사의 마지막 구절이 가장 길게, 가장 조용하게 흘러나온다. 그는 이미 스스로를 경(經) 안에 완전히 가두어 놓은 듯 보인다.*\n*「**······행(行)하되 흐트러지지 않는다.**」*\n*세 구절이 하나의 문장으로 완성되자, 그 문장이 공기 중에 보이지 않는 결로 남아 당신의 몸을 한 겹 더 조인다.*',
+              dotTickLogs: [
+                '*경보사가 읊는 서문의 한 결이 당신의 몸을 또 한 번 지나간다. 그 결이 지나갈 때마다 당신의 살결에서 한 겹씩 무언가가 벗겨져 나간다.*',
+                '*경전의 구절이 공기를 따라 당신의 뼛속까지 스며든다. 경보사는 여전히 움직이지 않은 채, 입만을 움직이고 있다.*',
+                '*서문의 한 호흡이 끝날 때마다 당신의 숨이 한 번씩 더 얕아진다.*',
+              ],
+              endLog: '*경보사가 천천히 눈을 뜬다. 그의 손 위에서 경전이 조용히 덮인다. 공기의 결이 풀리며, 당신의 몸에 다시 움직임이 돌아온다. 경보사의 발끝도, 멈추어 있던 바닥을 다시 디딘다.*\n*「서문은 — 여기까지입니다. 이 몸도 이 시간 동안은 경(經)에 매여 있었습니다. 그대가 이 구간을 버티셨다면, 그 자체로 경의 한 결을 얻으신 것입니다. 이제 — 다시, 시작합니다.」*',
+              stunBreakLog: '*경보사의 낭독이 한순간 끊긴다. 그의 몸이 잠시 흔들리며, 공기 중에 떠 있던 서문의 구절이 흩어진다.*',
+              stunResumeLog: '*경보사가 다시 호흡을 고르고, 끊겼던 구절을 이어 읊는다. 서문의 결이 조금 늦게, 다시 공기 위에 얹힌다.*',
+            },
+            resetLog: '*경보사의 입에서 같은 구절이 다시 한 번 흘러나온다. 이미 드리워진 규율의 결이, 한 겹 더 단단히 여며진다.*',
+          },
+          killLogs: {
+            prePhase: [
+              '*경보사가 경전을 가슴 앞에 받친 채 무릎을 꿇는다. 펼쳐진 경전의 한 장이 바람에 넘어가며, 그의 손가락이 마지막 구절을 짚는다.*\n*「···경(經)의 한 구절도 제대로 읊지 못하고··· 이 자리를 떠나게 되었군요.」*',
+              '*경보사가 경전을 가슴에 품은 채 천천히 쓰러진다. 그의 입에서 끝내지 못한 구절이 한 줄 흘러나온다.*\n*「율법(律法)은··· 아직 제게 무거웠습니다···.」*',
+            ],
+            midPhase: [
+              '*경보사의 손에서 경전이 떨어진다. 펼쳐진 장 위에서 규율의 문장들이 한 줄씩 빛을 잃으며 사라진다.*\n*「···규(規)와 율(律)이 — 제 몸을 다 단속하지 못했군요. 그대는 그 어긋남을 보셨습니다.」*',
+              '*경보사가 경전의 마지막 장을 조용히 닫는다. 그의 몸을 두르던 규율의 결이 한 겹씩 풀려 사라진다.*\n*「···단정(端正)히 매인 결이 끊어지는군요. 그대의 검이 — 제 구절보다 한 수 위였습니다.」*',
+            ],
+            nearAbsolute: [
+              '*경보사가 경전의 서문(序文)을 펼치려는 동작에서 멎는다. 펼치다 만 장이 그의 손아귀에서 풀려 바닥으로 떨어진다.*\n*「···서문까지는 — 이르지 못했습니다. 그대의 돌파는 ··· 그 권위보다 빨랐군요.」*',
+              '*경보사가 절대 규율의 첫 구절을 막 읊으려는 순간, 그의 입이 다물린다. 경전이 그의 가슴에서 바닥으로 미끄러져 내린다.*\n*「···경(經)의 서(序)를 — 이 자리에서 못 꺼내게 되었군요. 그대는 그것만으로도, 제게서 한 줄의 경을 얻으신 겁니다.」*',
+            ],
+            postAbsolute: '*경보사가 경전을 든 두 손을 천천히 내린다. 그의 손에서 경전이 미끄러져 바닥에 놓인다. 그는 처음으로, 경(經)이 아닌 사람의 눈으로 당신을 본다.*\n*「···서문(序文)의 세 구절 앞에서도, 그대는 — 스스로를 잃지 않으셨군요.」*\n*「경(經)의 결을 그렇게 걸으신다면, 언젠가 아타르의 성화 앞에서도 서실 수 있을 것입니다. 그 자리에서는, 부디··· 제 이름 한 자락이라도 기억해 주시기를.」*\n*그의 몸이 천천히 앞으로 기울어지며, 가슴 앞의 경전 위로 조용히 쓰러진다.*',
+          },
+        },
+      },
+    ],
+  },
   masked_swordsman: {
     stamina: { initial: 0, max: 0, regenPerSec: 0 },
     skills: [
@@ -1217,6 +1814,49 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
       '호위가 성화를 향해 고개를 끄덕인 뒤 창을 찌른다!',
     ],
     description: '배화교 호교당(護敎堂)의 외문 경비를 맡은 무사. 정식 무공을 익힌 사제는 아니지만, 교단의 기본 호법 창법과 성화에 대한 맹세만으로 창끝이 흐트러지지 않는다. 상대의 몸에 옮겨 붙은 불씨가 짙어질수록, 그의 창끝도 함께 뜨거워진다.',
+  },
+  {
+    id: 'baehwa_geombosa', name: '배화교 검보사',
+    hp: 7200, attackPower: 330, attackInterval: 2.5, regen: 0, baseProficiency: 5,
+    drops: [],
+    materialDrops: [
+      { materialId: 'huimihan_janbul', chance: 0.05 },
+      // 검법 비급 드랍은 검법 무공 정의 후 별도 추가
+    ],
+    grade: 11, imageKey: 'baehwa_geombosa',
+    attackMessages: [
+      '검보사의 검이 섬광처럼 당신의 살갗을 스쳤다!',
+      '검보사가 자세를 낮추며 검 끝을 내뻗쳤다!',
+      '검보사의 검신(劍身)이 호(弧)를 그리며 당신을 베었다!',
+      '검보사가 한 호흡에 간격을 좁히며 검을 내찔렀다!',
+    ],
+    description: '배화교 외문에서 검을 익힌 정규 무사. 교단의 검법을 정식으로 전수받은 몇 안 되는 외문 소속이며, 세 번 태세를 바꾸어 적을 맞이한다. 첫 태세는 상대의 실력을 가늠하기 위한 양보이고, 두 번째는 진면목이며, 마지막은 성화를 향한 봉헌이다. 그의 검이 세 번째 자세에 들어서는 순간부터, 이 싸움은 더 이상 무술이 아닌 의식이 된다.',
+  },
+  {
+    id: 'baehwa_hwabosa', name: '배화교 화보사',
+    hp: 8500, attackPower: 350, attackInterval: 2.3, regen: 0, baseProficiency: 6.5,
+    drops: [],
+    materialDrops: [
+      { materialId: 'huimihan_janbul', chance: 0.05 },
+    ],
+    grade: 11, imageKey: 'baehwa_hwabosa',
+    attackMessages: [
+      '*화보사가 왼손 위의 성화를 한 번 부드럽게 흔든다. 흩어진 불꽃이 당신의 몸을 스친다.*',
+      '*「불꽃의 한 결을.」 화보사가 손등으로 허공을 쓸자, 그 궤적에 남은 잔열이 당신에게 닿는다.*',
+    ],
+    description: '배화교 외문에서 성화를 수호하는 사제. 검보사가 검을 배운 무인이라면, 화보사는 불꽃 그 자체를 섬기는 수행자이다. 그는 싸움을 목적으로 삼지 않고, 싸움조차도 성화에 바치는 봉헌으로 여긴다. 기도를 방해받을 때 그는 처음엔 꾸짖듯 말하지만, 전투가 길어질수록 자신의 몸마저 성화의 그릇으로 내어주기 시작한다. 마지막 순간 그가 부르는 것은 아타시 바흐람(Ātash Bahrām) — 조로아스터의 가장 높은 성화이며, 그 강림 앞에서는 적과 자신의 구별조차 사라진다.',
+  },
+  {
+    id: 'baehwa_gyeongbosa', name: '배화교 경보사',
+    hp: 9800, attackPower: 380, attackInterval: 2.4, regen: 0, baseProficiency: 7.5,
+    drops: [],
+    materialDrops: [],
+    grade: 11, imageKey: 'baehwa_gyeongbosa',
+    attackMessages: [
+      '*경보사가 경전을 한 손에 받친 채, 남은 손끝으로 허공에 짧은 구절을 쓴다. 그 획의 결이 당신의 몸을 한 번 베고 지나간다.*',
+      '*경보사가 읊조리던 구절을 잠시 끊고, 손등으로 공기를 스친다. 경(經)의 무게가 그 궤적을 따라 당신에게 닿는다.*',
+    ],
+    description: '배화교 외문에서 경전(經)을 지키는 사제. 그는 무기로 싸우지 않고, 경전의 구절로 싸운다. 그가 읊는 한 줄은 적을 규정하고, 한 호흡은 자신을 규율에 매단다. 교리의 엄중함 앞에서 그는 스스로를 더욱 가혹하게 단속하는데, 자신의 규율이 어지러워질 때마다 더 높은 권위가 더 무거운 규율로 내려온다. 마지막 순간 그가 부르는 것은 경전의 서문 첫 구절 — 교리 그 자체이며, 그 권위 앞에서는 적의 말과 움직임이 함께 얼어붙는다.',
   },
 ];
 

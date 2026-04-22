@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGameStore, getMonsterRevealLevel } from '../../store/gameStore';
 import { getMonsterDef } from '../../data/monsters';
-import { getEnemyImage, getEnemyEmoji, getPlayerByTier, getFieldBackground } from '../../assets';
+import { getEnemyImage, getEnemyEmoji, getActiveProfile, getFieldBackground } from '../../assets';
 import CollapsibleCard from './CollapsibleCard';
 
 type SceneSize = 'md' | 'lg';
@@ -18,6 +18,9 @@ export default function BattleScene() {
   const tier = useGameStore(s => s.tier);
   const killCounts = useGameStore(s => s.killCounts);
   const isBossPhase = useGameStore(s => s.isBossPhase);
+  const bossPatternState = useGameStore(s => s.bossPatternState);
+  const selectedProfileKey = useGameStore(s => s.selectedProfileKey);
+  const customProfileUrl = useGameStore(s => s.customProfileUrl);
   const [size, setSize] = useState<SceneSize>('md');
 
   if (!currentEnemy) return null;
@@ -27,7 +30,7 @@ export default function BattleScene() {
   const reveal = getMonsterRevealLevel(kills);
   const enemyName = reveal >= 1 ? (monDef?.name ?? currentEnemy.id) : '???';
   const enemyImg = getEnemyImage(currentEnemy.id);
-  const player = getPlayerByTier(tier);
+  const player = getActiveProfile(selectedProfileKey, customProfileUrl, tier);
   const bgUrl = currentField ? getFieldBackground(currentField) : null;
 
   return (
@@ -64,11 +67,16 @@ export default function BattleScene() {
               )}
             </div>
             <div style={{ fontSize: 16, opacity: 0.3, color: 'var(--text-dim)' }}>⚔</div>
-            <div className={isBossPhase ? 'anim-boss' : ''} style={{ textAlign: 'center' }}>
+            <div className={isBossPhase ? 'anim-boss' : ''} style={{ textAlign: 'center', position: 'relative', display: 'inline-block' }}>
               {enemyImg ? (
                 <img src={enemyImg} alt={enemyName} className="battle-char" />
               ) : (
                 <span className="battle-char-emoji">{getEnemyEmoji(currentEnemy.id)}</span>
+              )}
+              {currentEnemy.id === 'baehwa_geombosa' && bossPatternState?.monsterState?.kind === 'baehwa_geombosa' && bossPatternState.monsterState.grogyLeft > 0 && (
+                <div className="groggy-overlay">
+                  <span className="groggy-badge">그로기</span>
+                </div>
               )}
             </div>
           </div>

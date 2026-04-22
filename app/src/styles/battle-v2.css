@@ -168,6 +168,211 @@
 .buff-chip b { color: var(--ember); font-weight: 600; }
 .buff-chip .dur { color: var(--text-dim); font-size: 9px; }
 
+/* ── 검보사 태세 배지 ── */
+.stance-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid;
+  letter-spacing: 0.5px;
+}
+.stance-badge--defense {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #93c5fd;
+}
+.stance-badge--attack {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+}
+.stance-badge--master {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+}
+
+/* ── 성화의 일격 게이지 ── */
+.bar-seonghwa { height: 10px; margin-top: 2px; }
+.fill-seonghwa {
+  background: linear-gradient(270deg, #ffffff, #a0e8c8);
+  margin-left: auto;
+  box-shadow: 0 0 6px rgba(180, 255, 220, 0.4);
+  transition: width 0.4s ease;
+}
+@keyframes seonghwa-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(200, 255, 230, 0.4); }
+  50%       { box-shadow: 0 0 14px rgba(255, 255, 255, 0.85); }
+}
+.bar-seonghwa--warning .fill-seonghwa {
+  animation: seonghwa-pulse 0.8s ease-in-out infinite;
+}
+
+/* ── 화보사 누적 흡수 게이지 ── */
+.bar-absorption { height: 10px; margin-top: 2px; }
+.fill-absorption {
+  background: linear-gradient(270deg, #ff8a3c, #ffd27a);
+  margin-left: auto;
+  box-shadow: 0 0 5px rgba(255, 160, 60, 0.35);
+  transition: width 0.4s ease;
+}
+
+/* ── 화보사 성화 봉납 게이지 ── */
+.bar-bahram { height: 10px; margin-top: 2px; }
+.fill-bahram {
+  background: linear-gradient(270deg, #7f1d1d, #ef4444);
+  margin-left: auto;
+  box-shadow: 0 0 5px rgba(239, 68, 68, 0.35);
+  transition: width 0.4s ease;
+}
+@keyframes bahram-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); }
+  50%       { box-shadow: 0 0 14px rgba(255, 100, 100, 0.9); }
+}
+.bar-bahram--warning .fill-bahram {
+  animation: bahram-pulse 0.8s ease-in-out infinite;
+}
+
+/* ── 화보사 페이즈 배지 ── */
+.phase-badge--worship {
+  background: rgba(20, 184, 166, 0.18);
+  border-color: rgba(20, 184, 166, 0.5);
+  color: #5eead4;
+}
+.phase-badge--meditation {
+  background: rgba(139, 92, 246, 0.18);
+  border-color: rgba(139, 92, 246, 0.5);
+  color: #c4b5fd;
+}
+.phase-badge--liberation {
+  background: rgba(249, 115, 22, 0.18);
+  border-color: rgba(249, 115, 22, 0.5);
+  color: #fdba74;
+}
+.phase-badge--ascension {
+  background: rgba(185, 28, 28, 0.22);
+  border-color: rgba(220, 38, 38, 0.6);
+  color: #fca5a5;
+}
+
+/* ── 그로기 오버레이 ── */
+.groggy-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.groggy-badge {
+  background: rgba(255, 220, 50, 0.9);
+  color: #1a1200;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 6px;
+  letter-spacing: 1px;
+}
+
+/* ── 경보사 전용 패널 (규율 스택 / 카운터 / 의례 몰입) ── */
+.gyeongbosa-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.gyeongbosa-discipline-gauge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+.gyeongbosa-discipline-gauge .discipline-label {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #ffb375;
+}
+.discipline-cells {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  height: 8px;
+}
+.discipline-cell {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-soft);
+  border-radius: 2px;
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+.discipline-cell.filled {
+  background: linear-gradient(180deg, #ffb168, #ff8a3c);
+  border-color: rgba(255, 140, 60, 0.6);
+  box-shadow: 0 0 5px rgba(255, 160, 80, 0.45);
+}
+.gyeongbosa-discipline-gauge .discipline-count {
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  color: var(--text-primary);
+  min-width: 42px;
+  text-align: right;
+}
+.gyeongbosa-counter-chip {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 170, 80, 0.12);
+  border: 1px solid rgba(255, 170, 80, 0.4);
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: #fdba74;
+  letter-spacing: 0.3px;
+}
+.gyeongbosa-counter-chip.danger {
+  background: rgba(220, 38, 38, 0.18);
+  border-color: rgba(248, 113, 113, 0.6);
+  color: #fca5a5;
+  animation: gyeongbosa-counter-pulse 1.2s ease-in-out infinite;
+}
+.gyeongbosa-counter-chip .counter-sub {
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+@keyframes gyeongbosa-counter-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(248, 113, 113, 0.35); }
+  50%      { box-shadow: 0 0 12px rgba(248, 113, 113, 0.75); }
+}
+.gyeongbosa-ceremony-banner {
+  margin-top: 2px;
+  background: linear-gradient(90deg, rgba(185, 28, 28, 0.25), rgba(220, 38, 38, 0.15));
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fecaca;
+  text-align: center;
+  letter-spacing: 0.5px;
+  animation: gyeongbosa-ceremony-pulse 1.4s ease-in-out infinite;
+}
+@keyframes gyeongbosa-ceremony-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(248, 113, 113, 0.35); }
+  50%      { box-shadow: 0 0 14px rgba(248, 113, 113, 0.8); }
+}
+
+/* 플레이어 디버프 칩 — danger 변형 (절대 규율 DoT 용) */
+.buff-chip--danger {
+  background: rgba(220, 38, 38, 0.2);
+  border-color: rgba(248, 113, 113, 0.55);
+  color: #fca5a5;
+}
+
 /* ============ Combat status card ============ */
 /* DPS battle gauge */
 .dps-battle {
