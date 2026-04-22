@@ -315,6 +315,10 @@ export interface GameState {
   dodgeCounterActive: boolean;
   baehwagyoEmberTimer: number;
   baehwagyoAshOathBuffs: { expiresAtSec: number; atkMult: number }[];
+  sarajinunBulggotTimer: number;
+  tamsikKillStacks: Record<string, number>;
+  tamsikEmberStacks: number;
+  lastConsumableResult: { itemId: string; summary: string; timestamp: number } | null;
   autoExploreFields: Record<string, boolean>;
 
   tutorialFlags: {

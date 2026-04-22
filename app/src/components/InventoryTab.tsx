@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { getArtDef } from '../data/arts';
 import { getMonsterDef } from '../data/monsters';
-import { MATERIALS, RECIPES, ART_RECIPES, COMPOUND_ART_RECIPES } from '../data/materials';
+import { MATERIALS, RECIPES, ART_RECIPES, COMPOUND_ART_RECIPES, CONSUMABLE_RECIPES } from '../data/materials';
 import { getEquipmentDef } from '../data/equipment';
 
 export default function InventoryTab() {
@@ -21,11 +21,16 @@ export default function InventoryTab() {
   const craftArtRecipe = useGameStore(s => s.craftArtRecipe);
   const craftCompoundArtRecipe = useGameStore(s => s.craftCompoundArtRecipe);
   const discoveredMasteries = useGameStore(s => s.discoveredMasteries);
+  const craftConsumable = useGameStore(s => s.craftConsumable);
+  const useConsumable = useGameStore(s => s.useConsumable);
+  const lastConsumableResult = useGameStore(s => s.lastConsumableResult);
 
   const [mode, setMode] = useState<'main' | 'craft' | 'discard'>('main');
   const [materialInputs, setMaterialInputs] = useState<Record<string, number>>({});
   const [discardCounts, setDiscardCounts] = useState<Record<string, number>>({});
   const [craftResults, setCraftResults] = useState<Record<string, 'success' | 'fail' | null>>({});
+  const [consumableTimes, setConsumableTimes] = useState<Record<string, number>>({});
+  const [consumableCraftResults, setConsumableCraftResults] = useState<Record<string, boolean | null>>({});
 
   function getDCount(id: string, have: number) {
     const v = discardCounts[id];
@@ -63,6 +68,8 @@ export default function InventoryTab() {
     // 재료를 하나라도 보유 시 표시 (진행도 확인 UX)
     return r.materials.some(m => (materials[m.materialId] ?? 0) > 0);
   });
+
+  const visibleConsumableRecipes = CONSUMABLE_RECIPES.filter(r => (materials[r.materialId] ?? 0) >= r.materialCount);
 
   // 제작 창에 표시할 레시피: 재료 보유 + 해금 조건 충족
   const visibleRecipes = RECIPES.filter(recipe => {
@@ -345,7 +352,125 @@ export default function InventoryTab() {
           </>
         )}
 
-        {visibleRecipes.length === 0 && visibleArtRecipes.length === 0 && visibleCompoundRecipes.length === 0 && (
+        {/* 소비 아이템 제작 섹션 */}
+        {visibleConsumableRecipes.length > 0 && (
+          <>
+            {(visibleRecipes.length > 0 || visibleArtRecipes.length > 0 || visibleCompoundRecipes.length > 0) && (
+              <div style={{ height: 1, background: 'var(--border)', margin: '12px 0' }} />
+            )}
+            <div>
+              <div className="card-label" style={{ fontSize: 12, marginBottom: 8 }}>소비 아이템 제작</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {visibleConsumableRecipes.map(recipe => {
+                  const have = materials[recipe.materialId] ?? 0;
+                  const maxTimes = Math.floor(have / recipe.materialCount);
+                  const matDef = MATERIALS.find(m => m.id === recipe.materialId);
+                  const resultDef = MATERIALS.find(m => m.id === recipe.resultId);
+                  const times = Math.max(1, Math.min(consumableTimes[recipe.id] ?? 1, maxTimes));
+                  const craftResult = consumableCraftResults[recipe.id];
+                  return (
+                    <div key={recipe.id} style={{
+                      background: 'var(--bg-card)', borderRadius: 6, padding: '10px 12px',
+                      border: '1px solid var(--accent)',
+                    }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                        {recipe.name}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>
+                        {recipe.description}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                        <span style={{ color: 'var(--text-dim)' }}>재료</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>
+                          {matDef?.name} × {recipe.materialCount} · 보유 {have} → {maxTimes}회 가능
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 8 }}>
+                        <span style={{ color: 'var(--text-dim)' }}>결과</span>
+                        <span style={{ color: 'var(--accent)' }}>
+                          {resultDef?.name ?? recipe.resultId} × {recipe.resultCount}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-dim)', flex: 1 }}>제작 횟수</span>
+                        <button
+                          style={{
+                            width: 24, height: 24, borderRadius: 4, border: '1px solid var(--border)',
+                            background: 'var(--bg-elevated)', color: 'var(--text-primary)',
+                            cursor: times > 1 ? 'pointer' : 'default',
+                            opacity: times > 1 ? 1 : 0.3, fontSize: 14, lineHeight: 1,
+                          }}
+                          onClick={() => setConsumableTimes(prev => ({ ...prev, [recipe.id]: times - 1 }))}
+                          disabled={times <= 1}
+                        >−</button>
+                        <input
+                          type="number"
+                          min={1}
+                          max={maxTimes}
+                          value={times}
+                          onChange={e => {
+                            const v = parseInt(e.target.value, 10);
+                            if (!isNaN(v)) setConsumableTimes(prev => ({ ...prev, [recipe.id]: Math.max(1, Math.min(v, maxTimes)) }));
+                          }}
+                          style={{
+                            width: 52, textAlign: 'center', background: 'var(--bg-elevated)',
+                            border: '1px solid var(--border)', borderRadius: 4,
+                            color: 'var(--text-primary)', fontSize: 13, padding: '2px 4px',
+                          }}
+                        />
+                        <button
+                          style={{
+                            width: 24, height: 24, borderRadius: 4, border: '1px solid var(--border)',
+                            background: 'var(--bg-elevated)', color: 'var(--text-primary)',
+                            cursor: times < maxTimes ? 'pointer' : 'default',
+                            opacity: times < maxTimes ? 1 : 0.3, fontSize: 14, lineHeight: 1,
+                          }}
+                          onClick={() => setConsumableTimes(prev => ({ ...prev, [recipe.id]: times + 1 }))}
+                          disabled={times >= maxTimes}
+                        >+</button>
+                        <button
+                          style={{
+                            padding: '2px 8px', borderRadius: 4, fontSize: 11,
+                            border: '1px solid var(--border)', background: 'var(--bg-elevated)',
+                            color: 'var(--text-dim)', cursor: times < maxTimes ? 'pointer' : 'default',
+                            opacity: times < maxTimes ? 1 : 0.3,
+                          }}
+                          onClick={() => setConsumableTimes(prev => ({ ...prev, [recipe.id]: maxTimes }))}
+                          disabled={times >= maxTimes}
+                        >최대</button>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                          {matDef?.name} {times * recipe.materialCount}개 소모
+                        </span>
+                        <button
+                          className="inventory-btn learn"
+                          onClick={() => {
+                            const ok = craftConsumable(recipe.id, times);
+                            setConsumableCraftResults(prev => ({ ...prev, [recipe.id]: ok }));
+                            if (ok) setConsumableTimes(prev => ({ ...prev, [recipe.id]: 1 }));
+                          }}
+                        >
+                          제작
+                        </button>
+                      </div>
+                      {craftResult != null && (
+                        <div style={{
+                          marginTop: 6, fontSize: 12, fontWeight: 600,
+                          color: craftResult ? '#4caf50' : '#e57373',
+                        }}>
+                          {craftResult ? `${resultDef?.name ?? recipe.resultId} ${times * recipe.resultCount}개 제작 완료!` : '제작 실패...'}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+
+        {visibleRecipes.length === 0 && visibleArtRecipes.length === 0 && visibleCompoundRecipes.length === 0 && visibleConsumableRecipes.length === 0 && (
           <div style={{ color: 'var(--text-dim)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
             제작 가능한 항목이 없습니다.
           </div>
@@ -455,6 +580,44 @@ export default function InventoryTab() {
                       >파기</button>
                     </div>
                   )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 소비 아이템 섹션 */}
+      {MATERIALS.some(m => m.consumable && (materials[m.id] ?? 0) > 0) && (
+        <div style={{ marginBottom: 20 }}>
+          <div className="card-label" style={{ fontSize: 12, marginBottom: 8 }}>소비 아이템</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {MATERIALS.filter(m => m.consumable && (materials[m.id] ?? 0) > 0).map(m => {
+              const have = materials[m.id] ?? 0;
+              const isLatest = lastConsumableResult?.itemId === m.id;
+              return (
+                <div key={m.id} style={{
+                  background: 'var(--bg-card)', borderRadius: 6, padding: '8px 12px',
+                  border: '1px solid rgba(255,140,0,0.4)',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>{m.name}</span>
+                      <span style={{ fontSize: 13, color: 'var(--accent)', marginLeft: 8, fontVariantNumeric: 'tabular-nums' }}>× {have}</span>
+                    </div>
+                    <button
+                      className="inventory-btn learn"
+                      onClick={() => useConsumable(m.id)}
+                    >
+                      사용
+                    </button>
+                  </div>
+                  {isLatest && lastConsumableResult && (
+                    <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
+                      {lastConsumableResult.summary}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>{m.description}</div>
                 </div>
               );
             })}

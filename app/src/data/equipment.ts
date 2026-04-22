@@ -194,6 +194,26 @@ export const EQUIPMENT: EquipmentDef[] = [
     stats: { bonusAtk: 160, bonusCritRate: 0.12, bonusCritDmgPercent: 0.16 },
     description: '녹림맹 총순찰사자의 상징. 공격력 +160, 치명타 +12%, 치명타 피해 +16%. 매 공격 시 5% 확률로 공격력이 15% 증가하는 전투 고양을 부여한다(3턴, 합연산).',
   },
+  // ── 배화교 장비 ──
+  {
+    id: 'sarajinun_bulggot_boots',
+    name: '사라지는 불꽃',
+    slot: 'boots',
+    rarity: 'superior',
+    stats: {},
+    description: '배화교 성화의 마지막 숨결로 빚은 신발. 식화심법을 함께 익히면 기운 생산이 35% 증가하고, 성화보법과 함께 익히면 보법 숙련도 획득이 30% 증가한다. 불씨 스택을 10초마다 1씩 소각한다.',
+    imageKey: 'sarajinun_bulggot_boots',
+  },
+  {
+    id: 'tamsik_bulggot_weapon',
+    name: '탐식하는 불꽃',
+    slot: 'weapon',
+    rarity: 'superior',
+    // TODO: 배화교 검법 추가 시 5만 스택에서 절초배율 +1, 10만 스택에서 +1
+    stats: { bonusAtk: 100, bonusCritRate: 0.05, bonusCritDmgPercent: 0.10 },
+    description: '배화교 몬스터를 처치하고 잔불을 투입할수록 성장하는 무기. 공격력·치명타·치명타 피해가 스택에 따라 100/+5%/+10%에서 300/+15%/+30%까지 오른다.',
+    imageKey: 'tamsik_bulggot_weapon',
+  },
 ];
 
 export function getEquipmentDef(id: string): EquipmentDef | undefined {

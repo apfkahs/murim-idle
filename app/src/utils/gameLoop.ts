@@ -19,6 +19,7 @@ import { executePlayerAttackPhase } from './combat/playerCombat';
 import { executeEnemyAttackPhase } from './combat/enemyCombat';
 import { processEnemyDeath } from './combat/battleRewards';
 import { tickBaehwagyoEmber } from './combat/baehwagyoEmberTick';
+import { tickSarajinunBulggotBoots } from './combat/sarajinunBulggotTick';
 import type { GameState } from '../store/types';
 
 const B = BALANCE_PARAMS;
@@ -249,6 +250,8 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
     // 배화교 불씨 소각 틱 (식화심법 장착 시에만 본문 실행, 미장착이면 early return)
     tickBaehwagyoEmber(ctx, dt);
+    // 사라지는 불꽃(신발): 10초마다 불씨 1스택 소각 (별도 타이머, 묵념/맹세 발동 안 함)
+    tickSarajinunBulggotBoots(ctx, dt);
 
     // 플레이어 공격 페이즈
     executePlayerAttackPhase(ctx);

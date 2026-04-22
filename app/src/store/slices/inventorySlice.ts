@@ -3,7 +3,14 @@ import type { GameStore } from '../gameStore';
 import type { InventoryItem, GameState } from '../types';
 import { getArtDef } from '../../data/arts';
 import { getEquipmentDef, type EquipSlot, type EquipmentInstance } from '../../data/equipment';
-import { RECIPES, ART_RECIPES, BIJUP_DEFS, getBijupDef, COMPOUND_ART_RECIPES } from '../../data/materials';
+import {
+  RECIPES, ART_RECIPES, BIJUP_DEFS, getBijupDef, COMPOUND_ART_RECIPES,
+  SEONGHWA_DROP_TABLE, getConsumableRecipeDef, getMaterialDef,
+} from '../../data/materials';
+import {
+  TAMSIK_TOTAL_STACK_CAP, TAMSIK_EMBER_PER_JANBUL,
+  getTamsikTotalStacks,
+} from '../../utils/tamsikUtils';
 import { getArtGradeInfo, getGradeTableForArt, getArtGradeInfoFromTable } from '../../utils/artUtils';
 import { calcFullMaxHp } from '../../utils/combatCalc';
 
@@ -31,6 +38,13 @@ export type InventorySlice = {
   unequipItem: (slot: EquipSlot) => void;
   discardEquipment: (instanceId: string) => void;
   enhanceEquipment: (instanceId: string, materialCount: number, useChanranStone?: boolean) => boolean;
+
+  // ── 소비 아이템 제작/사용 ──
+  craftConsumable: (recipeId: string, times: number) => boolean;
+  useConsumable: (materialId: string) => boolean;
+
+  // ── 탐식하는 불꽃 잔불 강화 ──
+  reinforceTamsik: (jaebulAmount: number) => number;
 };
 
 export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlice> = (set, get) => ({
@@ -375,5 +389,130 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
       set({ materials: newMaterials });
     }
     return success;
+  },
+
+  craftConsumable: (recipeId, times) => {
+    const recipe = getConsumableRecipeDef(recipeId);
+    if (!recipe) return false;
+    const repeats = Math.max(1, Math.floor(times));
+    const state = get() as GameStore;
+    const totalCost = recipe.materialCount * repeats;
+    const have = state.materials[recipe.materialId] ?? 0;
+    if (have < totalCost) return false;
+    const newMaterials = { ...state.materials };
+    newMaterials[recipe.materialId] = have - totalCost;
+    newMaterials[recipe.resultId] =
+      (newMaterials[recipe.resultId] ?? 0) + recipe.resultCount * repeats;
+    const newObtained = state.obtainedMaterials.includes(recipe.resultId)
+      ? state.obtainedMaterials
+      : [...state.obtainedMaterials, recipe.resultId];
+    set({ materials: newMaterials, obtainedMaterials: newObtained });
+    return true;
+  },
+
+  useConsumable: (materialId) => {
+    const state = get() as GameStore;
+    const matDef = getMaterialDef(materialId);
+    if (!matDef?.consumable) return false;
+    if ((state.materials[materialId] ?? 0) < 1) return false;
+
+    if (materialId !== 'huimihan_seonghwa') return false;
+
+    const roll = Math.random();
+    let acc = 0;
+    let picked: (typeof SEONGHWA_DROP_TABLE)[number] | null = null;
+    for (const entry of SEONGHWA_DROP_TABLE) {
+      acc += entry.chance;
+      if (roll < acc) { picked = entry; break; }
+    }
+    if (!picked) picked = SEONGHWA_DROP_TABLE[0];
+
+    const newMaterials = { ...state.materials };
+    newMaterials[materialId] = (newMaterials[materialId] ?? 0) - 1;
+
+    let newEquipmentInventory = state.equipmentInventory;
+    let newKnownEquipment = state.knownEquipment;
+    let newObtained = state.obtainedMaterials;
+    let summary = '';
+
+    if (picked.equipId) {
+      const alreadyOwned =
+        Object.values(state.equipment).some(e => e?.defId === picked!.equipId) ||
+        state.equipmentInventory.some(e => e.defId === picked!.equipId);
+
+      if (alreadyOwned) {
+        const fallbackQty = 100;
+        newMaterials['huimihan_janbul'] =
+          (newMaterials['huimihan_janbul'] ?? 0) + fallbackQty;
+        if (!newObtained.includes('huimihan_janbul')) {
+          newObtained = [...newObtained, 'huimihan_janbul'];
+        }
+        const eqDef = getEquipmentDef(picked.equipId);
+        summary = `${eqDef?.name ?? picked.equipId} — 이미 보유 중 · 희미한 잔불 ${fallbackQty}개 대체 지급`;
+      } else {
+        const instance: EquipmentInstance = {
+          instanceId: `eq_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          defId: picked.equipId,
+          obtainedFrom: 'huimihan_seonghwa',
+          obtainedAt: Date.now(),
+        };
+        newEquipmentInventory = [...state.equipmentInventory, instance];
+        if (!state.knownEquipment.includes(picked.equipId)) {
+          newKnownEquipment = [...state.knownEquipment, picked.equipId];
+        }
+        const eqDef = getEquipmentDef(picked.equipId);
+        summary = `${eqDef?.name ?? picked.equipId} 획득!`;
+      }
+    } else if (picked.materialId) {
+      const qty = picked.materialCount ?? 0;
+      newMaterials[picked.materialId] =
+        (newMaterials[picked.materialId] ?? 0) + qty;
+      if (!newObtained.includes(picked.materialId)) {
+        newObtained = [...newObtained, picked.materialId];
+      }
+      const matName = getMaterialDef(picked.materialId)?.name ?? picked.materialId;
+      summary = `${matName} ×${qty}`;
+    }
+
+    set({
+      materials: newMaterials,
+      equipmentInventory: newEquipmentInventory,
+      knownEquipment: newKnownEquipment,
+      obtainedMaterials: newObtained,
+      lastConsumableResult: {
+        itemId: materialId,
+        summary,
+        timestamp: Date.now(),
+      },
+    });
+    return true;
+  },
+
+  reinforceTamsik: (jaebulAmount) => {
+    const state = get() as GameStore;
+    const requested = Math.max(0, Math.floor(jaebulAmount));
+    if (requested <= 0) return 0;
+
+    const have = state.materials['huimihan_janbul'] ?? 0;
+    if (have <= 0) return 0;
+
+    const info = getTamsikTotalStacks(state);
+    const maxByCapacity = Math.floor(info.remainingCapacity / TAMSIK_EMBER_PER_JANBUL);
+    const effective = Math.min(requested, have, maxByCapacity);
+    if (effective <= 0) return 0;
+
+    const addedStacks = effective * TAMSIK_EMBER_PER_JANBUL;
+    const newEmber = Math.min(
+      TAMSIK_TOTAL_STACK_CAP,
+      (state.tamsikEmberStacks ?? 0) + addedStacks,
+    );
+    const newMaterials = { ...state.materials };
+    newMaterials['huimihan_janbul'] = have - effective;
+
+    set({
+      materials: newMaterials,
+      tamsikEmberStacks: newEmber,
+    });
+    return effective;
   },
 });

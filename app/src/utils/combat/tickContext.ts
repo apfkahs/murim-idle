@@ -95,6 +95,9 @@ export interface TickContext {
   dodgeCounterActive: boolean;
   baehwagyoEmberTimer: number;
   baehwagyoAshOathBuffs: GameState['baehwagyoAshOathBuffs'];
+  sarajinunBulggotTimer: number;
+  tamsikKillStacks: Record<string, number>;
+  tamsikEmberStacks: number;
   playerFinisherCharge: GameState['playerFinisherCharge'];
   totalKills: number;
   hiddenRevealedInField: Record<string, string | null>;
@@ -210,6 +213,9 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
   let dodgeCounterActive = state.dodgeCounterActive ?? false;
   const baehwagyoEmberTimer = state.baehwagyoEmberTimer ?? 0;
   const baehwagyoAshOathBuffs = [...(state.baehwagyoAshOathBuffs ?? [])];
+  let sarajinunBulggotTimer = state.sarajinunBulggotTimer ?? 0;
+  const tamsikKillStacks = { ...(state.tamsikKillStacks ?? {}) };
+  const tamsikEmberStacks = state.tamsikEmberStacks ?? 0;
   let playerFinisherCharge = state.playerFinisherCharge ?? null;
   let totalKills = state.totalKills ?? 0;
   let combatElapsed = state.combatElapsed ?? 0;
@@ -300,6 +306,7 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
     bossPatternState, playerStunTimer, lastEnemyAttack,
     pendingHuntRetry, pendingAutoExplore, dodgeCounterActive,
     baehwagyoEmberTimer, baehwagyoAshOathBuffs,
+    sarajinunBulggotTimer, tamsikKillStacks, tamsikEmberStacks,
     playerFinisherCharge,
     totalKills, hiddenRevealedInField,
     equipment, equipmentInventory, equipmentDotOnEnemy, materials, artGradeExp, activeMasteries,
@@ -442,6 +449,7 @@ export function applyBattleReset(ctx: TickContext): void {
   ctx.lawActiveFromSkillId = null;
   ctx.baehwagyoEmberTimer = 0;
   ctx.baehwagyoAshOathBuffs = [];
+  ctx.sarajinunBulggotTimer = 0;
 }
 
 export function applyUltCooldownReset(ctx: TickContext): void {
@@ -649,6 +657,9 @@ export function buildResult(ctx: TickContext, extras: {
     pendingHuntRetry: ctx.pendingHuntRetry, pendingAutoExplore: ctx.pendingAutoExplore, dodgeCounterActive: ctx.dodgeCounterActive,
     baehwagyoEmberTimer: ctx.baehwagyoEmberTimer,
     baehwagyoAshOathBuffs: ctx.baehwagyoAshOathBuffs,
+    sarajinunBulggotTimer: ctx.sarajinunBulggotTimer,
+    tamsikKillStacks: ctx.tamsikKillStacks,
+    tamsikEmberStacks: ctx.tamsikEmberStacks,
     playerFinisherCharge: ctx.playerFinisherCharge,
   };
 

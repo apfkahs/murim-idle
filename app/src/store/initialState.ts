@@ -79,6 +79,10 @@ export function createInitialState(): GameState {
     lastEnemyAttack: null,
     baehwagyoEmberTimer: 0,
     baehwagyoAshOathBuffs: [],
+    sarajinunBulggotTimer: 0,
+    tamsikKillStacks: {},
+    tamsikEmberStacks: 0,
+    lastConsumableResult: null,
     tutorialFlags: {
       equippedSword: false,
       equippedSimbeop: false,

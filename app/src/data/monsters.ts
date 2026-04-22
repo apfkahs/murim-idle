@@ -1785,6 +1785,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
     drops: [],
     materialDrops: [
       { materialId: 'huimihan_janbul', chance: 0.025 },
+      { materialId: 'hayan_jae', chance: 0.05 },
     ],
     grade: 10, imageKey: 'baehwa_haengja',
     emberAttackBonus: true,
@@ -1806,6 +1807,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
     drops: [],
     materialDrops: [
       { materialId: 'huimihan_janbul', chance: 0.035 },
+      { materialId: 'hayan_jae', chance: 0.07 },
     ],
     grade: 10, imageKey: 'baehwa_howi',
     attackMessages: [
@@ -1821,6 +1823,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
     drops: [],
     materialDrops: [
       { materialId: 'huimihan_janbul', chance: 0.05 },
+      { materialId: 'hayan_jae', chance: 0.10 },
       // 검법 비급 드랍은 검법 무공 정의 후 별도 추가
     ],
     grade: 11, imageKey: 'baehwa_geombosa',
@@ -1838,6 +1841,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
     drops: [],
     materialDrops: [
       { materialId: 'huimihan_janbul', chance: 0.05 },
+      { materialId: 'hayan_jae', chance: 0.15 },
     ],
     grade: 11, imageKey: 'baehwa_hwabosa',
     attackMessages: [
@@ -1850,7 +1854,9 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
     id: 'baehwa_gyeongbosa', name: '배화교 경보사',
     hp: 9800, attackPower: 380, attackInterval: 2.4, regen: 0, baseProficiency: 4,
     drops: [],
-    materialDrops: [],
+    materialDrops: [
+      { materialId: 'hayan_jae', chance: 0.20 },
+    ],
     grade: 12, imageKey: 'baehwa_gyeongbosa',
     attackMessages: [
       '*경보사가 경전을 한 손에 받친 채, 남은 손끝으로 허공에 짧은 구절을 쓴다. 그 획의 결이 당신의 몸을 한 번 베고 지나간다.*',

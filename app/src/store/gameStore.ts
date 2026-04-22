@@ -70,6 +70,10 @@ export const useGameStore = create<GameStore>()((...args) => ({
   },
 }));
 
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
+  (window as unknown as { __gameStore?: typeof useGameStore }).__gameStore = useGameStore;
+}
+
 // ============================================================
 // 타입 re-export (기존 import 경로 유지)
 // ============================================================

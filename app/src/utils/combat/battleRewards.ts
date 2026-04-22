@@ -18,6 +18,7 @@ import { PROF_LABEL } from './damageCalc';
 import type { TickContext } from './tickContext';
 import { applyBattleReset, applyUltCooldownReset, createBossPatternState, applyBattleStartSkills } from './tickContext';
 import { carryEmberInto } from './emberUtils';
+import { TAMSIK_WEAPON_ID, TAMSIK_PER_MONSTER_CAP, TAMSIK_TOTAL_STACK_CAP, isBaehwaMonster, getTamsikTotalStacks } from '../tamsikUtils';
 
 const B = BALANCE_PARAMS;
 
@@ -142,7 +143,16 @@ export function processEnemyDeath(ctx: TickContext): void {
           heraldBonus = 1.3;
         }
       }
-      profGainMap[pType] = baseProfGain * multiplier * artProfMult * heraldBonus;
+      // 사라지는 불꽃(신발) + 성화보법 동시 장착 시 보법(footwork) 숙련도 +30%
+      let footworkBonus = 1;
+      const hasSarajinunBoots = Object.values(ctx.equipment).some(e => e?.defId === 'sarajinun_bulggot_boots');
+      if (hasSarajinunBoots && pType === 'footwork') {
+        const allArts = [...ctx.equippedArts, ...(ctx.equippedSimbeop ? [ctx.equippedSimbeop] : [])];
+        if (allArts.includes('baehwa_seonghwa_bobeop')) {
+          footworkBonus = 1.3;
+        }
+      }
+      profGainMap[pType] = baseProfGain * multiplier * artProfMult * heraldBonus * footworkBonus;
     }
     for (const [pType, gain] of Object.entries(profGainMap) as [ProficiencyType, number][]) {
       ctx.proficiency[pType] = Math.min((ctx.proficiency[pType] ?? 0) + gain, PROF_TABLE[PROF_TABLE.length - 1].cumExp);
@@ -292,6 +302,24 @@ export function processEnemyDeath(ctx: TickContext): void {
     if (currentKC >= eqDef.killCountGrowth.maxKillCount) continue;
     const newKC = Math.min(currentKC + 1, eqDef.killCountGrowth.maxKillCount);
     ctx.equipment[slot] = { ...inst, killCount: newKC };
+  }
+
+  // 탐식하는 불꽃: 배화교 몬스터 처치 & 무기 장착 중이면 해당 몬스터 kill 스택 +1
+  // (몬스터별 20,000 cap · 총합 100,000 cap)
+  if (!skipRewards && isBaehwaMonster(monDef.id)) {
+    const tamsikEquipped = Object.values(ctx.equipment).some(e => e?.defId === TAMSIK_WEAPON_ID);
+    if (tamsikEquipped) {
+      const info = getTamsikTotalStacks({
+        tamsikKillStacks: ctx.tamsikKillStacks,
+        tamsikEmberStacks: ctx.tamsikEmberStacks,
+      });
+      if (info.totalStacks < TAMSIK_TOTAL_STACK_CAP) {
+        const prev = ctx.tamsikKillStacks[monDef.id] ?? 0;
+        if (prev < TAMSIK_PER_MONSTER_CAP) {
+          ctx.tamsikKillStacks[monDef.id] = Math.min(TAMSIK_PER_MONSTER_CAP, prev + 1);
+        }
+      }
+    }
   }
 
   // 폭혈단 복용 후 처치 시 demonic_note +5%

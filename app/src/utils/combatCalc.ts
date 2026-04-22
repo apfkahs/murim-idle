@@ -8,6 +8,7 @@ import { getEquipmentDef, type EquipSlot, type EquipStats } from '../data/equipm
 import { type MonsterDef } from '../data/monsters';
 import { getProfDamageValue, getGradeTableForArt, getArtGradeInfoFromTable } from './artUtils';
 import { applyBaehwagyoArtEffects, isSikhwaEquipped, getSikhwaQiCoeff, SIKHWA_NODES } from './combat/baehwagyoEffects';
+import { TAMSIK_WEAPON_ID, getTamsikWeaponStats } from './tamsikUtils';
 import type { GameState } from '../store/types';
 
 
@@ -38,6 +39,7 @@ export const CLEAR_BATTLE_STATE = {
   equipmentDotOnEnemy: [] as import('../store/types').EquipmentDotEntry[],
   baehwagyoEmberTimer: 0,
   baehwagyoAshOathBuffs: [] as { expiresAtSec: number; atkMult: number }[],
+  sarajinunBulggotTimer: 0,
 };
 
 // ============================================================
@@ -91,11 +93,18 @@ export function gatherEquipmentStats(state: GameState): EquipStats {
     if (!inst) continue;
     const def = getEquipmentDef(inst.defId);
     if (!def) continue;
-    // enhanceLevel > 0이고 enhanceSteps가 정의되어 있으면 해당 단계 스탯으로 교체
-    const level = inst.enhanceLevel ?? 0;
-    const stats = (level > 0 && def.enhanceSteps && def.enhanceSteps[level - 1])
-      ? def.enhanceSteps[level - 1].stats
-      : def.stats;
+    // 탐식하는 불꽃: 정적 stats 무시하고 스택 기반 동적 스탯으로 대체
+    // (saveSlice.ts:216 partial state 경로에서도 getTamsikWeaponStats 내부 폴백으로 NaN 방지)
+    let stats: EquipStats;
+    if (inst.defId === TAMSIK_WEAPON_ID) {
+      stats = getTamsikWeaponStats(state);
+    } else {
+      // enhanceLevel > 0이고 enhanceSteps가 정의되어 있으면 해당 단계 스탯으로 교체
+      const level = inst.enhanceLevel ?? 0;
+      stats = (level > 0 && def.enhanceSteps && def.enhanceSteps[level - 1])
+        ? def.enhanceSteps[level - 1].stats
+        : def.stats;
+    }
     for (const [key, val] of Object.entries(stats)) {
       if (typeof val === 'number') {
         (result as any)[key] = ((result as any)[key] ?? 0) + val;
@@ -266,6 +275,12 @@ export function calcQiPerSec(state: GameState): number {
         if (!mDef?.effects?.simbeopQiMultiplier) continue;
         if (mDef.conditionMastery && !simbeopMasteryIds.includes(mDef.conditionMastery)) continue;
         simbeopMult *= mDef.effects.simbeopQiMultiplier;
+      }
+
+      // 사라지는 불꽃(신발) + 식화심법 동시 장착 시 심법 기여분 +35%
+      const hasSarajinunBoots = state.equipment?.boots?.defId === 'sarajinun_bulggot_boots';
+      if (hasSarajinunBoots && isSikhwaEquipped(state.equippedSimbeop)) {
+        simbeopMult *= 1.35;
       }
 
       total += capped * simbeopMult;

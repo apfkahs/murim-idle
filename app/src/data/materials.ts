@@ -7,6 +7,7 @@ export interface MaterialDef {
   name: string;
   description: string;
   excludeFromDropBonus?: boolean;  // 숙련도 차이 드랍률 보정 제외 여부
+  consumable?: boolean;            // true이면 소비 아이템으로 취급
 }
 
 export interface RecipeDef {
@@ -174,6 +175,20 @@ export const MATERIALS: MaterialDef[] = [
     name: '백지무공서',
     description: '꿈 같은 공간에서 건네받은 아무것도 적히지 않은 비급. 진기를 불어넣으면 문양이 드러날 듯하다.',
   },
+  // ── 배화교 소비 아이템 ──
+  {
+    id: 'hayan_jae',
+    name: '하얀 재',
+    description: '배화교 의식이 끝난 뒤 제단에 남은 새하얀 재. 성화의 기운이 다 타버린 흔적이지만, 서른 줌을 모으면 희미하게나마 그 불길을 되살릴 수 있다고 전해진다.',
+    excludeFromDropBonus: true,
+  },
+  {
+    id: 'huimihan_seonghwa',
+    name: '희미한 성화',
+    description: '하얀 재 서른 줌을 한데 모아 의식에 따라 불을 피웠다. 성화치고는 너무 작고 흐릿하지만, 그 안에 무언가가 응축되어 있다. 사용하면 무언가를 얻는다.',
+    excludeFromDropBonus: true,
+    consumable: true,
+  },
 ];
 
 export const RECIPES: RecipeDef[] = [
@@ -255,6 +270,53 @@ export const RECIPES: RecipeDef[] = [
 export function getMaterialDef(id: string): MaterialDef | undefined {
   return MATERIALS.find(m => m.id === id);
 }
+
+// ── 소비 아이템 제작 레시피 ──
+export interface ConsumableRecipeDef {
+  id: string;
+  name: string;
+  description: string;
+  materialId: string;
+  materialCount: number;
+  resultId: string;
+  resultCount: number;
+}
+
+export const CONSUMABLE_RECIPES: ConsumableRecipeDef[] = [
+  {
+    id: 'consumable_recipe_seonghwa',
+    name: '희미한 성화 제작',
+    description: '하얀 재 30개를 모아 희미한 성화를 만든다.',
+    materialId: 'hayan_jae',
+    materialCount: 30,
+    resultId: 'huimihan_seonghwa',
+    resultCount: 1,
+  },
+];
+
+export function getConsumableRecipeDef(id: string): ConsumableRecipeDef | undefined {
+  return CONSUMABLE_RECIPES.find(r => r.id === id);
+}
+
+// ── 희미한 성화 사용 드롭 테이블 ──
+export interface SeonghwaDropEntry {
+  materialId?: string;
+  materialCount?: number;
+  equipId?: string;
+  chance: number;
+}
+
+export const SEONGHWA_DROP_TABLE: SeonghwaDropEntry[] = [
+  { materialId: 'huimihan_janbul', materialCount: 2,   chance: 0.7000 },
+  { materialId: 'huimihan_janbul', materialCount: 5,   chance: 0.2100 },
+  { materialId: 'huimihan_janbul', materialCount: 15,  chance: 0.0600 },
+  { materialId: 'huimihan_janbul', materialCount: 40,  chance: 0.0200 },
+  { materialId: 'huimihan_janbul', materialCount: 80,  chance: 0.0060 },
+  { materialId: 'huimihan_janbul', materialCount: 150, chance: 0.0027 },
+  { materialId: 'huimihan_janbul', materialCount: 300, chance: 0.0009 },
+  { equipId: 'sarajinun_bulggot_boots',  chance: 0.0002 },
+  { equipId: 'tamsik_bulggot_weapon',    chance: 0.0002 },
+];
 
 export function getRecipeDef(id: string): RecipeDef | undefined {
   return RECIPES.find(r => r.id === id);
