@@ -37,7 +37,7 @@ export interface AchievementDef {
   category: AchievementCategory;
   // 반복 가능 업적 — 조건 충족 시 카운트 증가 & 보상 지급
   repeatable?: boolean;
-  reward?: { artPoints?: number };
+  reward?: { artPoints?: number; materials?: Record<string, number> };
 }
 
 export interface AchievementContext {
@@ -51,6 +51,7 @@ export interface AchievementContext {
   hiddenRevealedInField: Record<string, string | null>;
   fieldUnlocks: Record<string, boolean>;
   totalKills: number; // 전체 몬스터 처치 누계
+  totalSeonghwaUsed?: number; // 희미한 성화 총 사용량
   repeatableAchCounts?: Record<string, number>; // 반복 업적 달성 횟수
 }
 
@@ -504,6 +505,19 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     repeatable: true,
     reward: { artPoints: 1 },
     category: 'kills',
+  },
+  {
+    id: 'seonghwa_rekindler',
+    name: '불씨의 순환',
+    description: '성화를 피우고 피우다 보면, 재 속에서 작은 불씨가 되살아난다. 희미한 성화 스무 번에 한 번씩 불씨가 되돌아온다.',
+    check: ctx => {
+      const used = ctx.totalSeonghwaUsed ?? 0;
+      const count = ctx.repeatableAchCounts?.['seonghwa_rekindler'] ?? 0;
+      return used >= 20 * (count + 1);
+    },
+    repeatable: true,
+    reward: { materials: { huimihan_seonghwa: 1 } },
+    category: 'explore',
   },
 ];
 

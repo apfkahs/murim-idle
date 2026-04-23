@@ -72,6 +72,8 @@ export function createInitialState(): GameState {
     bossKillCounts: {},
     totalYasanKills: 0,
     totalKills: 0,
+    totalSeonghwaUsed: 0,
+    seonghwaRewardsClaimed: 0,
     hiddenRevealedInField: {},
     firstEnteredFields: {},
     bossPatternState: null,

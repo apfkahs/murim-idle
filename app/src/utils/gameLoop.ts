@@ -308,6 +308,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     ...state, killCounts: ctx.killCounts, bossKillCounts: ctx.bossKillCounts, ownedArts: ctx.ownedArts,
     achievements, hiddenRevealedInField: ctx.hiddenRevealedInField,
     totalYasanKills: ctx.totalYasanKills, fieldUnlocks: ctx.fieldUnlocks, totalKills: ctx.totalKills,
+    totalSeonghwaUsed: state.totalSeonghwaUsed,
     repeatableAchCounts,
   });
 

@@ -266,6 +266,8 @@ export interface GameState {
   bossKillCounts: Record<string, number>;
   totalYasanKills: number;
   totalKills: number;
+  totalSeonghwaUsed: number;
+  seonghwaRewardsClaimed: number;
   hiddenRevealedInField: Record<string, string | null>;
   firstEnteredFields: Record<string, boolean>;
 

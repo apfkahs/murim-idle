@@ -25,10 +25,12 @@ for (const ach of ACHIEVEMENTS) {
   }
 }
 
-// 카테고리별 전체 업적 목록
+// 카테고리별 전체 업적 목록 (반복 업적 제외)
 const CATEGORY_ALL_MAP = new Map<AchievementCategory, AchievementDef[]>();
 for (const cat of CATEGORY_ORDER) CATEGORY_ALL_MAP.set(cat, []);
-for (const ach of ACHIEVEMENTS) CATEGORY_ALL_MAP.get(ach.category)?.push(ach);
+for (const ach of ACHIEVEMENTS) {
+  if (!ach.repeatable) CATEGORY_ALL_MAP.get(ach.category)?.push(ach);
+}
 
 /** 카테고리별 표시할 대표 업적 목록 (체인은 활성 단계 하나만) */
 function getRepresentativesByCategory(
@@ -40,6 +42,7 @@ function getRepresentativesByCategory(
   const processedChains = new Set<string>();
 
   for (const ach of ACHIEVEMENTS) {
+    if (ach.repeatable) continue;
     if (!ach.chainId) {
       result.get(ach.category)?.push(ach);
       continue;
@@ -78,6 +81,9 @@ export default function AchievementTab() {
   const killCounts = useGameStore(s => s.killCounts);
   const proficiency = useGameStore(s => s.proficiency);
   const repeatableAchCounts = useGameStore(s => s.repeatableAchCounts);
+  const totalSeonghwaUsed = useGameStore(s => s.totalSeonghwaUsed ?? 0);
+  const seonghwaRewardsClaimed = useGameStore(s => s.seonghwaRewardsClaimed ?? 0);
+  const claimSeonghwaReward = useGameStore(s => s.claimSeonghwaReward);
 
   const totalStats = stats.gi + stats.sim + stats.che;
   const tigerBossKills = bossKillCounts['tiger_boss'] ?? 0;
@@ -160,6 +166,8 @@ export default function AchievementTab() {
     cheonsan_entry:      [cheonsanKills, 1],
     cheonsan_100:        [cheonsanKills, 100],
     cheonsan_1000:       [cheonsanKills, 1000],
+    // 성화 순환
+    seonghwa_rekindler:  [totalSeonghwaUsed, ((repeatableAchCounts?.['seonghwa_rekindler'] ?? 0) + 1) * 20],
   };
 
   const repsByCategory = getRepresentativesByCategory(achievements);
@@ -339,6 +347,52 @@ export default function AchievementTab() {
             </div>
             {repAchs.map(ach => {
               const count = repeatableAchCounts?.[ach.id] ?? 0;
+
+              // 불씨의 순환 — 수동 수령 방식
+              if (ach.id === 'seonghwa_rekindler') {
+                const unclaimed = count - seonghwaRewardsClaimed;
+                const nextThreshold = (count + 1) * 20;
+                return (
+                  <div key={ach.id} className="card" style={{ marginBottom: 5, padding: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 14, flexShrink: 0, color: 'var(--text-dim)' }}>↻</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontWeight: 500, fontSize: 13, color: 'var(--text-primary)' }}>
+                            {ach.name}
+                          </span>
+                          <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+                            총 {totalSeonghwaUsed}개 사용 · {count}회 달성
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                          {ach.description}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                        {unclaimed > 0 ? (
+                          <button
+                            onClick={() => claimSeonghwaReward()}
+                            style={{
+                              fontSize: 11, padding: '3px 8px', borderRadius: 4, cursor: 'pointer',
+                              background: 'var(--gold)', color: 'var(--bg-primary)',
+                              border: 'none', fontWeight: 600,
+                            }}
+                          >
+                            성화 수령 {unclaimed > 1 ? `(${unclaimed}개 대기)` : ''}
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                            {totalSeonghwaUsed}/{nextThreshold}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // 살생의 업 등 기존 반복 업적
               const maxCount = 10;
               const isDone = count >= maxCount;
               const nextThreshold = isDone ? null : Math.floor(10000 * (count + 1) * (count + 2) / 2);

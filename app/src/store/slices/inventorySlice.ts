@@ -478,6 +478,7 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
       equipmentInventory: newEquipmentInventory,
       knownEquipment: newKnownEquipment,
       obtainedMaterials: newObtained,
+      totalSeonghwaUsed: (state.totalSeonghwaUsed ?? 0) + 1,
       pendingReveal: {
         materialId,
         rolls: [{ dropIndex, reward: { materialId: picked.materialId, materialCount: picked.materialCount, equipId: picked.equipId } }],
@@ -546,6 +547,7 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
       equipmentInventory: newEquipmentInventory,
       knownEquipment: newKnownEquipment,
       obtainedMaterials: newObtained,
+      totalSeonghwaUsed: (state.totalSeonghwaUsed ?? 0) + count,
       pendingReveal: { materialId: id, rolls },
     });
     return true;

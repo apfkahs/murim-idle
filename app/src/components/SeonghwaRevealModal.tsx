@@ -67,6 +67,16 @@ export default function SeonghwaRevealModal() {
   const tileRefs = useRef<(HTMLDivElement | null)[]>([]);
   const wrapRef = useRef<HTMLDivElement>(null);
 
+  // 닫을 때 state도 같이 비워 다음 모달 첫 렌더에 이전 결과가 흘깃 보이지 않게 함
+  const handleClose = () => {
+    setPhase('idle');
+    setActive(null);
+    setChecked(new Set());
+    setCounts({});
+    setLegendHit(new Set());
+    dismissPendingReveal();
+  };
+
   // Esc 키 차단 (연출 중에만)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -327,6 +337,9 @@ export default function SeonghwaRevealModal() {
     };
 
     const run = async () => {
+      // 모달이 나타난 후 잠시 대기 (사용자가 상황 인지할 시간)
+      await sleep(600);
+      if (cancelled) return;
       setPhase('spinning');
       // 1단계: 3초간 고속 일정 회전 (감속 없음, 60ms/hop)
       const offset = await spinConstant(3000, 60, 0) ?? 0;
@@ -374,7 +387,7 @@ export default function SeonghwaRevealModal() {
   return (
     <div
       className="popup-overlay"
-      onClick={phase === 'done' ? dismissPendingReveal : undefined}
+      onClick={phase === 'done' ? handleClose : undefined}
     >
       <div
         className="popup-content seonghwa-modal"
@@ -425,7 +438,7 @@ export default function SeonghwaRevealModal() {
           <button
             className="btn"
             disabled={phase !== 'done'}
-            onClick={dismissPendingReveal}
+            onClick={handleClose}
             style={{ minWidth: 120 }}
           >
             {phase !== 'done' ? '성화가 타오르는 중...' : '닫기'}

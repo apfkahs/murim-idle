@@ -33,6 +33,8 @@ export type ProgressSlice = {
   bossKillCounts: Record<string, number>;
   totalYasanKills: number;
   totalKills: number;
+  totalSeonghwaUsed: number;
+  seonghwaRewardsClaimed: number;
   hiddenRevealedInField: Record<string, string | null>;
   firstEnteredFields: Record<string, boolean>;
   tutorialFlags: GameState['tutorialFlags'];
@@ -52,6 +54,7 @@ export type ProgressSlice = {
   getStatCost: (level: number) => number;
   getUsedPoints: () => number;
   getAvailablePoints: () => number;
+  claimSeonghwaReward: () => boolean;
 };
 
 export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice> = (set, get) => ({
@@ -69,6 +72,8 @@ export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice>
   bossKillCounts: {},
   totalYasanKills: 0,
   totalKills: 0,
+  totalSeonghwaUsed: 0,
+  seonghwaRewardsClaimed: 0,
   hiddenRevealedInField: {},
   firstEnteredFields: {},
   tutorialFlags: {
@@ -218,5 +223,17 @@ export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice>
   getAvailablePoints: () => {
     const state = get() as GameStore;
     return state.artPoints - calcUsedPoints(state);
+  },
+
+  claimSeonghwaReward: () => {
+    const state = get() as GameStore;
+    const triggered = state.repeatableAchCounts?.['seonghwa_rekindler'] ?? 0;
+    const claimed = state.seonghwaRewardsClaimed ?? 0;
+    if (triggered <= claimed) return false;
+    set({
+      seonghwaRewardsClaimed: claimed + 1,
+      materials: { ...state.materials, huimihan_seonghwa: (state.materials['huimihan_seonghwa'] ?? 0) + 1 },
+    });
+    return true;
   },
 });
