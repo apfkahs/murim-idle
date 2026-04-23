@@ -544,12 +544,30 @@ export function createBossPatternState(monsterId: string): NonNullable<GameState
  *
  * v6 리팩터 후: 문자열 배열 대신 BattleLogEntry[] 사용, 반환값에 lawActiveFromSkillId 포함.
  */
+// 삼행의 율법/철칙 해제 조건:
+//   식화심법 트리(mind-*) 총 노드합 ≥ 15, 또는
+//   성화보법(outer-bobeop-open) 노드 레벨 ≥ 15
+const BAEHWA_GUARD_SIKHWA_SUM_REQUIRED = 15;
+const BAEHWA_GUARD_BOBEOP_LEVEL_REQUIRED = 15;
+const BAEHWA_GUARD_BOBEOP_NODE_ID = 'outer-bobeop-open';
+
+function meetsBaehwaGuardCondition(bahwagyoNodeLevels: Record<string, number>): boolean {
+  let mindSum = 0;
+  for (const [nodeId, lv] of Object.entries(bahwagyoNodeLevels)) {
+    if (nodeId.startsWith('mind-')) mindSum += lv;
+  }
+  if (mindSum >= BAEHWA_GUARD_SIKHWA_SUM_REQUIRED) return true;
+  const bobeopLv = bahwagyoNodeLevels[BAEHWA_GUARD_BOBEOP_NODE_ID] ?? 0;
+  return bobeopLv >= BAEHWA_GUARD_BOBEOP_LEVEL_REQUIRED;
+}
+
 export function applyBattleStartSkills(
   monsterId: string,
   equippedArts: string[],
   state: NonNullable<GameState['bossPatternState']>,
   battleLog: BattleLogEntry[],
   logEntryIdSeq: number,
+  bahwagyoNodeLevels: Record<string, number>,
 ): {
   battleLog: BattleLogEntry[];
   state: NonNullable<GameState['bossPatternState']>;
@@ -566,11 +584,8 @@ export function applyBattleStartSkills(
   for (const skill of pattern.skills) {
     if (skill.triggerCondition !== 'battle_start') continue;
     if (skill.type === 'baehwa_guard') {
-      const required = skill.conditionRequiredFaction;
-      const hasFactionArt = required
-        ? equippedArts.some(id => getArtDef(id)?.faction === required)
-        : true;
-      next.guardDamageTakenMultiplier = hasFactionArt
+      const conditionMet = meetsBaehwaGuardCondition(bahwagyoNodeLevels);
+      next.guardDamageTakenMultiplier = conditionMet
         ? (skill.damageTakenMultiplierWhenFactionEquipped ?? 1.0)
         : (skill.damageTakenMultiplierIfCondition ?? 0.5);
       next.guardFirstHitLogged = false;
@@ -588,7 +603,7 @@ export function applyBattleStartSkills(
         lawName: `${displayName} · 발동`,
         lawText,
       });
-      if (!hasFactionArt) lawActive = skill.id;
+      if (!conditionMet) lawActive = skill.id;
       if (skill.oneTime) usedOne.push(skill.id);
     }
     if (skill.type === 'sraosha_response') {

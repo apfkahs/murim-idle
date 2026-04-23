@@ -64,7 +64,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           enemyAttackInterval: retryMon.attackInterval,
         });
         if (ctx.bossPatternState) {
-          const applied = applyBattleStartSkills(ctx.huntTarget, ctx.equippedArts, ctx.bossPatternState, ctx.battleLog, ctx.logEntryIdSeq);
+          const applied = applyBattleStartSkills(ctx.huntTarget, ctx.equippedArts, ctx.bossPatternState, ctx.battleLog, ctx.logEntryIdSeq, ctx.state.bahwagyo.nodeLevels);
           ctx.bossPatternState = applied.state;
           ctx.battleLog = applied.battleLog;
           ctx.logEntryIdSeq = applied.logEntryIdSeq;
@@ -100,7 +100,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
             enemyAttackInterval: firstMon.attackInterval,
           });
           if (ctx.bossPatternState) {
-            const applied = applyBattleStartSkills(order[0], ctx.equippedArts, ctx.bossPatternState, ctx.battleLog, ctx.logEntryIdSeq);
+            const applied = applyBattleStartSkills(order[0], ctx.equippedArts, ctx.bossPatternState, ctx.battleLog, ctx.logEntryIdSeq, ctx.state.bahwagyo.nodeLevels);
             ctx.bossPatternState = applied.state;
             ctx.battleLog = applied.battleLog;
             ctx.logEntryIdSeq = applied.logEntryIdSeq;

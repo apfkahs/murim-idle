@@ -484,6 +484,8 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
         rolls: [{ dropIndex, reward: { materialId: picked.materialId, materialCount: picked.materialCount, equipId: picked.equipId } }],
       },
     });
+    // 성화 소비/보상 지급 직후 즉시 저장하여 모달 중 새로고침으로 재료가 복구되는 것을 막음
+    (get() as GameStore).saveGame();
     return true;
   },
 
@@ -550,6 +552,8 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
       totalSeonghwaUsed: (state.totalSeonghwaUsed ?? 0) + count,
       pendingReveal: { materialId: id, rolls },
     });
+    // 성화 소비/보상 지급 직후 즉시 저장하여 모달 중 새로고침으로 재료가 복구되는 것을 막음
+    (get() as GameStore).saveGame();
     return true;
   },
 

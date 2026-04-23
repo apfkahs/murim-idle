@@ -170,6 +170,14 @@ location.reload();
 | **원인** | `resetAllMasteries` 필터가 `m.pointCost === 0`만 기준으로 삼아, `discovery` 필드의 의미(발견형=점수 외 경로로만 해금)를 명시하지 않음. 향후 데이터에서 pointCost가 바뀌면 즉시 재발. 또한 `activateMastery`는 `discovery.type === 'recipe'`를 조기반환하고, `craftArtRecipe`는 `discoveredMasteries` 가드로 재제작을 차단하므로 한 번 wipe되면 영구 stuck |
 | **해결법** | 필터를 `if (m.discovery) return true; return m.pointCost === 0;`로 변경해 발견형 초식을 항상 보존 ([artsSlice.ts resetAllMasteries](app/src/store/slices/artsSlice.ts)) |
 
+### 4-4. 희미한 성화 소비 후 빠른 새로고침으로 재료·보상 양쪽 취득 악용
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 희미한 성화를 사용(`useConsumable`/`useConsumableBatch`)해 결과물을 확인한 직후 F5로 새로고침하면 재료(huimihan_seonghwa)가 복구되어 다시 사용할 수 있고, 이미 받은 보상(장비/잔불)은 유지됨 |
+| **원인** | 자동 저장 주기가 30초라 30초 이내 새로고침 시 재료 감소가 localStorage에 반영되지 않음. `beforeunload`의 `saveGame`도 브라우저/새로고침 타이밍에 따라 신뢰 불가. 결과적으로 pendingReveal 모달이 끝나기 전 새로고침하면 메모리 상태만 소실되어 재료 복구, 이미 set된 장비/잔불은 다음 자동 저장 시점 상태가 남아있을 수 있어 보상만 챙기는 악용 가능 |
+| **해결법** | `useConsumable`/`useConsumableBatch`의 `set(...)` 직후 `(get() as GameStore).saveGame()`을 호출하여 소비·보상 상태를 즉시 localStorage에 flush ([inventorySlice.ts](app/src/store/slices/inventorySlice.ts)) |
+
 ---
 
 ## 빠른 참조: 자주 쓰는 명령어

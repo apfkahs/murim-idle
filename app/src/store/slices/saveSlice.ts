@@ -622,7 +622,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
             };
             const battleLogA: BattleLogEntry[] = [...(currentState.battleLog ?? []), startEntryA];
             const appliedA = bps468
-              ? applyBattleStartSkills(firstMon.id, currentState.equippedArts, bps468, battleLogA, seqA)
+              ? applyBattleStartSkills(firstMon.id, currentState.equippedArts, bps468, battleLogA, seqA, currentState.bahwagyo.nodeLevels)
               : null;
             currentState = {
               ...currentState,
@@ -739,7 +739,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
               };
               const battleLogB: BattleLogEntry[] = [...(currentState.battleLog ?? []), startEntryB];
               const appliedB = bps569
-                ? applyBattleStartSkills(firstMon.id, currentState.equippedArts, bps569, battleLogB, seqB)
+                ? applyBattleStartSkills(firstMon.id, currentState.equippedArts, bps569, battleLogB, seqB, currentState.bahwagyo.nodeLevels)
                 : null;
               currentState = {
                 ...currentState,

@@ -165,7 +165,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
     let bps = initialBps;
     let lawActive: string | null = null;
     if (bps) {
-      const applied = applyBattleStartSkills(order[0], state.equippedArts, bps, battleLog, seq);
+      const applied = applyBattleStartSkills(order[0], state.equippedArts, bps, battleLog, seq, state.bahwagyo.nodeLevels);
       battleLog = applied.battleLog;
       bps = applied.state;
       seq = applied.logEntryIdSeq;
@@ -215,7 +215,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
     let bps = initialBps;
     let lawActive: string | null = null;
     if (bps) {
-      const applied = applyBattleStartSkills(monsterId, state.equippedArts, bps, battleLog, seq);
+      const applied = applyBattleStartSkills(monsterId, state.equippedArts, bps, battleLog, seq, state.bahwagyo.nodeLevels);
       battleLog = applied.battleLog;
       bps = applied.state;
       seq = applied.logEntryIdSeq;

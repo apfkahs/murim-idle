@@ -509,11 +509,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'seonghwa_rekindler',
     name: '불씨의 순환',
-    description: '성화를 피우고 피우다 보면, 재 속에서 작은 불씨가 되살아난다. 희미한 성화 스무 번에 한 번씩 불씨가 되돌아온다.',
+    description: '성화를 피우고 피우다 보면, 재 속에서 작은 불씨가 되살아난다. 희미한 성화 열다섯 번에 한 번씩 불씨가 되돌아온다.',
     check: ctx => {
       const used = ctx.totalSeonghwaUsed ?? 0;
       const count = ctx.repeatableAchCounts?.['seonghwa_rekindler'] ?? 0;
-      return used >= 20 * (count + 1);
+      return used >= 15 * (count + 1);
     },
     repeatable: true,
     reward: { materials: { huimihan_seonghwa: 1 } },

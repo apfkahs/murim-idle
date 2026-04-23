@@ -167,7 +167,7 @@ export default function AchievementTab() {
     cheonsan_100:        [cheonsanKills, 100],
     cheonsan_1000:       [cheonsanKills, 1000],
     // 성화 순환
-    seonghwa_rekindler:  [totalSeonghwaUsed, ((repeatableAchCounts?.['seonghwa_rekindler'] ?? 0) + 1) * 20],
+    seonghwa_rekindler:  [totalSeonghwaUsed, ((repeatableAchCounts?.['seonghwa_rekindler'] ?? 0) + 1) * 15],
   };
 
   const repsByCategory = getRepresentativesByCategory(achievements);
@@ -351,7 +351,7 @@ export default function AchievementTab() {
               // 불씨의 순환 — 수동 수령 방식
               if (ach.id === 'seonghwa_rekindler') {
                 const unclaimed = count - seonghwaRewardsClaimed;
-                const nextThreshold = (count + 1) * 20;
+                const nextThreshold = (count + 1) * 15;
                 return (
                   <div key={ach.id} className="card" style={{ marginBottom: 5, padding: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

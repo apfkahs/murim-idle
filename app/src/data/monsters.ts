@@ -170,7 +170,8 @@ export interface BossSkillDef {
   chargeStunImmunity?: boolean;          // 차지 중 스턴 면역
   postFireSelfStun?: boolean;            // 발사 후 영구 자기 스턴
   // ── 배화교 행자 신규 ──
-  conditionRequiredFaction?: import('./arts').Faction;  // 이 faction 무공 하나라도 장착 시 조건 충족
+  // 삼행의 율법/철칙 조건: 식화심법 트리(mind-*) 총 노드합 ≥ 15, 또는 성화보법 노드 레벨 ≥ 15.
+  // 조건 미충족 시 IfCondition 배율, 조건 충족 시 WhenFactionEquipped(naming legacy) 배율 적용.
   damageTakenMultiplierIfCondition?: number;            // 조건 불충족 시 적이 받는 피해 배율 (0.5)
   damageTakenMultiplierWhenFactionEquipped?: number;    // 조건 충족 시 적이 받는 피해 배율 (미지정 시 1.0 = 기존 동작)
   battleStartLogs?: string[];                            // 전투 시작 즉시 출력될 로그
@@ -838,7 +839,6 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
         triggerCondition: 'battle_start',
         oneTime: true,
         priority: 10,
-        conditionRequiredFaction: 'baehwagyo',
         damageTakenMultiplierIfCondition: 0.5,
         battleStartLogs: [
           '*행자가 성화를 향해 두 손을 모은다.*',
@@ -923,7 +923,6 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
         triggerCondition: 'battle_start',
         oneTime: true,
         priority: 10,
-        conditionRequiredFaction: 'baehwagyo',
         damageTakenMultiplierIfCondition: 0.5,
         battleStartLogs: [
           '*호위가 창을 바로 세우며 자세를 낮춘다.*',
@@ -1053,7 +1052,6 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
         triggerCondition: 'battle_start',
         oneTime: true,
         priority: 10,
-        conditionRequiredFaction: 'baehwagyo',
         damageTakenMultiplierIfCondition: 0.5,
         battleStartLogs: [
           '*검보사가 검을 아래로 드리운 채 한 걸음 물러선다. 가볍게 목례한다.*',
@@ -1175,7 +1173,6 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
         triggerCondition: 'battle_start',
         oneTime: true,
         priority: 10,
-        conditionRequiredFaction: 'baehwagyo',
         damageTakenMultiplierIfCondition: 0.5,
         battleStartLogs: [
           '*화보사가 두 손을 모은 채 눈을 감고 있다. 그의 앞에 작은 성화 한 점이 공중에 떠 있다.*',
@@ -1313,7 +1310,6 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
         triggerCondition: 'battle_start',
         oneTime: true,
         priority: 10,
-        conditionRequiredFaction: 'baehwagyo',
         damageTakenMultiplierIfCondition: 0.25,
         damageTakenMultiplierWhenFactionEquipped: 0.75,
         battleStartLogs: [

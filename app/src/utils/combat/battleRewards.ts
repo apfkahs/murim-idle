@@ -479,7 +479,7 @@ function processExploreMode(
         });
         // battle_start 스킬 적용 (삼행의 율법 등)
         if (ctx.bossPatternState) {
-          const applied = applyBattleStartSkills(nextMon.id, ctx.equippedArts, ctx.bossPatternState, ctx.battleLog, ctx.logEntryIdSeq);
+          const applied = applyBattleStartSkills(nextMon.id, ctx.equippedArts, ctx.bossPatternState, ctx.battleLog, ctx.logEntryIdSeq, ctx.state.bahwagyo.nodeLevels);
           ctx.bossPatternState = applied.state;
           ctx.battleLog = applied.battleLog;
           ctx.logEntryIdSeq = applied.logEntryIdSeq;
@@ -542,7 +542,7 @@ function processExploreMode(
           });
           // battle_start 스킬 적용 (삼행의 율법 등)
           if (ctx.bossPatternState) {
-            const applied = applyBattleStartSkills(nextMon.id, ctx.equippedArts, ctx.bossPatternState, ctx.battleLog, ctx.logEntryIdSeq);
+            const applied = applyBattleStartSkills(nextMon.id, ctx.equippedArts, ctx.bossPatternState, ctx.battleLog, ctx.logEntryIdSeq, ctx.state.bahwagyo.nodeLevels);
             ctx.bossPatternState = applied.state;
             ctx.battleLog = applied.battleLog;
             ctx.logEntryIdSeq = applied.logEntryIdSeq;
@@ -620,7 +620,7 @@ function processHuntMode(
         enemyAttackInterval: nextMon.attackInterval,
       });
       if (newBps) {
-        const applied = applyBattleStartSkills(ctx.huntTarget, ctx.equippedArts, newBps, ctx.battleLog, ctx.logEntryIdSeq);
+        const applied = applyBattleStartSkills(ctx.huntTarget, ctx.equippedArts, newBps, ctx.battleLog, ctx.logEntryIdSeq, ctx.state.bahwagyo.nodeLevels);
         ctx.bossPatternState = applied.state;
         ctx.battleLog = applied.battleLog;
         ctx.logEntryIdSeq = applied.logEntryIdSeq;
