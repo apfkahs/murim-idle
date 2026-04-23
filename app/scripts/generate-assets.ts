@@ -191,6 +191,27 @@ const ASSETS: AssetEntry[] = [
   { file: 'backgrounds/baehwagyo.png', category: 'background', size: '1536x1024',
     prompt: 'Zoroastrian fire temple interior deep in ancient mountains, massive eternal sacred flame on central stone altar, stepped ritual platform, towering columns with flame reliefs, crimson banners, smoky haze lit by firelight, ominous sacred atmosphere' },
 
+  // 희미한 성화 드롭 이미지 (잔불 7단계 + 장비 2종)
+  // 저등급은 일부러 하찮고 실망스럽게 — 뽑힌 사람이 화나야 뽑기의 맛이 살아난다
+  { file: 'seonghwa/ember_2.png', category: 'icon', size: '1024x1024',
+    prompt: 'two pathetic tiny specks of dying ash on vast empty dark stone surface, almost completely extinguished, barely any glow, miserable and laughable, mostly empty black space, the ashes are insultingly small, comically disappointing' },
+  { file: 'seonghwa/ember_5.png', category: 'icon', size: '1024x1024',
+    prompt: 'five sad crumbs of grey cold ash scattered pathetically on dark stone, no flames, no glow, just dull dead ash dust, pitiful and unimpressive, empty surroundings emphasize the meagerness' },
+  { file: 'seonghwa/ember_15.png', category: 'icon', size: '1024x1024',
+    prompt: 'small dull pile of mostly-dead ashes with one or two faintly warm coal specks barely glowing, weak sickly orange hint, not impressive, more ash than fire, underwhelming' },
+  { file: 'seonghwa/ember_40.png', category: 'icon', size: '1024x1024',
+    prompt: 'decent cluster of glowing orange embers with small flickering flames, respectable warm fire, modest but satisfying, glowing coals with visible heat' },
+  { file: 'seonghwa/ember_80.png', category: 'icon', size: '1024x1024',
+    prompt: 'bright vigorous flames rising from substantial ember bed, strong warm orange-yellow fire, sparks flying upward, powerful and lively blaze' },
+  { file: 'seonghwa/ember_150.png', category: 'icon', size: '1024x1024',
+    prompt: 'sacred mystical flame with violet-purple tinge, swirling ethereal fire dancing in spiral pattern, otherworldly divine hint, unusual color shift from orange to purple, rare spiritual essence' },
+  { file: 'seonghwa/ember_300.png', category: 'icon', size: '1024x1024',
+    prompt: 'massive raging sacred bonfire, towering pillar of golden-amber flames with purple highlights, majestic holy fire reaching upward, divine energy radiating, epic and awe-inspiring' },
+  { file: 'seonghwa/sarajinun_bulggot_boots.png', category: 'icon', size: '1024x1024',
+    prompt: 'legendary martial arts boots wreathed in vanishing crimson flame, dark lacquered leather with flame engravings, ethereal fire licking upward from the soles leaving embers in the air, Zoroastrian fire motifs on the ankle guards, sacred artifact of devouring flame, ornate and powerful' },
+  { file: 'seonghwa/tamsik_bulggot_weapon.png', category: 'icon', size: '1024x1024',
+    prompt: 'devouring flame sword, curved blade engulfed in hungry violet-orange flames that seem to consume the air around it, blackened hilt wrapped in red cord with ember inlays, hungry fire patterns etched on the blade surface, legendary Zoroastrian greedy-flame artifact, menacing and mystical' },
+
   // 플레이어 캐릭터 (4단계 진화)
   { file: 'player/tier0_hucheon.png', category: 'character', size: '1024x1024',
     prompt: 'young martial artist beginner, simple white hanbok, wooden training sword, humble stance' },

@@ -11,6 +11,9 @@ const playerImages = import.meta.glob<{ default: string }>(
 const backgroundImages = import.meta.glob<{ default: string }>(
   './backgrounds/*.png', { eager: true }
 );
+const seonghwaImages = import.meta.glob<{ default: string }>(
+  './seonghwa/*.png', { eager: true }
+);
 
 function buildMap(
   globResult: Record<string, { default: string }>,
@@ -26,6 +29,22 @@ function buildMap(
 const _enemyMap = buildMap(enemyImages);
 const _playerMap = buildMap(playerImages);
 const _bgMap = buildMap(backgroundImages);
+const _seonghwaMap = buildMap(seonghwaImages);
+
+/**
+ * 희미한 성화 드롭 이미지 조회.
+ * - 잔불: 수량(materialCount)에 해당하는 ember_{count}.png
+ * - 장비: equipId를 그대로 키로 사용
+ */
+export function getSeonghwaDropImage(
+  reward: { materialId?: string; materialCount?: number; equipId?: string }
+): string | null {
+  if (reward.equipId) return _seonghwaMap[reward.equipId] ?? null;
+  if (reward.materialId === 'huimihan_janbul' && reward.materialCount != null) {
+    return _seonghwaMap[`ember_${reward.materialCount}`] ?? null;
+  }
+  return null;
+}
 
 // 적 이모지 폴백
 const ENEMY_EMOJI: Record<string, string> = {

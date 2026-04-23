@@ -23,6 +23,8 @@ export default function InventoryTab() {
   const discoveredMasteries = useGameStore(s => s.discoveredMasteries);
   const craftConsumable = useGameStore(s => s.craftConsumable);
   const useConsumable = useGameStore(s => s.useConsumable);
+  const useConsumableBatch = useGameStore(s => s.useConsumableBatch);
+  const pendingReveal = useGameStore(s => s.pendingReveal);
   const lastConsumableResult = useGameStore(s => s.lastConsumableResult);
 
   const [mode, setMode] = useState<'main' | 'craft' | 'discard'>('main');
@@ -640,12 +642,25 @@ export default function InventoryTab() {
                       <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>{m.name}</span>
                       <span style={{ fontSize: 13, color: 'var(--accent)', marginLeft: 8, fontVariantNumeric: 'tabular-nums' }}>× {have}</span>
                     </div>
-                    <button
-                      className="inventory-btn learn"
-                      onClick={() => useConsumable(m.id)}
-                    >
-                      사용
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <button
+                        className="inventory-btn learn"
+                        disabled={pendingReveal !== null}
+                        onClick={() => useConsumable(m.id)}
+                      >
+                        사용
+                      </button>
+                      {m.id === 'huimihan_seonghwa' && (
+                        <button
+                          className="inventory-btn learn"
+                          disabled={have < 10 || pendingReveal !== null}
+                          onClick={() => useConsumableBatch('huimihan_seonghwa', 10)}
+                          style={{ marginLeft: 6 }}
+                        >
+                          10개 개봉
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {isLatest && lastConsumableResult && (
                     <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-secondary)' }}>

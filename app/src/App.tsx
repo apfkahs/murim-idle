@@ -10,6 +10,7 @@ import EncyclopediaTab from './components/EncyclopediaTab';
 import SaveSlotModal from './components/SaveSlotModal';
 import OfflineResultModal from './components/OfflineResultModal';
 import EnlightenmentModal from './components/EnlightenmentModal';
+import SeonghwaRevealModal from './components/SeonghwaRevealModal';
 
 type TabId = 'neigong' | 'arts' | 'equipment' | 'inventory' | 'battle' | 'encyclopedia';
 
@@ -201,6 +202,8 @@ export default function App() {
       )}
 
       <EnlightenmentModal />
+
+      <SeonghwaRevealModal />
     </div>
   );
 }

@@ -83,6 +83,7 @@ export function createInitialState(): GameState {
     tamsikKillStacks: {},
     tamsikEmberStacks: 0,
     lastConsumableResult: null,
+    pendingReveal: null,
     tutorialFlags: {
       equippedSword: false,
       equippedSimbeop: false,

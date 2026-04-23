@@ -4,8 +4,20 @@
  */
 import type { ProficiencyType } from '../data/arts';
 import type { EquipSlot, EquipmentInstance } from '../data/equipment';
+import type { SeonghwaDropEntry } from '../data/materials';
 import type { MonsterState } from '../utils/combat/skillHandlers/registry';
 import type { BahwagyoState } from '../components/bahwagyo/bahwagyoTypes';
+
+// ============================================================
+// 희미한 성화 개봉 연출 — 대기 중인 결과
+// ============================================================
+export type PendingReveal = {
+  materialId: string;
+  rolls: ReadonlyArray<{
+    dropIndex: number;
+    reward: Omit<SeonghwaDropEntry, 'chance'>;
+  }>;
+};
 
 // ============================================================
 // 인벤토리 아이템
@@ -374,4 +386,7 @@ export interface GameState {
 
   // 배화교 스킬트리
   bahwagyo: BahwagyoState;
+
+  // 희미한 성화 개봉 연출 대기
+  pendingReveal: PendingReveal | null;
 }

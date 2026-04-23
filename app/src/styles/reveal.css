@@ -1,0 +1,463 @@
+/* styles/reveal.css — 희미한 성화 개봉 연출 */
+
+/* ───────── 키프레임 ───────── */
+@keyframes smActive {
+  0%   { transform: scale(1.0); border-color: var(--border-card); }
+  100% { transform: scale(1.06); border-color: var(--gold); }
+}
+
+@keyframes smSettle {
+  0%   { transform: scale(1.08); border-color: var(--gold); }
+  55%  { transform: scale(1.19); border-color: #fff0a0; }
+  100% { transform: scale(1.10); border-color: #fff0a0; }
+}
+
+@keyframes smLand {
+  0%   { transform: scale(1.0); }
+  45%  { transform: scale(1.18); }
+  100% { transform: scale(1.0); }
+}
+
+@keyframes smLandPulse {
+  0%   { transform: scale(1.0); box-shadow: 0 0 0 0 rgba(255,215,0,0.0); }
+  25%  { transform: scale(1.22); box-shadow: 0 0 32px 8px rgba(255,215,0,0.6); }
+  50%  { transform: scale(1.04); box-shadow: 0 0 16px 4px rgba(255,215,0,0.4); }
+  75%  { transform: scale(1.14); box-shadow: 0 0 28px 6px rgba(255,215,0,0.55); }
+  100% { transform: scale(1.08); box-shadow: 0 0 20px 4px rgba(255,215,0,0.45); }
+}
+
+@keyframes smDim {
+  0%   { opacity: 0; }
+  50%  { opacity: 0.7; }
+  100% { opacity: 0; }
+}
+
+@keyframes smFlash {
+  0%   { opacity: 0; }
+  50%  { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+@keyframes smShake {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-4px, 2px); }
+  20% { transform: translate(4px, -2px); }
+  30% { transform: translate(-3px, -3px); }
+  40% { transform: translate(3px, 3px); }
+  50% { transform: translate(-4px, 1px); }
+  60% { transform: translate(4px, -1px); }
+  70% { transform: translate(-2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  90% { transform: translate(-1px, 1px); }
+}
+
+@keyframes smWrapGlow {
+  0%   { box-shadow: 0 0 0 0 rgba(255,215,0,0.0); }
+  50%  { box-shadow: 0 0 60px 16px rgba(255,215,0,0.55); }
+  100% { box-shadow: 0 0 0 0 rgba(255,215,0,0.0); }
+}
+
+@keyframes smRay {
+  0%   { opacity: 0; transform: scaleX(0) rotate(var(--ray-rot, 0deg)); }
+  30%  { opacity: 0.9; }
+  100% { opacity: 0; transform: scaleX(1.4) rotate(var(--ray-rot, 0deg)); }
+}
+
+@keyframes smPillar {
+  0%   { transform: translateX(-50%) scaleY(0); opacity: 0; }
+  30%  { transform: translateX(-50%) scaleY(1); opacity: 1; }
+  100% { transform: translateX(-50%) scaleY(0.6); opacity: 0; }
+}
+
+@keyframes smShock {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+}
+
+@keyframes smParticle {
+  0%   { transform: translate(-50%, -50%) rotate(0deg); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) rotate(360deg); opacity: 0; }
+}
+
+@keyframes smBanner {
+  0%   { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+  20%  { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
+  80%  { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.0); opacity: 0; }
+}
+
+@keyframes smFloat {
+  0%   { transform: translate(-50%, 0); opacity: 0; }
+  20%  { transform: translate(-50%, -10px); opacity: 1; }
+  100% { transform: translate(-50%, -42px); opacity: 0; }
+}
+
+@keyframes smMarkPop {
+  0%   { transform: scale(1.4); }
+  100% { transform: scale(1.0); }
+}
+
+/* ───────── 모달 박스 ───────── */
+.seonghwa-modal {
+  max-width: 400px !important;
+  background:
+    radial-gradient(ellipse at top, rgba(100, 50, 10, 0.25) 0%, transparent 60%),
+    radial-gradient(ellipse at bottom, rgba(60, 20, 5, 0.3) 0%, transparent 55%),
+    linear-gradient(180deg, #130c08 0%, #0a0805 100%) !important;
+  position: relative;
+  overflow: visible !important;
+  border: 2px solid transparent !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 180, 60, 0.25),
+    0 0 24px rgba(255, 140, 40, 0.18),
+    0 8px 40px rgba(0, 0, 0, 0.8),
+    inset 0 0 40px rgba(255, 120, 30, 0.06) !important;
+  padding: 20px 18px 18px !important;
+}
+
+/* 모달 상단 장식 — 불꽃 라인 */
+.seonghwa-modal::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: 12%; right: 12%;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 180, 60, 0) 10%,
+    rgba(255, 200, 80, 0.95) 50%,
+    rgba(255, 180, 60, 0) 90%,
+    transparent 100%);
+  box-shadow: 0 0 12px rgba(255, 180, 60, 0.8);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* 모달 하단 장식 — 불꽃 라인 (약하게) */
+.seonghwa-modal::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 20%; right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255, 140, 40, 0.6),
+    transparent);
+  pointer-events: none;
+}
+
+/* 성화 개봉 제목 — 불꽃 느낌 */
+.seonghwa-modal .modal-title {
+  color: #ffd98a !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.15em !important;
+  text-shadow:
+    0 0 8px rgba(255, 180, 60, 0.6),
+    0 0 2px rgba(255, 220, 140, 0.8),
+    0 2px 4px rgba(0, 0, 0, 0.8);
+  margin-bottom: 12px !important;
+}
+
+.seonghwa-modal.sm-shaking {
+  animation: smShake 0.45s ease-in-out;
+}
+
+.seonghwa-modal.sm-wrap-glow {
+  animation: smWrapGlow 1.2s ease-out;
+}
+
+/* ───────── 3x3 그리드 ───────── */
+.sm-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+  position: relative;
+}
+
+/* ───────── 타일 ───────── */
+.sm-tile {
+  aspect-ratio: 1;
+  border: 2px solid var(--border-card);
+  border-radius: 8px;
+  position: relative;
+  background: rgba(255,255,255,0.03);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  transition: background 0.15s ease;
+  overflow: visible;
+}
+
+.sm-tile-name {
+  font-size: 11px;
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.25;
+  pointer-events: none;
+  word-break: keep-all;
+}
+
+/* 타일 내부 이미지 — 정사각 타일에 꽉 차게 */
+.sm-tile-img {
+  position: absolute;
+  inset: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  object-fit: cover;
+  border-radius: 6px;
+  pointer-events: none;
+  user-select: none;
+  filter: brightness(0.9) saturate(0.95);
+}
+
+/* 타일 하단 라벨 — 이미지 위에 오버레이 */
+.sm-tile-label {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  right: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.65) 60%, rgba(0,0,0,0) 100%);
+  padding: 6px 2px 3px;
+  line-height: 1.15;
+  pointer-events: none;
+  word-break: keep-all;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+  border-radius: 0 0 6px 6px;
+  z-index: 2;
+}
+
+/* 등급별 기본 색조 */
+.sm-tile-common   { background: rgba(180,180,180,0.05); }
+.sm-tile-rare     { background: rgba(100,180,255,0.08); }
+.sm-tile-rare150  { background: rgba(100,180,255,0.12); border-color: rgba(100,180,255,0.35); }
+.sm-tile-epic     { background: rgba(180,120,255,0.12); border-color: rgba(180,120,255,0.4); }
+.sm-tile-legend   { background: rgba(255,180,60,0.12); border-color: rgba(255,200,80,0.5); }
+
+.sm-tile-legend .sm-tile-name {
+  color: #ffe18a;
+  font-weight: 600;
+}
+.sm-tile-epic .sm-tile-name {
+  color: #d4b8ff;
+  font-weight: 600;
+}
+
+/* 전설 등급 라벨 — 금빛 광택 + 은은한 반짝임 */
+.sm-tile-legend .sm-tile-label {
+  background: linear-gradient(to top,
+    rgba(30, 15, 0, 0.95) 0%,
+    rgba(45, 25, 5, 0.8) 60%,
+    rgba(0, 0, 0, 0) 100%) !important;
+  color: transparent !important;
+  background-clip: padding-box;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em;
+}
+
+.sm-tile-legend .sm-tile-label::before {
+  content: attr(data-label);
+  position: absolute;
+  inset: 6px 2px 3px;
+  background: linear-gradient(135deg,
+    #fff7c8 0%,
+    #ffd966 25%,
+    #ffb02e 50%,
+    #ffd966 75%,
+    #fff7c8 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align: center;
+  line-height: inherit;
+  animation: smLegendShimmer 2.5s ease-in-out infinite;
+  text-shadow:
+    0 0 10px rgba(255, 200, 80, 0.7),
+    0 0 2px rgba(255, 220, 140, 0.9);
+  filter: drop-shadow(0 0 6px rgba(255, 180, 60, 0.6));
+}
+
+@keyframes smLegendShimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* 에픽 등급도 살짝 빛나게 — 보라 광택 */
+.sm-tile-epic .sm-tile-label {
+  color: #d4b8ff !important;
+  font-weight: 700 !important;
+  text-shadow:
+    0 0 8px rgba(180, 120, 255, 0.6),
+    0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+/* 상태 — 우선순위: active < settling < landed < landed-big */
+.sm-tile {
+  transition: transform 0.08s ease-out, border-color 0.08s ease-out;
+}
+
+.sm-tile.active {
+  border-color: var(--gold);
+  transform: scale(1.06);
+  z-index: 2;
+}
+
+.sm-tile.settling {
+  animation: smSettle var(--settle-dur, 800ms) cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  z-index: 3;
+}
+
+.sm-tile.landed {
+  animation: smLand 0.45s ease-out;
+  z-index: 4;
+}
+
+.sm-tile.landed-big {
+  animation: smLandPulse 1.5s ease-in-out;
+  z-index: 5;
+}
+
+/* 영속 체크 */
+.sm-tile.checked {
+  border-color: var(--gold) !important;
+}
+
+.sm-tile.legend-hit {
+  box-shadow: 0 0 18px 2px rgba(255,215,0,0.45), inset 0 0 12px rgba(255,215,0,0.2);
+}
+
+/* ───────── 이펙트 오버레이 ───────── */
+.sm-dim-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #000;
+  border-radius: 14px;
+  pointer-events: none;
+  animation: smDim 1s ease-in-out forwards;
+  z-index: 20;
+}
+
+.sm-flash-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #fff;
+  border-radius: 14px;
+  pointer-events: none;
+  animation: smFlash 0.14s ease-out forwards;
+  z-index: 40;
+}
+
+/* ───────── 타일 내부 이펙트 ───────── */
+.sm-ray {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 100px; height: 3px;
+  background: linear-gradient(90deg, rgba(255,215,0,0.9), transparent);
+  transform-origin: left center;
+  pointer-events: none;
+  animation: smRay 0.9s ease-out forwards;
+  z-index: 30;
+}
+
+.sm-pillar {
+  position: absolute;
+  bottom: 50%;
+  left: 50%;
+  width: 20px;
+  height: 120px;
+  background: linear-gradient(to top, rgba(255,215,0,0.8), rgba(255,255,200,0.6), transparent);
+  transform-origin: bottom center;
+  pointer-events: none;
+  animation: smPillar 0.9s ease-out forwards;
+  z-index: 25;
+  border-radius: 10px;
+  filter: blur(2px);
+}
+
+.sm-shock {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 40px; height: 40px;
+  border: 3px solid rgba(255,215,0,0.9);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: smShock 0.7s ease-out forwards;
+  z-index: 28;
+}
+
+.sm-particle {
+  /* 인라인 스타일에서 크기/색/위치 지정 */
+}
+
+/* ───────── 배너 ───────── */
+.sm-banner {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, rgba(40,28,6,0.95), rgba(80,50,10,0.95));
+  border: 2px solid var(--gold);
+  border-radius: 10px;
+  padding: 16px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  animation: smBanner 2.5s ease-out forwards;
+  z-index: 50;
+  box-shadow: 0 0 40px rgba(255,215,0,0.6);
+}
+
+.sm-banner-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 10px rgba(255,215,0,0.7);
+}
+
+.sm-banner-sub {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+/* ───────── 플로팅 텍스트 ───────── */
+.sm-float {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, 0);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gold);
+  text-shadow: 0 0 6px rgba(0,0,0,0.8);
+  pointer-events: none;
+  animation: smFloat 1.2s ease-out forwards;
+  z-index: 45;
+  white-space: nowrap;
+}
+
+/* ───────── 카운트 뱃지 ───────── */
+.sm-mark-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--gold);
+  color: #1a1a1a;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  pointer-events: none;
+  animation: smMarkPop 0.3s ease-out;
+  z-index: 6;
+  min-width: 22px;
+  text-align: center;
+}

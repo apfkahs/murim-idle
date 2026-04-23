@@ -1,11 +1,12 @@
 import type { StateCreator } from 'zustand';
 import type { GameStore } from '../gameStore';
-import type { InventoryItem, GameState } from '../types';
+import type { InventoryItem, GameState, PendingReveal } from '../types';
 import { getArtDef } from '../../data/arts';
 import { getEquipmentDef, type EquipSlot, type EquipmentInstance } from '../../data/equipment';
 import {
   RECIPES, ART_RECIPES, BIJUP_DEFS, getBijupDef, COMPOUND_ART_RECIPES,
   SEONGHWA_DROP_TABLE, getConsumableRecipeDef, getMaterialDef,
+  type SeonghwaDropEntry,
 } from '../../data/materials';
 import {
   TAMSIK_TOTAL_STACK_CAP, TAMSIK_EMBER_PER_JANBUL,
@@ -24,6 +25,7 @@ export type InventorySlice = {
   unlockedRecipes: string[];
   obtainedMaterials: string[];
   knownEquipment: string[];
+  pendingReveal: PendingReveal | null;
 
   // ── actions ──
   learnScroll: (itemId: string) => void;
@@ -42,6 +44,8 @@ export type InventorySlice = {
   // ── 소비 아이템 제작/사용 ──
   craftConsumable: (recipeId: string, times: number) => boolean;
   useConsumable: (materialId: string) => boolean;
+  useConsumableBatch: (id: string, count: number) => boolean;
+  dismissPendingReveal: () => void;
 
   // ── 탐식하는 불꽃 잔불 강화 ──
   reinforceTamsik: (jaebulAmount: number) => number;
@@ -57,6 +61,7 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
   unlockedRecipes: [],
   obtainedMaterials: [],
   knownEquipment: [],
+  pendingReveal: null,
 
   // ── 액션 ──
   learnScroll: (itemId) => {
@@ -420,12 +425,13 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
 
     const roll = Math.random();
     let acc = 0;
-    let picked: (typeof SEONGHWA_DROP_TABLE)[number] | null = null;
-    for (const entry of SEONGHWA_DROP_TABLE) {
+    let picked: SeonghwaDropEntry | null = null;
+    let dropIndex = 0;
+    for (const [idx, entry] of SEONGHWA_DROP_TABLE.entries()) {
       acc += entry.chance;
-      if (roll < acc) { picked = entry; break; }
+      if (roll < acc) { picked = entry; dropIndex = idx; break; }
     }
-    if (!picked) picked = SEONGHWA_DROP_TABLE[0];
+    if (!picked) { picked = SEONGHWA_DROP_TABLE[0]; dropIndex = 0; }
 
     const newMaterials = { ...state.materials };
     newMaterials[materialId] = (newMaterials[materialId] ?? 0) - 1;
@@ -433,11 +439,8 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
     let newEquipmentInventory = state.equipmentInventory;
     let newKnownEquipment = state.knownEquipment;
     let newObtained = state.obtainedMaterials;
-    let summary = '';
-    let tone: 'gold' | 'muted' = 'muted';
 
     if (picked.equipId) {
-      tone = 'gold';
       const alreadyOwned =
         Object.values(state.equipment).some(e => e?.defId === picked!.equipId) ||
         state.equipmentInventory.some(e => e.defId === picked!.equipId);
@@ -449,8 +452,6 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
         if (!newObtained.includes('huimihan_janbul')) {
           newObtained = [...newObtained, 'huimihan_janbul'];
         }
-        const eqDef = getEquipmentDef(picked.equipId);
-        summary = `${eqDef?.name ?? picked.equipId} — 이미 보유 중 · 희미한 잔불 ${fallbackQty}개 대체 지급`;
       } else {
         const instance: EquipmentInstance = {
           instanceId: `eq_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -462,8 +463,6 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
         if (!state.knownEquipment.includes(picked.equipId)) {
           newKnownEquipment = [...state.knownEquipment, picked.equipId];
         }
-        const eqDef = getEquipmentDef(picked.equipId);
-        summary = `${eqDef?.name ?? picked.equipId} 획득!`;
       }
     } else if (picked.materialId) {
       const qty = picked.materialCount ?? 0;
@@ -472,8 +471,6 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
       if (!newObtained.includes(picked.materialId)) {
         newObtained = [...newObtained, picked.materialId];
       }
-      const matName = getMaterialDef(picked.materialId)?.name ?? picked.materialId;
-      summary = `${matName} ×${qty}`;
     }
 
     set({
@@ -481,15 +478,80 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
       equipmentInventory: newEquipmentInventory,
       knownEquipment: newKnownEquipment,
       obtainedMaterials: newObtained,
-      lastConsumableResult: {
-        itemId: materialId,
-        summary,
-        timestamp: Date.now(),
-        tone,
+      pendingReveal: {
+        materialId,
+        rolls: [{ dropIndex, reward: { materialId: picked.materialId, materialCount: picked.materialCount, equipId: picked.equipId } }],
       },
     });
     return true;
   },
+
+  useConsumableBatch: (id, count) => {
+    const state = get() as GameStore;
+    if ((state.materials[id] ?? 0) < count) return false;
+    if (id !== 'huimihan_seonghwa') return false;
+
+    let newMaterials = { ...state.materials };
+    let newEquipmentInventory = [...state.equipmentInventory];
+    let newKnownEquipment = [...state.knownEquipment];
+    let newObtained = [...state.obtainedMaterials];
+
+    const rolls: Array<{ dropIndex: number; reward: Omit<SeonghwaDropEntry, 'chance'> }> = [];
+
+    // 재료 먼저 count만큼 감소
+    newMaterials[id] = (newMaterials[id] ?? 0) - count;
+
+    for (let i = 0; i < count; i++) {
+      const roll = Math.random();
+      let acc = 0;
+      let picked: SeonghwaDropEntry | null = null;
+      let dropIndex = 0;
+      for (const [idx, entry] of SEONGHWA_DROP_TABLE.entries()) {
+        acc += entry.chance;
+        if (roll < acc) { picked = entry; dropIndex = idx; break; }
+      }
+      if (!picked) { picked = SEONGHWA_DROP_TABLE[0]; dropIndex = 0; }
+
+      // 보상 지급
+      if (picked.equipId) {
+        const alreadyOwned =
+          Object.values(state.equipment).some(e => e?.defId === picked!.equipId) ||
+          newEquipmentInventory.some(e => e.defId === picked!.equipId);
+        if (alreadyOwned) {
+          newMaterials['huimihan_janbul'] = (newMaterials['huimihan_janbul'] ?? 0) + 100;
+          if (!newObtained.includes('huimihan_janbul')) newObtained = [...newObtained, 'huimihan_janbul'];
+        } else {
+          const instance: EquipmentInstance = {
+            instanceId: `eq_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            defId: picked.equipId,
+            obtainedFrom: 'huimihan_seonghwa',
+            obtainedAt: Date.now(),
+          };
+          newEquipmentInventory = [...newEquipmentInventory, instance];
+          if (!newKnownEquipment.includes(picked.equipId)) {
+            newKnownEquipment = [...newKnownEquipment, picked.equipId];
+          }
+        }
+      } else if (picked.materialId) {
+        const qty = picked.materialCount ?? 0;
+        newMaterials[picked.materialId] = (newMaterials[picked.materialId] ?? 0) + qty;
+        if (!newObtained.includes(picked.materialId)) newObtained = [...newObtained, picked.materialId];
+      }
+
+      rolls.push({ dropIndex, reward: { materialId: picked.materialId, materialCount: picked.materialCount, equipId: picked.equipId } });
+    }
+
+    set({
+      materials: newMaterials,
+      equipmentInventory: newEquipmentInventory,
+      knownEquipment: newKnownEquipment,
+      obtainedMaterials: newObtained,
+      pendingReveal: { materialId: id, rolls },
+    });
+    return true;
+  },
+
+  dismissPendingReveal: () => set({ pendingReveal: null }),
 
   reinforceTamsik: (jaebulAmount) => {
     const state = get() as GameStore;

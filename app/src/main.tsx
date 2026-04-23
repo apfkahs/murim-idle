@@ -10,6 +10,7 @@ import './styles/battle-v2.css';
 import './styles/field.css';
 import './styles/arts.css';
 import './styles/modals.css';
+import './styles/reveal.css';
 import './styles/misc.css';
 import './styles/inventory.css';
 import './styles/equipment.css';
