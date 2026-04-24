@@ -18,7 +18,7 @@ const RARITY_COLOR: Record<string, string> = {
 
 function formatChance(chance: number): string {
   const pct = chance * 100;
-  if (pct >= 1) return `${pct.toFixed(0)}%`;
+  if (pct >= 1)   return `${pct.toFixed(1)}%`;
   if (pct >= 0.1) return `${pct.toFixed(1)}%`;
   return `${pct.toFixed(2)}%`;
 }

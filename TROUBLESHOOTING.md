@@ -178,6 +178,15 @@ location.reload();
 | **원인** | 자동 저장 주기가 30초라 30초 이내 새로고침 시 재료 감소가 localStorage에 반영되지 않음. `beforeunload`의 `saveGame`도 브라우저/새로고침 타이밍에 따라 신뢰 불가. 결과적으로 pendingReveal 모달이 끝나기 전 새로고침하면 메모리 상태만 소실되어 재료 복구, 이미 set된 장비/잔불은 다음 자동 저장 시점 상태가 남아있을 수 있어 보상만 챙기는 악용 가능 |
 | **해결법** | `useConsumable`/`useConsumableBatch`의 `set(...)` 직후 `(get() as GameStore).saveGame()`을 호출하여 소비·보상 상태를 즉시 localStorage에 flush ([inventorySlice.ts](app/src/store/slices/inventorySlice.ts)) |
 
+### 4-5. `exclusiveGroup` 무공 스왑 시 해제된 무공의 초식이 완전 삭제
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 녹림보법↔성화보법처럼 같은 `exclusiveGroup: 'footwork'` 무공을 교체하면 해제되는 무공의 `activeMasteries` 엔트리가 완전히 제거됨. 다시 장착해도 이전에 활성화한 초식이 복구되지 않고, 비급/레시피로만 해금 가능한 초식은 재획득 수단이 없으면 영구 손실 |
+| **원인** | [artsSlice.ts equipArt](app/src/store/slices/artsSlice.ts)가 스왑 시 `delete newActiveMasteries[id]`로 엔트리 자체를 지웠음. 포인트 반환을 위한 단순 구현이지만 데이터 손실을 유발 |
+| **해결법** | `activeMasteries`는 그대로 두고 [calcUsedPoints](app/src/store/utils/sliceHelpers.ts)에서 미장착 무공(`state.equippedArts.includes(artId) \|\| state.equippedSimbeop === artId`)의 초식 포인트만 제외하여 자동 반환 효과를 냄. 포인트 체크는 `calcUsedPoints(projected) > artPoints`로 통일. 재장착 시 이전 초식이 자동 복구되며, 두 무공 초식 합이 상한을 넘을 경우 장착이 거부되므로 사용자가 일부 초식을 해제해야 함(데이터 손실 없음) |
+| **재발 방지** | 무공 장착/해제 로직에서 `activeMasteries`를 `delete`/`reset`하지 말 것. 포인트 계산은 "장착 여부"를 기준으로 필터링하고 보존 가능한 데이터는 항상 유지 |
+
 ---
 
 ## 빠른 참조: 자주 쓰는 명령어
@@ -355,11 +364,73 @@ if (dot.id === 'ember') {
 
 ---
 
+## 8. 도감 / 업적 / 저장 관련
+
+### 8-1. 새 전장 몬스터가 물건 도감에 미표시
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 새 전장(예: 배화교 외문, 천산)이 해금되어도 도감 → 물건 도감에 해당 몬스터의 드랍 재료가 표시되지 않음 |
+| **원인** | `encyclopediaUtils.ts`의 `ALL_MONSTERS` 배열에 해당 전장의 몬스터 배열이 import/추가되지 않아 드랍 데이터 조회 대상에서 누락됨 |
+| **해결법** | `encyclopediaUtils.ts`에 해당 몬스터 배열(`BAEHWAGYO_MONSTERS`, `SAEWOE_MONSTERS` 등)을 import하고 `ALL_MONSTERS`에 spread 추가. 새 전장 추가 시 반드시 이 파일도 함께 갱신할 것 |
+
+```ts
+// encyclopediaUtils.ts
+import { ..., SAEWOE_MONSTERS, BAEHWAGYO_MONSTERS } from '../../data/monsters';
+
+export const ALL_MONSTERS = [
+  ...기존,
+  ...SAEWOE_MONSTERS,
+  ...BAEHWAGYO_MONSTERS,
+];
+```
+
+### 8-2. 도감 업적 progressMap에 존재하지 않는 achievement id 참조
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 업적 탭에서 `codex_8`, `codex_12`, `codex_17` 등 특정 도감 업적의 진행도 바가 표시되지 않음 |
+| **원인** | `AchievementTab.tsx`의 `progressMap`이 `achievements.ts`의 실제 체인(`codex_first → codex_1 → codex_3 → codex_5 → codex_8 → codex_12 → codex_17 → codex_all`)과 불일치. 없는 id(`codex_10`)를 참조하고 중간 id들이 누락됨 |
+| **해결법** | `progressMap`의 도감 섹션을 실제 `achievements.ts` 체인과 1:1 일치하도록 수정. 업적 체인 변경 시 `progressMap`도 반드시 동기화 |
+
+### 8-3. 드랍률 소숫점 반올림으로 실제 확률 왜곡
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 물건 도감/몬스터 도감에서 `2.5%` → `3%`, `0.5%` → `1%` 등 반올림된 값이 표시됨 |
+| **원인** | `ItemsScreen.tsx`, `MonsterCodex.tsx`의 `formatChance`에서 `pct >= 1` 구간을 `toFixed(0)`(정수)으로 포맷 |
+| **해결법** | `pct >= 1` 구간도 `toFixed(1)`로 변경하여 소숫점 1자리 유지. `0.1% ~ 1%` 구간은 동일하게 `toFixed(1)`, `0.1% 미만`은 `toFixed(2)` |
+
+```ts
+function formatChance(chance: number): string {
+  const pct = chance * 100;
+  if (pct >= 1)   return `${pct.toFixed(1)}%`;  // 2.5% → "2.5%"
+  if (pct >= 0.1) return `${pct.toFixed(1)}%`;
+  return `${pct.toFixed(2)}%`;
+}
+```
+
+### 8-4. 성화 보상 청구 후 새로고침 시 청구 카운트 초기화
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | "불씨의 순환" 업적 보상을 청구(`claimSeonghwaReward`)한 직후 새로고침하면 `seonghwaRewardsClaimed`가 되돌아가 미청구 상태로 표시됨 |
+| **원인** | `claimSeonghwaReward`에서 `set()`으로 상태를 변경한 후 즉시 저장하지 않아 30초 자동 저장 전에 새로고침하면 상태가 소실됨 |
+| **해결법** | `set(...)` 직후 `(get() as GameStore).saveGame()` 호출 추가. `useConsumable`/`useConsumableBatch`의 기존 패턴과 동일하게 처리 |
+
+```ts
+claimSeonghwaReward: () => {
+  // ... set({ seonghwaRewardsClaimed: ... })
+  (get() as GameStore).saveGame(); // 즉시 flush
+  return true;
+},
+```
+
 ---
 
-## 8. 배화교 행자 관련
+## 9. 배화교 행자 관련
 
-### 8-1. "삼행의 율법" 연속 전투 미발동
+### 9-1. "삼행의 율법" 연속 전투 미발동
 
 | 항목 | 내용 |
 |------|------|
@@ -382,9 +453,9 @@ if (ctx.bossPatternState) {
 
 ---
 
-## 9. 세이브 마이그레이션 관련
+## 10. 세이브 마이그레이션 관련
 
-### 9-1. 배화교 외법 재편 (dataVersion 2) — 구 세이브 step-*/outer-* 키 초기화
+### 10-1. 배화교 외법 재편 (dataVersion 2) — 구 세이브 step-*/outer-* 키 초기화
 
 | 항목 | 내용 |
 |------|------|

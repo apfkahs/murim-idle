@@ -234,6 +234,7 @@ export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice>
       seonghwaRewardsClaimed: claimed + 1,
       materials: { ...state.materials, huimihan_seonghwa: (state.materials['huimihan_seonghwa'] ?? 0) + 1 },
     });
+    (get() as GameStore).saveGame();
     return true;
   },
 });

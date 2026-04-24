@@ -130,9 +130,12 @@ export default function AchievementTab() {
     boss_200:            [tigerBossKills, 200],
     // 몬스터 도감
     codex_first:         [codexDiscovered, 5],
+    codex_1:             [codexComplete, 1],
     codex_3:             [codexComplete, 3],
     codex_5:             [codexComplete, 5],
-    codex_10:            [codexComplete, 10],
+    codex_8:             [codexComplete, 8],
+    codex_12:            [codexComplete, 12],
+    codex_17:            [codexComplete, 17],
     codex_all:           [codexComplete, CODEX_MONSTERS.length],
     // 무공 수련
     art_collector:       [ownedArts.length, 4],

@@ -51,31 +51,27 @@ export const createArtsSlice: StateCreator<GameStore, [], [], ArtsSlice> = (set,
 
     if (state.equippedArts.includes(artId)) return;
 
-    // exclusiveGroup: 동일 그룹의 기존 장착 무공 자동 해제
+    // exclusiveGroup: 동일 그룹의 기존 장착 무공 자동 해제 (초식 데이터는 보존)
     let filteredEquipped = state.equippedArts;
-    let newActiveMasteries = state.activeMasteries;
     if (artDef.exclusiveGroup) {
       const group = artDef.exclusiveGroup;
       const swapped = state.equippedArts.filter(id => getArtDef(id)?.exclusiveGroup === group);
       if (swapped.length > 0) {
         filteredEquipped = state.equippedArts.filter(id => !swapped.includes(id));
-        newActiveMasteries = { ...state.activeMasteries };
-        for (const id of swapped) delete newActiveMasteries[id];
       }
     }
 
-    // 포인트 체크는 스왑 후 상태 기준
-    const projected = { ...state, equippedArts: filteredEquipped, activeMasteries: newActiveMasteries } as GameState;
-    const usedPoints = calcUsedPoints(projected);
-    if (usedPoints + artDef.cost > state.artPoints) return;
-
+    // 포인트 체크: 장착 후 상태에서 전체 사용 포인트가 상한을 넘지 않는지 확인.
+    // 스왑된 무공의 초식 포인트는 calcUsedPoints가 미장착 상태로 판단해 자동 제외(포인트 반환 효과).
     const newEquipped = [...filteredEquipped, artId];
+    const projected = { ...state, equippedArts: newEquipped } as GameState;
+    if (calcUsedPoints(projected) > state.artPoints) return;
+
     const flags = { ...state.tutorialFlags };
     if (artId === 'samjae_sword') flags.equippedSword = true;
 
     set({
       equippedArts: newEquipped,
-      activeMasteries: newActiveMasteries,
       tutorialFlags: flags,
     });
   },
