@@ -161,6 +161,15 @@ const SKILL_TYPE_LABELS: Record<string, string> = {
   final_phase: '최종 페이즈',
   variable_multi_hit: '가변 다연타',
   dodge_buff_passive: '회피 반격',
+  baehwa_guard: '조건부 방어',
+  baehwa_ember_song: '회복·불씨',
+  baehwa_atar_sacrifice: '반사·자폭',
+  baehwa_hwachang: '확률 분기',
+  sraosha_response: '누적 버프',
+  sacred_oath: '페이즈 각성',
+  geombosa_attack: '3태세 검법',
+  hwabosa_attack: '4페이즈 성화',
+  gyeongbosa_attack: '경전 낭송',
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -21,6 +21,7 @@ export const CODEX_MONSTERS = [
   'squirrel','rabbit','fox','deer','boar','wolf','bear',
   'drunk_thug','peddler','troublemaker','wanderer','bounty_hunter','bandit_chief',
   'tiger_boss','innkeeper_true','hwahyulsa','eunrang','ronin',
+  'baehwa_haengja','baehwa_howi','baehwa_geombosa','baehwa_hwabosa','baehwa_gyeongbosa',
 ] as const;
 
 export interface AchievementDef {
