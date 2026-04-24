@@ -373,7 +373,7 @@ export default function AchievementTab() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-                        {unclaimed > 0 ? (
+                        {unclaimed > 0 && (
                           <button
                             onClick={() => claimSeonghwaReward()}
                             style={{
@@ -384,11 +384,10 @@ export default function AchievementTab() {
                           >
                             성화 수령 {unclaimed > 1 ? `(${unclaimed}개 대기)` : ''}
                           </button>
-                        ) : (
-                          <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                            {totalSeonghwaUsed}/{nextThreshold}
-                          </span>
                         )}
+                        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                          {totalSeonghwaUsed}/{nextThreshold}
+                        </span>
                       </div>
                     </div>
                   </div>

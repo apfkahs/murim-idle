@@ -16,11 +16,25 @@ export const CATEGORY_LABELS: Record<AchievementCategory, string> = {
   kills:   '처치 기록',
 };
 
-// 도감 완성 기준 몬스터 목록 (수련장·히든 제외)
+// 도감 완성 기준 몬스터 목록 (전장별 일반/히든/보스 모두 포함)
 export const CODEX_MONSTERS = [
+  // 수련장
+  'training_wood','training_iron',
+  // 야산 (일반·히든·보스)
   'squirrel','rabbit','fox','deer','boar','wolf','bear',
-  'drunk_thug','peddler','troublemaker','wanderer','bounty_hunter','bandit_chief',
-  'tiger_boss','innkeeper_true','hwahyulsa','eunrang','ronin',
+  'dangkang',
+  'tiger_boss',
+  // 허름한 객잔 (일반·히든·보스)
+  'drunk_thug','peddler','troublemaker','wanderer',
+  'masked_swordsman',
+  'innkeeper_true',
+  // 흑풍채 (일반·히든·보스)
+  'heugpung_mokryeong','sanbaram_gungsu','bounty_hunter','bandit_chief','ronin',
+  'nokrim_patrol_chief',
+  'bandit_leader',
+  // 천산 새외
+  'hwahyulsa','eunrang',
+  // 배화교 외문
   'baehwa_haengja','baehwa_howi','baehwa_geombosa','baehwa_hwabosa','baehwa_gyeongbosa',
 ] as const;
 
