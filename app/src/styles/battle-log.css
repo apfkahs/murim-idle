@@ -362,18 +362,33 @@
 .battle-log-root .combat + .section-divider { margin-top: 4px; }
 
 @media (max-width: 640px) {
-  .battle-log-root .event { grid-template-columns: 1fr; }
-  .battle-log-root .event.outgoing .side { grid-column: 1; justify-content: flex-start; }
-  .battle-log-root .event.incoming .side { grid-column: 1; }
-  .battle-log-root .turn-events::before { display: none; }
-  .battle-log-root .flavor.side-left,
-  .battle-log-root .flavor.side-right { grid-column: 1; text-align: left; padding: 2px 12px; }
-  .battle-log-root .dialogue.side-left,
-  .battle-log-root .dialogue.side-right {
-    grid-column: 1; text-align: left;
-    margin: 2px 12px; border-left: 2px solid #42424c; border-right: none;
-    padding-left: 10px;
+  /* 좌우 분할은 유지 — padding·gap·폰트만 축소해 좁은 컬럼에 맞춤 */
+  .battle-log-root .event .side {
+    gap: 4px;
+    padding: 3px 6px;
   }
+  .battle-log-root .event.outgoing .side { padding-right: 4px; }
+  .battle-log-root .event.incoming .side { padding-left: 4px; }
+  /* modifier 행도 모바일 padding 축소 — 좁은 컬럼에 맞게 */
+  .battle-log-root .event.hit-heavy-row .side { padding: 6px 8px; }
+  .battle-log-root .event.status-row .side { padding: 2px 6px; }
+  .battle-log-root .tag,
+  .battle-log-root .status-chip,
+  .battle-log-root .fire-chip { font-size: 9.5px; padding: 2px 5px; }
+  .battle-log-root .name { font-size: 11px; }
+  .battle-log-root .name .sub { font-size: 9.5px; }
+  .battle-log-root .value.normal,
+  .battle-log-root .value.heal { font-size: 13px; }
+  .battle-log-root .value.special,
+  .battle-log-root .value.crit { font-size: 16px; }
+  .battle-log-root .value.super-crit { font-size: 21px; }
+  .battle-log-root .value.hit-heavy { font-size: 18px; }
+  /* flavor/dialogue: 좌우 정렬은 유지하되 padding 축소 */
+  .battle-log-root .flavor.side-left  { padding: 2px 4px 2px 12px; }
+  .battle-log-root .flavor.side-right { padding: 2px 12px 2px 4px; }
+  .battle-log-root .flavor.both       { padding: 3px 8%; }
+  .battle-log-root .dialogue.side-left  { margin: 2px 6px 2px 12px; padding: 4px 6px 4px 8px; }
+  .battle-log-root .dialogue.side-right { margin: 2px 12px 2px 6px; padding: 4px 8px 4px 6px; }
 }
 
 /* 로그 자유 스크롤 래퍼 */

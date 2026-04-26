@@ -39,6 +39,7 @@ export default function CharacterInfoTab() {
   const activeMasteries = useGameStore(s => s.activeMasteries);
   const artGradeExp = useGameStore(s => s.artGradeExp);
   const equipment = useGameStore(s => s.equipment);
+  const bahwagyoNodeLevels = useGameStore(s => s.bahwagyo.nodeLevels);
   const getAttackInterval = useGameStore(s => s.getAttackInterval);
   const state = useGameStore.getState();
 
@@ -99,7 +100,7 @@ export default function CharacterInfoTab() {
             if (!def) return null;
             const grade = getArtCurrentGrade(equippedSimbeop, artGradeExp);
             const mult = getArtDamageMultiplier(def, artGradeExp[equippedSimbeop] ?? 0, activeMasteries[equippedSimbeop] ?? []);
-            const summary = formatPassiveEffectSummary(def, activeMasteries[equippedSimbeop] ?? [], mult);
+            const summary = formatPassiveEffectSummary(def, activeMasteries[equippedSimbeop] ?? [], mult, bahwagyoNodeLevels);
             return (
               <div className="art-card" key={equippedSimbeop}>
                 <div className="art-slot">심법</div>
@@ -126,7 +127,7 @@ export default function CharacterInfoTab() {
             if (!def) return null;
             const grade = getArtCurrentGrade(artId, artGradeExp);
             const mult = getArtDamageMultiplier(def, artGradeExp[artId] ?? 0, activeMasteries[artId] ?? []);
-            const summary = formatPassiveEffectSummary(def, activeMasteries[artId] ?? [], mult);
+            const summary = formatPassiveEffectSummary(def, activeMasteries[artId] ?? [], mult, bahwagyoNodeLevels);
             return (
               <div className="art-card" key={artId}>
                 <div className="art-slot">무공 {i + 1}</div>

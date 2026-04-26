@@ -12,8 +12,6 @@ export function calcUsedPoints(state: GameState): number {
   }, 0);
 
   for (const [artId, mIds] of Object.entries(state.activeMasteries)) {
-    const isEquipped = state.equippedArts.includes(artId) || state.equippedSimbeop === artId;
-    if (!isEquipped) continue;
     for (const mId of mIds) {
       const mDef = getMasteryDef(artId, mId);
       if (mDef) used += mDef.pointCost;

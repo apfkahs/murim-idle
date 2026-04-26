@@ -1,6 +1,12 @@
 import type { ArtDef } from '../../data/arts';
+import { seonghwaEffects } from '../../utils/combat/baehwagyoEffects';
 
-export function formatPassiveEffectSummary(def: ArtDef, activeMasteryIds: string[], starMultiplier: number = 1): string {
+export function formatPassiveEffectSummary(
+  def: ArtDef,
+  activeMasteryIds: string[],
+  starMultiplier: number = 1,
+  bahwagyoNodeLevels?: Record<string, number>,
+): string {
   let atkSpeed = 0;
   let dodge = 0;
   let critRate = 0;
@@ -9,6 +15,9 @@ export function formatPassiveEffectSummary(def: ArtDef, activeMasteryIds: string
   let dodgeHealPercent = 0;
   let dmgReductionPercent = 0;
   let hpPercent = 0;
+  let counterChancePct = 0;
+  let counterMult = 0;
+  let minAtkSpeedFloor: number | undefined = undefined;
 
   const collect = (eff: ArtDef['baseEffects'], mult: number = 1) => {
     if (!eff) return;
@@ -20,12 +29,22 @@ export function formatPassiveEffectSummary(def: ArtDef, activeMasteryIds: string
     if (eff.dodgeHealPercent) dodgeHealPercent += eff.dodgeHealPercent;
     if (eff.bonusDmgReductionPercent) dmgReductionPercent += eff.bonusDmgReductionPercent * mult;
     if (eff.bonusHpPercent) hpPercent += eff.bonusHpPercent * mult;
+    if (eff.dodgeCounterChance) counterChancePct = Math.max(counterChancePct, eff.dodgeCounterChance * 100);
+    if (eff.dodgeCounterMultiplier) counterMult = Math.max(counterMult, eff.dodgeCounterMultiplier);
+    if (eff.minAtkSpeedOverride !== undefined) {
+      minAtkSpeedFloor = minAtkSpeedFloor === undefined
+        ? eff.minAtkSpeedOverride
+        : Math.min(minAtkSpeedFloor, eff.minAtkSpeedOverride);
+    }
   };
 
   collect(def.baseEffects, starMultiplier);
   for (const mId of activeMasteryIds) {
     const mDef = def.masteries.find(m => m.id === mId);
     collect(mDef?.effects);
+  }
+  if (def.id === 'baehwa_seonghwa_bobeop' && bahwagyoNodeLevels) {
+    collect(seonghwaEffects(bahwagyoNodeLevels), 1);
   }
 
   const fmt = (n: number) => {
@@ -35,10 +54,16 @@ export function formatPassiveEffectSummary(def: ArtDef, activeMasteryIds: string
 
   const parts: string[] = [];
   if (atkSpeed > 0) parts.push(`공속 +${fmt(atkSpeed)}s`);
-  if (dodge > 0) parts.push(`회피 +${dodge}%`);
+  if (dodge > 0) parts.push(`회피 +${fmt(dodge)}%`);
   if (critRate > 0) parts.push(`치명 +${critRate}%`);
   if (regenPerSec > 0) parts.push(`회복 +${fmt(regenPerSec)}/초`);
-  if (dodgeCounter) parts.push('회피반격');
+  if (counterChancePct > 0) {
+    parts.push(`회피반격 ${counterChancePct.toFixed(0)}%`);
+  } else if (dodgeCounter) {
+    parts.push('회피반격');
+  }
+  if (counterMult > 0 && counterMult !== 1) parts.push(`반격×${counterMult.toFixed(1)}`);
+  if (minAtkSpeedFloor !== undefined) parts.push(`공속하한 ${minAtkSpeedFloor.toFixed(1)}s`);
   if (dodgeHealPercent > 0) parts.push(`회피회복 ${dodgeHealPercent}%`);
   if (dmgReductionPercent > 0) parts.push(`피감 -${dmgReductionPercent}%`);
   if (hpPercent > 0) parts.push(`체력 +${(hpPercent * 100).toFixed(0)}%`);

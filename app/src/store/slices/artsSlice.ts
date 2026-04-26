@@ -62,7 +62,8 @@ export const createArtsSlice: StateCreator<GameStore, [], [], ArtsSlice> = (set,
     }
 
     // 포인트 체크: 장착 후 상태에서 전체 사용 포인트가 상한을 넘지 않는지 확인.
-    // 스왑된 무공의 초식 포인트는 calcUsedPoints가 미장착 상태로 판단해 자동 제외(포인트 반환 효과).
+    // 활성 초식의 pointCost는 무공 장착 여부와 무관하게 항상 카운트되므로(sliceHelpers.ts 참조),
+    // 자동 해제된 무공의 초식 포인트는 그대로 잠긴 상태가 되어 재장착 시 추가 차감이 발생하지 않는다.
     const newEquipped = [...filteredEquipped, artId];
     const projected = { ...state, equippedArts: newEquipped } as GameState;
     if (calcUsedPoints(projected) > state.artPoints) return;

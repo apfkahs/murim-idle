@@ -32,6 +32,7 @@ export default function ArtsTab() {
   const artGradeExp = useGameStore(s => s.artGradeExp);
   const materials = useGameStore(s => s.materials);
   const baehwaUnlocked = useGameStore(s => s.firstEnteredFields?.['baehwagyo_oemun'] === true);
+  const bahwagyoNodeLevels = useGameStore(s => s.bahwagyo.nodeLevels);
   const equipArt = useGameStore(s => s.equipArt);
   const unequipArt = useGameStore(s => s.unequipArt);
   const equipSimbeop = useGameStore(s => s.equipSimbeop);
@@ -153,7 +154,11 @@ export default function ArtsTab() {
         const normalDmg = Math.floor(((swordDef.baseDamage ?? 0) + Math.floor(swordDef.proficiencyCoefficient * getProfDamageValue(prof))) * swordGradeMult);
         const normalCrit = Math.floor(normalDmg * 1.5);
         const showUlt = effects.unlockUlt && !!swordDef.ultMultiplier;
-        const ultName = effects.ultChange?.name ?? '강한 내려치기';
+        const swordActiveMasteries = activeMasteries['samjae_sword'] ?? [];
+        const swordUltChange = swordDef.masteries
+          .find(m => swordActiveMasteries.includes(m.id) && m.effects?.ultChange)
+          ?.effects?.ultChange;
+        const ultName = swordUltChange?.name ?? '강한 내려치기';
         const ultDmg = Math.floor(((swordDef.ultBaseDamage ?? 0) + Math.floor((swordDef.ultMultiplier ?? 0) * getProfDamageValue(prof))) * swordGradeMult);
         const ultCrit = Math.floor(ultDmg * 1.5);
         return (
@@ -351,7 +356,7 @@ export default function ArtsTab() {
           if (def.artType === 'active') {
             collapsedSummary = `피해 ${normalDmg}`;
           } else if (def.artType === 'passive') {
-            collapsedSummary = formatPassiveEffectSummary(def, activeMasteries[owned.id] ?? [], passiveStarMult);
+            collapsedSummary = formatPassiveEffectSummary(def, activeMasteries[owned.id] ?? [], passiveStarMult, bahwagyoNodeLevels);
           } else if (def.artType === 'simbeop') {
             collapsedSummary = `기운 +${calcQiForArt(owned.id).toFixed(1)}/초`;
           } else {
@@ -414,7 +419,7 @@ export default function ArtsTab() {
                   )}
 
                   {def.artType === 'passive' && (() => {
-                    const summary = formatPassiveEffectSummary(def, activeMasteries[owned.id] ?? [], passiveStarMult);
+                    const summary = formatPassiveEffectSummary(def, activeMasteries[owned.id] ?? [], passiveStarMult, bahwagyoNodeLevels);
                     return summary ? (
                       <div style={{ marginTop: 10, padding: '7px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
                         <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>패시브 효과</div>
