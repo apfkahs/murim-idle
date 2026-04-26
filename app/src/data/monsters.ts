@@ -41,7 +41,10 @@ export interface BossSkillDef {
      // ── 배화교 검보사 신규 ──
      | 'geombosa_attack'       // 검보사 공격 라우터 (검술/화염검/연격/점화/성화 + 3태세)
      | 'hwabosa_attack'       // 화보사 공격 라우터 (성화술 + 4페이즈)
-     | 'gyeongbosa_attack';   // 경보사 공격 라우터 (경전 낭송 3종 + 규율 스택·카운터 + 절대 규율)
+     | 'gyeongbosa_attack'   // 경보사 공격 라우터 (경전 낭송 3종 + 규율 스택·카운터 + 절대 규율)
+     // ── 배화교 외문수좌 신규(인프라 예약) ──
+     | 'oemun_suja_attack'    // 외문수좌 공격 라우터 (P1/P2)
+     | 'oemun_suja_guard';    // 외문수좌 전투 시작 가드 (battle_start 전용)
   triggerCondition: 'stamina_full' | 'hp_threshold' | 'default' | 'battle_start';
   staminaCost?: number;
   staminaGain?: number;
@@ -177,6 +180,9 @@ export interface BossSkillDef {
   battleStartLogs?: string[];                            // 전투 시작 즉시 출력될 로그
   firstHitLogMessagesNoArt?: string[];                  // 조건 불충족 플레이어 첫 공격 시 로그(A/B/C)
   firstHitLogMessagesWithArt?: string[];                // 조건 충족 플레이어 첫 공격 시 로그
+  // ── 외문수좌 인프라 예약: 부분 장착(N개 미만)/전체 장착 첫 피격 로그 ──
+  firstHitLogMessagesPartialArt?: string[];             // 외문수좌: 일부만 장착 시 로그
+  firstHitLogMessagesAllArt?: string[];                 // 외문수좌: 전부 장착 시 로그
   emberApplyChance?: number;                            // 성화 송가: 불씨 부여 확률 (0.8)
   emberSongSuccessLogs?: string[];                      // 송가 불씨 부여 성공 로그 (4종)
   emberSongFailLogs?: string[];                         // 송가 불씨 부여 실패 로그 (4종)
@@ -1449,6 +1455,50 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
       },
     ],
   },
+  // ── 배화교 외문수좌 패턴 ──
+  // 핸들러 위임 — skillHandlers/baehwagyo/oemun_suja.ts
+  // 1) oemun_suja_guard (battle_start): 삼행의 철칙 (외문수좌 변형, 0종/1+종 2단계)
+  // 2) oemun_suja_attack (default): P1/P2 라우터. 실제 분기는 PRE_SKILL_LOOP/IN_ATTACK_RESOLVE.
+  baehwa_oemun_suja: {
+    stamina: { initial: 0, max: 0, regenPerSec: 0 },
+    skills: [
+      {
+        id: 'oemun_suja_iron_rule',
+        displayName: '삼행의 철칙(三行鐵則)',
+        type: 'oemun_suja_guard',
+        triggerCondition: 'battle_start',
+        oneTime: true,
+        priority: 10,
+        // 0종 미장착 → 0.25, 1+종 장착 → 0.75. (검법 추가 시 3종 통합 → 1.0 분기 추가 예정)
+        // damageTakenMultiplierIfCondition / WhenFactionEquipped 는 baehwa_guard 데이터 슬롯과
+        // 의미가 달라 직접 사용하지 않음 — applyBattleStartSkills 의 oemun_suja_guard 분기에서 직접 0.25/0.75 결정.
+        battleStartLogs: [
+          '*외문수좌가 사제복의 옷자락을 정돈하며 천천히 고개를 든다. 그의 시선이 당신의 발끝부터 정수리까지 한 번 훑고, 그가 미세하게 고개를 끄덕인다.*',
+          '*「삼행(三行)의 철칙(鐵則) 아래에서 — 외문의 문턱을 넘으셨군요. 그러나 한 번 더 시험해 드리지요.」*',
+        ],
+        firstHitLogMessagesNoArt: [
+          '*당신의 일격이 외문수좌의 옷자락 앞에서 멎는다. 그의 손이 가볍게 한 번 펴졌을 뿐인데, 공기 자체가 두꺼워졌다.*\n*「철칙은 율법보다 무겁습니다. 그 손으로는 이 자리에 닿으실 수 없습니다.」*',
+          '*외문수좌가 한 발도 움직이지 않는다. 당신의 타격이 그에게 닿기 전에, 그가 읊조린 한 구절이 그 힘을 절반 이상 깎아낸다.*\n*「불(火)을 모르는 자가 불을 만지면 손이 데입니다. 부디 이 자리를 무겁게 여기십시오.」*',
+        ],
+        firstHitLogMessagesPartialArt: [
+          '*외문수좌가 입꼬리를 살짝 올린다. 그의 눈가에는 흥미가 어려 있다.*\n*「불의 결을 일부 익히셨군요. 그래도 — 아직은 부족합니다. 25%의 두께는 그대로 둡니다.」*',
+        ],
+        // TODO: 검법 추가 후 3종 통합 시 사용 — 현재 단계에서는 발생 불가 (자리 표시).
+        firstHitLogMessagesAllArt: [
+          '*외문수좌가 천천히 사제복의 매듭을 풀고, 양손을 자유롭게 늘어뜨린다. 그의 표정에서 사제로서의 온화함이 한 꺼풀 벗겨진다.*\n*「— 모두 익히셨군요. 좋습니다. 그러면 철칙도, 더 이상 두르고 있을 이유가 없겠지요.」*',
+        ],
+        logMessages: [],
+      },
+      {
+        id: 'oemun_suja_router',
+        displayName: '외문수좌 — 의식과 광화',
+        type: 'oemun_suja_attack',
+        triggerCondition: 'default',
+        priority: 5,
+        logMessages: [],
+      },
+    ],
+  },
   masked_swordsman: {
     stamina: { initial: 0, max: 0, regenPerSec: 0 },
     skills: [
@@ -1511,6 +1561,7 @@ export interface MonsterDef {
   equipDrops?: { equipId: string; chance: number }[];
   materialDrops?: { materialId: string; chance: number }[];
   description?: string;      // 도감 설명 (10마리 처치 시 해금)
+  hintText?: string;         // 도감/필드 상세에서 표시되는 한 줄 인상 텍스트 (지정 시 power 기반 일반 등급 텍스트 대체)
   hiddenEncounterLogs?: string[];  // 히든 스폰 시 대사 로그
 }
 
@@ -1784,6 +1835,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
       { materialId: 'hayan_jae', chance: 0.05 },
     ],
     grade: 11, imageKey: 'baehwa_haengja',
+    hintText: '옷자락 끝에 작은 불씨를 옮겨오는 견습 사제',
     emberAttackBonus: true,
     attackMessages: [
       '행자가 성화를 향해 두 손을 모은다. 그 기도 끝에서 불꽃이 튀어올랐다!',
@@ -1806,6 +1858,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
       { materialId: 'hayan_jae', chance: 0.07 },
     ],
     grade: 12, imageKey: 'baehwa_howi',
+    hintText: '성화 앞에 한 번 무릎 꿇은 자, 맹세의 창은 흔들리지 않는다',
     attackMessages: [
       '호위가 창을 바로 세우고 빠르게 내뻗쳤다!',
       '호위의 창끝이 날카롭게 당신을 파고들었다!',
@@ -1823,6 +1876,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
       // 검법 비급 드랍은 검법 무공 정의 후 별도 추가
     ],
     grade: 12, imageKey: 'baehwa_geombosa',
+    hintText: '검신을 따라 흰 불꽃이 결을 그리며 흐른다',
     attackMessages: [
       '검보사의 검이 섬광처럼 당신의 살갗을 스쳤다!',
       '검보사가 자세를 낮추며 검 끝을 내뻗쳤다!',
@@ -1840,6 +1894,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
       { materialId: 'hayan_jae', chance: 0.15 },
     ],
     grade: 13, imageKey: 'baehwa_hwabosa',
+    hintText: '성화 위에 명상하는 사제, 자신마저 불꽃의 그릇으로 바친다',
     attackMessages: [
       '*화보사가 왼손 위의 성화를 한 번 부드럽게 흔든다. 흩어진 불꽃이 당신의 몸을 스친다.*',
       '*「불꽃의 한 결을.」 화보사가 손등으로 허공을 쓸자, 그 궤적에 남은 잔열이 당신에게 닿는다.*',
@@ -1855,11 +1910,41 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
       { materialId: 'hayan_jae', chance: 0.20 },
     ],
     grade: 13, imageKey: 'baehwa_gyeongbosa',
+    hintText: '경전 한 줄로 살을 베는 노사제, 낭송이 곧 형벌이다',
     attackMessages: [
       '*경보사가 경전을 한 손에 받친 채, 남은 손끝으로 허공에 짧은 구절을 쓴다. 그 획의 결이 당신의 몸을 한 번 베고 지나간다.*',
       '*경보사가 읊조리던 구절을 잠시 끊고, 손등으로 공기를 스친다. 경(經)의 무게가 그 궤적을 따라 당신에게 닿는다.*',
     ],
     description: '배화교 외문에서 경전(經)을 지키는 사제. 그는 무기로 싸우지 않고, 경전의 구절로 싸운다. 그가 읊는 한 줄은 적을 규정하고, 한 호흡은 자신을 규율에 매단다. 교리의 엄중함 앞에서 그는 스스로를 더욱 가혹하게 단속하는데, 자신의 규율이 어지러워질 때마다 더 높은 권위가 더 무거운 규율로 내려온다. 마지막 순간 그가 부르는 것은 경전의 서문 첫 구절 — 교리 그 자체이며, 그 권위 앞에서는 적의 말과 움직임이 함께 얼어붙는다.',
+  },
+  // 배화교 외문수좌 — 외문 전장 보스. 2페이즈 구조(P1 사제 / P2 광전사). HP 0 도달 시
+  // 100% 회복 후 P2 진입(15초 양측 액션락). 자세한 메커닉은 oemun_suja.ts 핸들러 참조.
+  // 수치는 TODO: 기획자 확정 대기 (제안값으로 임시 적용).
+  {
+    id: 'baehwa_oemun_suja', name: '배화교 외문수좌',
+    hp: 20000, // 유효 HP 40000 (P1 20000 + P2 100% 회복 후 20000)
+    attackPower: 550,
+    attackInterval: 2.4, // P1 기본 2.4 / P2 광화 2.1 (P2 진입 시 핸들러에서 동적 변경)
+    regen: 0,
+    baseProficiency: 9, // TODO: 기획자 확정
+    drops: [],
+    // 외문수좌 보스 드롭:
+    //   - 타오르는 불꽃 파편 2.5% (보스 한정 재료)
+    //   - 사라지는 불꽃(신발) / 탐식하는 불꽃(무기) 각 0.02% (희미한 성화 동일 장비)
+    materialDrops: [
+      { materialId: 'taoreuneun_bulggot_pyeon', chance: 0.025 },
+    ],
+    equipDrops: [
+      { equipId: 'sarajinun_bulggot_boots', chance: 0.0002 },
+      { equipId: 'tamsik_bulggot_weapon',   chance: 0.0002 },
+    ],
+    isBoss: true, grade: 14, imageKey: 'baehwa_oemun_suja',
+    hintText: '발끝부터 정수리까지 한 번에 훑어내리는, 외문의 마지막 시험관',
+    attackMessages: [
+      '*외문수좌가 손등으로 공기를 한 번 가른다. 그 결이 당신의 몸을 베고 지나간다.*',
+      '*외문수좌가 사제복의 옷자락을 한 번 떨치자, 옷자락의 결이 채찍처럼 당신을 후린다.*',
+    ],
+    description: '배화교 외문을 이끄는 사제장. 그는 본디 말과 의식을 통해 사람을 시험하는 자였으나, 시험은 끝까지 침착할 수 없는 것이라 그 자신이 가장 잘 알고 있다. 한 호흡 동안 그는 권능을 정돈해 적의 발걸음을 가늠하고, 한 호흡 뒤에는 사제복을 벗고 직접 불을 끌어내려 적을 짓밟는다. 그는 외문에서 단 하나의 인물이지만, 그를 마주하는 자는 두 사람과 싸워야 한다.',
   },
 ];
 

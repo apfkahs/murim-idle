@@ -435,7 +435,12 @@ function processExploreMode(
     ctx.logSystem('괴이한 존재를 물리치고 답파에 성공했다!');
   } else {
     // 일반 처치 후 HP 15% 회복
-    const exploreHeal = Math.floor(ctx.maxHp * 0.15);
+    let exploreHeal = Math.floor(ctx.maxHp * 0.15);
+    // 외문수좌 인프라 — playerRecoveryDebuff 적용 (적 처치 직후, applyBattleReset 전이라 ctx.bossPatternState 잔존)
+    const recDebuffEx = ctx.bossPatternState?.playerRecoveryDebuff;
+    if (recDebuffEx && recDebuffEx.remainingSec > 0) {
+      exploreHeal = Math.floor(exploreHeal * (1 - recDebuffEx.pct));
+    }
     ctx.hp = Math.min(ctx.hp + exploreHeal, ctx.maxHp);
     ctx.logSystem(`적을 격파한 후 휴식을 취해 일부 체력을 회복했다! (+${exploreHeal})`);
 

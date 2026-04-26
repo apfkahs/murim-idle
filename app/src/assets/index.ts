@@ -82,6 +82,7 @@ const ENEMY_EMOJI: Record<string, string> = {
   baehwa_geombosa: '🗡️',
   baehwa_hwabosa: '🔥',
   baehwa_gyeongbosa: '📖',
+  baehwa_oemun_suja: '🔥',
 };
 
 export function getEnemyImage(key: string): string | null {

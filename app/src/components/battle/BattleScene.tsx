@@ -29,7 +29,15 @@ export default function BattleScene() {
   const kills = killCounts[currentEnemy.id] ?? 0;
   const reveal = getMonsterRevealLevel(kills);
   const enemyName = reveal >= 1 ? (monDef?.name ?? currentEnemy.id) : '???';
-  const enemyImg = getEnemyImage(currentEnemy.id);
+  // 외문수좌는 P2(광화) 진입 시 다른 초상화로 전환 — 사제복을 벗은 광전사 모습
+  const sujaPhase = currentEnemy.id === 'baehwa_oemun_suja'
+    && bossPatternState?.monsterState?.kind === 'baehwa_oemun_suja'
+    ? bossPatternState.monsterState.phase
+    : null;
+  const imageKey = sujaPhase === 'p2' || sujaPhase === 'transition'
+    ? 'baehwa_oemun_suja_p2'
+    : currentEnemy.id;
+  const enemyImg = getEnemyImage(imageKey);
   const player = getActiveProfile(selectedProfileKey, customProfileUrl, tier);
   const bgUrl = currentField ? getFieldBackground(currentField) : null;
 

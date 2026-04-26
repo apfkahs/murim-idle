@@ -44,7 +44,11 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   // 2) HP 자동회복 (전투 외)
   if (!ctx.isBattling) {
     ctx.maxHp = calcFullMaxHp(ctx.state);
-    ctx.hp = Math.min(ctx.hp + ctx.maxHp * 0.05 * dt, ctx.maxHp);
+    let naturalHeal = ctx.maxHp * 0.05 * dt;
+    // 외문수좌 인프라 — playerRecoveryDebuff 적용 (전투 외에서도 잔존 디버프가 있으면 곱셈)
+    const recDebuffNat = ctx.bossPatternState?.playerRecoveryDebuff;
+    if (recDebuffNat && recDebuffNat.remainingSec > 0) naturalHeal *= 1 - recDebuffNat.pct;
+    ctx.hp = Math.min(ctx.hp + naturalHeal, ctx.maxHp);
 
     if (ctx.pendingHuntRetry && ctx.hp >= ctx.maxHp && ctx.huntTarget && ctx.currentField) {
       const retryMon = getMonsterDef(ctx.huntTarget);
@@ -139,6 +143,19 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
           ctx.bossPatternState.bossStamina + pattern.stamina.regenPerSec * dt,
           pattern.stamina.max,
         );
+      }
+    }
+
+    // 외문수좌 인프라 — globalActionLockTimer / playerRecoveryDebuff 감산 (PER_TICK 1회만)
+    if (ctx.bossPatternState) {
+      const lock = ctx.bossPatternState.globalActionLockTimer ?? 0;
+      if (lock > 0) ctx.bossPatternState.globalActionLockTimer = Math.max(0, lock - dt);
+      const debuff = ctx.bossPatternState.playerRecoveryDebuff;
+      if (debuff && debuff.remainingSec > 0) {
+        const newSec = debuff.remainingSec - dt;
+        ctx.bossPatternState.playerRecoveryDebuff = newSec <= 0
+          ? undefined
+          : { ...debuff, remainingSec: newSec };
       }
     }
 
@@ -255,6 +272,42 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
     // 플레이어 공격 페이즈
     executePlayerAttackPhase(ctx);
+
+    // 외문수좌 — P1-B에서 HP 0 도달 시 P2로 회복 가로채기 (사망 보상/도감 카운트보다 먼저)
+    // 이 분기는 핸들러가 아닌 gameLoop 본체에 직접 둔다 (PER_TICK 훅과 사망 판정의 순서 의존 회피).
+    if (ctx.currentEnemy
+        && ctx.currentEnemy.id === 'baehwa_oemun_suja'
+        && ctx.currentEnemy.hp <= 0
+        && ctx.bossPatternState
+        && ctx.bossPatternState.monsterState?.kind === 'baehwa_oemun_suja'
+        && ctx.bossPatternState.monsterState.phase === 'p1b'
+        && !ctx.bossPatternState.monsterState.hasTriggeredP2) {
+      const sujaSt = ctx.bossPatternState.monsterState;
+      ctx.currentEnemy = { ...ctx.currentEnemy, hp: ctx.currentEnemy.maxHp };
+      sujaSt.phase = 'transition';
+      sujaSt.transitionTimer = 15;
+      sujaSt.hasTriggeredP2 = true;
+      ctx.bossPatternState.globalActionLockTimer = 15;
+      ctx.bossPatternState.bossDamageTakenMultiplier = undefined;
+      // P1 잔여 상태 정리
+      sujaSt.gugakRemaining = 0;
+      sujaSt.younguiCdRemaining = 0;
+      sujaSt.younguiBuffRemaining = 0;
+      sujaSt.descentGauge = 0;
+      sujaSt.sacredFireGauge = 0;
+      sujaSt.shellDodgeBuffStacks = 0;
+      sujaSt.currentSkillId = null;
+      sujaSt.transitionLogStage = 0;
+      // 보스 회피 0으로 (권능의 구각 종료)
+      ctx.bossPatternState.enemyDodgeRate = 0;
+      ctx.logLaw({
+        lawFlavor: '*외문수좌가 한 무릎을 꿇으려는 순간, 그의 입에서 한 줄의 청원이 흘러나온다. 그의 몸 안쪽에서 보이지 않는 불꽃이 다시 일어선다.*',
+        lawName: '아타시 바흐람(Ātaš Bahrām)의 강림 · 외문수좌',
+        lawText: '「······다시, 여쭙지요. 아타르시여, 이 몸을 태우십시오.」',
+      });
+      ctx.logFlavor('*수좌의 얼굴에서 사제의 단정함이 벗겨지고, 눈동자 안쪽에 붉은 불꽃이 자리를 잡는다.*', 'right', { actor: 'enemy' });
+      ctx.logDialogue('「— 이제 됐다. 내 입은 내가 쓴다.」', 'right', { actor: 'enemy' });
+    }
 
     // 적 사망 체크
     if (ctx.currentEnemy && ctx.currentEnemy.hp <= 0) {

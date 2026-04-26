@@ -34,7 +34,10 @@ function applyAshMukneom(ctx: TickContext, stacksBefore: number): void {
   if (!perStack) return;
   const cap = eff?.emberBurnHpRecoveryStackCap ?? 20;
   const stacks = Math.min(stacksBefore, cap);
-  const heal = Math.floor(ctx.maxHp * stacks * perStack);
+  let heal = Math.floor(ctx.maxHp * stacks * perStack);
+  // 외문수좌 인프라 — playerRecoveryDebuff 적용
+  const recDebuffMuk = ctx.bossPatternState?.playerRecoveryDebuff;
+  if (recDebuffMuk && recDebuffMuk.remainingSec > 0) heal = Math.floor(heal * (1 - recDebuffMuk.pct));
   if (heal <= 0) return;
   ctx.hp = Math.min(ctx.hp + heal, ctx.maxHp);
   if (!ctx.isSimulating) {

@@ -315,6 +315,11 @@ export interface GameState {
     playerCritRateOverride?: number;        // 경보사 단언 규율용 — 설정 시 critRate 강제 대체
     enemyDodgeRate?: number;                // 상시 적 회피율 (0..1). 경보사 규율 B 용
     enemyNextAttackDodgeBonus?: number;     // 1회용 가산치 (0..1). 경보사 자화 용
+    // === 외문수좌(범용 인프라) — 미설정 시 0/null (기존 보스 영향 없음) ===
+    globalActionLockTimer?: number;                       // 양측 행동 잠금 타이머(초). > 0 동안 player/enemy 공격 페이즈 가드
+    playerMaxQiBase?: number;                             // 외문수좌 P2 최대 기운 캡 스냅샷 (예약)
+    playerRecoveryDebuff?: { remainingSec: number; pct: number };  // 회복량 감소 (0..1, recovered *= 1 - pct)
+    bossDamageTakenMultiplier?: number;                   // 보스가 받는 피해 배율 (외문수좌 P2 set, 일반 보스는 미설정)
     // === 몬스터별 namespace (discriminated union, kind 판별자) ===
     monsterState?: MonsterState | null;
   } | null;

@@ -22,6 +22,10 @@ import { INITIAL_BAHWAGYO_STATE, migrateBaehwagyoOwnedArts, migrateBaehwagyoOute
 function migrateBossPatternState(raw: unknown): NonNullable<GameState['bossPatternState']> | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = { ...(raw as Record<string, unknown>) };
+  // 외문수좌 인프라 필드 누락 정규화 (구 세이브 호환). optional 이므로 기본값은 0/null.
+  if (!('globalActionLockTimer' in r)) r.globalActionLockTimer = 0;
+  if (!('bossDamageTakenMultiplier' in r)) r.bossDamageTakenMultiplier = 1;
+  // playerMaxQiBase / playerRecoveryDebuff 는 undefined 유지 (set 시점에만 의미)
   if ('monsterState' in r) return r as NonNullable<GameState['bossPatternState']>;
 
   const kindMatchers: { kind: MonsterState['kind']; prefix?: string; fields?: string[] }[] = [

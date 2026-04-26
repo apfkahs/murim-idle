@@ -11,6 +11,8 @@ export const FIELD_DESCRIPTIONS: Record<string, string> = {
 
 export function getMonsterHint(mon: MonsterDef, revealLevel: number): string {
   if (revealLevel < 1) return '';
+  // 몬스터별 고유 hint가 정의되어 있으면 우선 사용 (컨셉 톤)
+  if (mon.hintText) return mon.hintText;
   const power = mon.hp * mon.attackPower / mon.attackInterval;
   if (power > 8000) return '압도적인 위압감이 느껴진다';
   if (power > 3000) return '상당히 위험해 보인다';

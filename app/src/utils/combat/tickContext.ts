@@ -499,7 +499,10 @@ export function handleDodge(ctx: TickContext, eName: string, customMsg?: string)
   }
   const healPct = ctx.masteryEffects?.dodgeHealPercent;
   if (healPct) {
-    const healAmt = Math.floor(ctx.maxHp * healPct / 100);
+    let healAmt = Math.floor(ctx.maxHp * healPct / 100);
+    // 외문수좌 인프라 — playerRecoveryDebuff 적용
+    const recDebuffDodge = ctx.bossPatternState?.playerRecoveryDebuff;
+    if (recDebuffDodge && recDebuffDodge.remainingSec > 0) healAmt = Math.floor(healAmt * (1 - recDebuffDodge.pct));
     ctx.hp = Math.min(ctx.hp + healAmt, ctx.maxHp);
     if (!ctx.isSimulating) {
       ctx.floatingTexts = [...ctx.floatingTexts, { id: ctx.nextFloatingId++, text: `+${healAmt}`, type: 'heal' as const, timestamp: Date.now() }];
@@ -561,6 +564,21 @@ function meetsBaehwaGuardCondition(bahwagyoNodeLevels: Record<string, number>): 
   return bobeopLv >= BAEHWA_GUARD_BOBEOP_LEVEL_REQUIRED;
 }
 
+// 외문수좌 전용 — 배화교 무공 1+종 장착 여부 (검법 미존재 단계의 단순화 boolean).
+//   식화심법(mind-*) 합산 ≥ 1 또는 outer-bobeop-open ≥ 1 → 1+종 장착으로 간주
+//   둘 다 0 → 0종 (장착 없음)
+// TODO: 검법 추가 시 0|1|2|3 카테고리로 확장 (3종 통합 = 철칙 해제 0%).
+export function isOemunSujaArtEquipped(
+  bahwagyoNodeLevels: Record<string, number>,
+): boolean {
+  let mindSum = 0;
+  for (const [nodeId, lv] of Object.entries(bahwagyoNodeLevels)) {
+    if (nodeId.startsWith('mind-')) mindSum += lv;
+  }
+  if (mindSum >= 1) return true;
+  return (bahwagyoNodeLevels[BAEHWA_GUARD_BOBEOP_NODE_ID] ?? 0) >= 1;
+}
+
 export function applyBattleStartSkills(
   monsterId: string,
   equippedArts: string[],
@@ -604,6 +622,30 @@ export function applyBattleStartSkills(
         lawText,
       });
       if (!conditionMet) lawActive = skill.id;
+      if (skill.oneTime) usedOne.push(skill.id);
+    }
+    if (skill.type === 'oemun_suja_guard') {
+      // 검법 미존재 단계 — 0종(미장착) / 1+종(장착) 2단계.
+      // TODO: 검법 추가 시 3종 통합 = 1.0 (철칙 해제) 분기 추가.
+      const equipped = isOemunSujaArtEquipped(bahwagyoNodeLevels);
+      next.guardDamageTakenMultiplier = equipped ? 0.75 : 0.25;
+      next.guardFirstHitLogged = false;
+      const displayName = (skill as { displayName?: string }).displayName ?? skill.id;
+      const battleStartLogs = skill.battleStartLogs ?? [];
+      const lawFlavor = battleStartLogs[0];
+      const lawText = battleStartLogs.slice(1).join(' ') || undefined;
+      logs.push({
+        id: seq++,
+        time: 0,
+        actor: 'enemy',
+        kind: 'law',
+        lawFlavor,
+        lawName: `${displayName} · 발동`,
+        lawText,
+      });
+      // 0종 장착일 때만 lawActive (= 받피감 표시 활성). 1+종은 baehwa_guard 의
+      // damageTakenMultiplierWhenFactionEquipped 와 동등 — 적용은 되지만 lawActive 표기 없음.
+      if (!equipped) lawActive = skill.id;
       if (skill.oneTime) usedOne.push(skill.id);
     }
     if (skill.type === 'sraosha_response') {

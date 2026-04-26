@@ -121,10 +121,12 @@ export const FIELDS: FieldDef[] = [
     id: 'baehwagyo_oemun',
     name: '배화교 외문',
     monsters: ['baehwa_haengja', 'baehwa_howi', 'baehwa_geombosa', 'baehwa_hwabosa', 'baehwa_gyeongbosa'],
+    boss: 'baehwa_oemun_suja',
+    bossTimer: 90,
     hiddenMonsters: [],
     canExplore: true,
     sequential: true,
-    totalMonsterSlots: 7,
+    totalMonsterSlots: 5,
     unlockCondition: { materialOwned: 'secret_order' },
     firstEntryEvent: {
       logs: [
@@ -142,7 +144,7 @@ export const FIELDS: FieldDef[] = [
     canExplore: true,
     sequential: true,
     totalMonsterSlots: 5,
-    unlockCondition: { bossKill: 'baehwagyo_oemun_boss' },
+    unlockCondition: { bossKill: 'baehwa_oemun_suja' },
   },
   {
     id: 'baehwagyo_sawon',

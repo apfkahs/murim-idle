@@ -22,16 +22,20 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
   if (!ctx.currentEnemy) return;
   if (ctx.currentEnemy.attackPower <= 0 || ctx.currentEnemy.attackInterval <= 0) return;
 
+  // PER_TICK_HOOKS: 공격 이벤트와 무관하게 매 틱마다 실행 (기도 타이머, transition 타이머 감산 등).
+  // globalActionLockTimer early-return보다 먼저 실행해야 transition 기간에도 훅이 호출된다.
+  const tickPattern = ctx.bossPatternState ? BOSS_PATTERNS[ctx.currentEnemy.id] : null;
+  for (const hook of PER_TICK_HOOKS) {
+    hook(ctx, tickPattern);
+  }
+
+  // 외문수좌 인프라 — 양측 행동 잠금. 감산은 gameLoop PER_TICK 1회만.
+  if ((ctx.bossPatternState?.globalActionLockTimer ?? 0) > 0) return;
+
   // 적 기절 체크: 기절 중에는 공격 불가
   if (ctx.currentEnemy.enemyStunTimer && ctx.currentEnemy.enemyStunTimer > 0) {
     ctx.currentEnemy = { ...ctx.currentEnemy, enemyStunTimer: Math.max(0, ctx.currentEnemy.enemyStunTimer - ctx.dt) };
     return;
-  }
-
-  // PER_TICK_HOOKS: 공격 이벤트와 무관하게 매 틱마다 실행 (기도 타이머 등)
-  const tickPattern = ctx.bossPatternState ? BOSS_PATTERNS[ctx.currentEnemy.id] : null;
-  for (const hook of PER_TICK_HOOKS) {
-    hook(ctx, tickPattern);
   }
 
   ctx.enemyAttackTimer -= ctx.dt;
@@ -248,7 +252,11 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           // 배화교 화보사 (IN_ATTACK_RESOLVE 훅에서 처리)
           || skill.type === 'hwabosa_attack'
           // 배화교 경보사 (IN_ATTACK_RESOLVE 훅에서 처리)
-          || skill.type === 'gyeongbosa_attack') continue;
+          || skill.type === 'gyeongbosa_attack'
+          // 배화교 외문수좌 (IN_ATTACK_RESOLVE 훅에서 처리)
+          || skill.type === 'oemun_suja_attack'
+          // 외문수좌 전투 시작 가드 (battle_start로 처리됨)
+          || skill.type === 'oemun_suja_guard') continue;
 
       // ① 레지스트리 조회: 등록된 핸들러 있으면 위임 (없으면 fallthrough)
       const registeredHandler = SKILL_HANDLERS[skill.type];

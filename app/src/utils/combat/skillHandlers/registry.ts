@@ -5,13 +5,15 @@ import { registerBaehwaHowi, type HowiState } from './baehwagyo/howi';
 import { registerBaehwaGeombosa, type GeombosaState } from './baehwagyo/geombosa';
 import { registerBaehwaHwabosa, type HwabosaState } from './baehwagyo/hwabosa';
 import { registerBaehwaGyeongbosa, type GyeongbosaState } from './baehwagyo/gyeongbosa';
+import { registerBaehwaOemunSuja, type OemunSujaState } from './baehwagyo/oemun_suja';
 
 export type MonsterState =
   | HaengjaState
   | HowiState
   | GeombosaState
   | HwabosaState
-  | GyeongbosaState;
+  | GyeongbosaState
+  | OemunSujaState;
 
 export interface SkillHandlerResult { consumed: boolean; }
 
@@ -58,5 +60,6 @@ export function initSkillRegistry(): void {
   registerBaehwaGeombosa();
   registerBaehwaHwabosa();
   registerBaehwaGyeongbosa();
+  registerBaehwaOemunSuja();
   // 신규 몬스터 추가 시 이 목록에 한 줄 추가
 }

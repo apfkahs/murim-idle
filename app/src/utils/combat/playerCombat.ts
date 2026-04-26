@@ -15,6 +15,7 @@ import {
   consumeEmberStacks, getEmberStacks,
 } from './emberUtils';
 import { sweepAshOathBuffs, getAshOathAtkMult } from './baehwagyoEmberTick';
+import { isOemunSujaArtEquipped } from './tickContext';
 import type { TickContext } from './tickContext';
 
 const B = BALANCE_PARAMS;
@@ -42,6 +43,8 @@ function tryEmberUltDelete(ctx: TickContext): void {
 }
 
 export function executePlayerAttackPhase(ctx: TickContext): void {
+  // 외문수좌 인프라 — 양측 행동 잠금. 감산은 gameLoop PER_TICK 1회만.
+  if ((ctx.bossPatternState?.globalActionLockTimer ?? 0) > 0) return;
   if (ctx.playerStunTimer > 0) {
     ctx.playerStunTimer = Math.max(0, ctx.playerStunTimer - ctx.dt);
     return;
@@ -391,6 +394,13 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
             ctx.floatingTexts = [...ctx.floatingTexts, { id: ctx.nextFloatingId++, text: 'MISS', type: 'evade' as const, timestamp: Date.now() }];
             if (ctx.floatingTexts.length > 15) ctx.floatingTexts = ctx.floatingTexts.slice(-15);
           }
+          // 외문수좌 권능의 구각 — 회피 성공 시 다음 3타 강화
+          if (ctx.currentEnemy?.id === 'baehwa_oemun_suja'
+              && ctx.bossPatternState?.monsterState?.kind === 'baehwa_oemun_suja'
+              && ctx.bossPatternState.monsterState.gugakRemaining > 0) {
+            ctx.bossPatternState.monsterState.shellDodgeBuffStacks = 3;
+            ctx.logFlavor('*외문수좌의 발끝이 경전의 결을 따라 한 발짝 비껴선다. 그의 다음 일격에서 무게가 다르게 실린다.*', 'right', { actor: 'enemy' });
+          }
         }
       }
 
@@ -526,25 +536,38 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
         }
 
         // 배화교 4보스 공통 — 삼행의 율법 방호 (적이 받는 피해 0.5배)
+        // 외문수좌(철칙) — 동일 필드 guardDamageTakenMultiplier 재사용. 분기는 첫 피격 로그에서.
         if (ctx.bossPatternState?.guardDamageTakenMultiplier != null
             && ctx.bossPatternState.guardDamageTakenMultiplier !== 1
             && damage > 0) {
           damage = Math.floor(damage * ctx.bossPatternState.guardDamageTakenMultiplier);
-          // 첫 피격 1회 로그 (무공 미장착: A/B/C 중 랜덤)
+          // 첫 피격 1회 로그
           if (!ctx.bossPatternState.guardFirstHitLogged) {
             ctx.bossPatternState.guardFirstHitLogged = true;
-            const guardSkill = BOSS_PATTERNS[ctx.currentEnemy!.id]?.skills.find(
-              (s: BossSkillDef) => s.type === 'baehwa_guard');
-            if (guardSkill?.firstHitLogMessagesNoArt && guardSkill.firstHitLogMessagesNoArt.length > 0) {
-              const msg = guardSkill.firstHitLogMessagesNoArt[
-                Math.floor(Math.random() * guardSkill.firstHitLogMessagesNoArt.length)];
+            const enemyId = ctx.currentEnemy!.id;
+            const skills = BOSS_PATTERNS[enemyId]?.skills;
+            const guardSkill = skills?.find(
+              (s: BossSkillDef) => s.type === 'baehwa_guard' || s.type === 'oemun_suja_guard');
+            // 외문수좌 — 0/1+/3종 3-way (현재 검법 미존재 단계: 0/1+ 만)
+            let msgList: string[] | undefined;
+            if (enemyId === 'baehwa_oemun_suja' && guardSkill) {
+              const equipped = isOemunSujaArtEquipped(ctx.state.bahwagyo.nodeLevels);
+              // TODO: 검법 추가 시 3종 통합 분기 — guardSkill.firstHitLogMessagesAllArt 사용.
+              msgList = equipped
+                ? guardSkill.firstHitLogMessagesPartialArt
+                : guardSkill.firstHitLogMessagesNoArt;
+            } else {
+              msgList = guardSkill?.firstHitLogMessagesNoArt;
+            }
+            if (msgList && msgList.length > 0) {
+              const msg = msgList[Math.floor(Math.random() * msgList.length)];
               ctx.logFlavor(msg, 'left', { actor: 'player' });
             }
           }
         } else if (ctx.bossPatternState?.guardDamageTakenMultiplier === 1
                    && !ctx.bossPatternState.guardFirstHitLogged
                    && damage > 0) {
-          // 조건 충족(배화교 무공 장착) 첫 피격 로그
+          // 조건 충족(배화교 무공 장착) 첫 피격 로그 — baehwa_guard 4보스 공통
           ctx.bossPatternState.guardFirstHitLogged = true;
           const guardSkill = BOSS_PATTERNS[ctx.currentEnemy!.id]?.skills.find(
             (s: BossSkillDef) => s.type === 'baehwa_guard');
@@ -553,6 +576,13 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
               Math.floor(Math.random() * guardSkill.firstHitLogMessagesWithArt.length)];
             ctx.logFlavor(msg, 'left', { actor: 'player' });
           }
+        }
+
+        // 외문수좌 인프라 — 보스가 받는 피해 배율 (외문수좌 P2에서만 set, 미설정/1.0 시 무영향)
+        if (ctx.bossPatternState?.bossDamageTakenMultiplier != null
+            && ctx.bossPatternState.bossDamageTakenMultiplier !== 1
+            && damage > 0) {
+          damage = Math.floor(damage * ctx.bossPatternState.bossDamageTakenMultiplier);
         }
 
         // 배화교 화보사 — 아타르의 가호 DR (자기 불씨 × 5%, 최대 50%)
