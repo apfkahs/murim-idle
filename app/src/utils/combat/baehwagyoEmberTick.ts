@@ -87,7 +87,7 @@ export function tickBaehwagyoEmber(ctx: TickContext, dtSec: number): void {
   if (ctx.bossPatternState) {
     ctx.bossPatternState = { ...ctx.bossPatternState, playerDotStacks: res.dots };
   }
-  ctx.logFlavor('불씨 하나가 조용히 꺼진다.', 'right', { actor: 'player' });
+  ctx.logFlavor('불씨 하나가 조용히 꺼진다.', 'left', { actor: 'player' });
   applyAshMukneom(ctx, stacksBefore);
   applyAshMaengse(ctx, stacksBefore);
 }

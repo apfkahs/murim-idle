@@ -39,7 +39,7 @@ function tryEmberUltDelete(ctx: TickContext): void {
   if (ctx.bossPatternState) {
     ctx.bossPatternState = { ...ctx.bossPatternState, playerDotStacks: res.dots };
   }
-  ctx.logFlavor('절초의 바람에 불씨가 끌려 꺼진다.', 'right', { actor: 'player' });
+  ctx.logFlavor('절초의 바람에 불씨가 끌려 꺼진다.', 'left', { actor: 'player' });
 }
 
 export function executePlayerAttackPhase(ctx: TickContext): void {
