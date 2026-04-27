@@ -9,7 +9,8 @@ export interface TierDef {
   name: string;
   requirements?: {
     totalStats?: number;    // 경맥합
-    bossKills?: number;     // 보스 처치 횟수
+    bossKills?: number;     // 보스 처치 횟수 합계 (전 보스 통합)
+    totalKills?: number;    // 일반 몬스터 처치 수 합계
     achievementCount?: number; // 달성 업적 수
   };
   rewards?: {
@@ -38,28 +39,28 @@ export const TIERS: TierDef[] = [
   },
   {
     tier: 4, name: '이류 숙달',
-    requirements: { totalStats: 3500, achievementCount: 46, bossKills: 40 },
+    requirements: { totalStats: 2500 },
     rewards: { artPoints: 2 },
   },
   {
     tier: 5, name: '이류 대성',
-    requirements: { totalStats: 5500, achievementCount: 50, bossKills: 80 },
+    requirements: { totalStats: 3200 },
     rewards: { artPoints: 2 },
   },
   // ── 일류 ──
   {
     tier: 6, name: '일류 초입',
-    requirements: { totalStats: 8000, achievementCount: 54, bossKills: 150 },
+    requirements: { totalStats: 4200 },
     rewards: { artPoints: 4 },
   },
   {
     tier: 7, name: '일류 숙달',
-    requirements: { totalStats: 12000, achievementCount: 58, bossKills: 250 },
+    requirements: { totalStats: 5500 },
     rewards: { artPoints: 2 },
   },
   {
     tier: 8, name: '일류 대성',
-    requirements: { totalStats: 18000, bossKills: 400 },
+    requirements: { totalStats: 6500, bossKills: 2000, totalKills: 60000 },
     rewards: { artPoints: 2 },
   },
   // ── 절정 ──

@@ -80,20 +80,25 @@ export function seonghwaEffects(nodeLevels: Record<string, number>): MasteryEffe
   const lv = nodeLevels[SEONGHWA_NODE] ?? 0;
   if (lv < 1) return {};
 
-  let dodge   = 0.10 + (lv - 1) * 0.005;
-  let counter = 0.20 + (lv - 1) * 0.01;
+  let dodge = 0.10 + (lv - 1) * 0.005;
   let floorAS = 1.5;
+
+  // 카운터 확률: 구간별 선형 (10Lv: 40%, 20Lv: 52.5%, 30Lv: 65%)
+  let counter: number;
+  if (lv >= 30)      counter = 0.65;
+  else if (lv >= 20) counter = 0.525 + (lv - 20) * 0.0125;
+  else if (lv >= 10) counter = 0.40  + (lv - 10) * 0.0125;
+  else               counter = 0.20  + (lv - 1)  * (0.20 / 9);
 
   if (lv >= 10) floorAS = 1.4;
   if (lv >= 20) floorAS = 1.3;
   if (lv >= 30) {
     floorAS = 1.2;
-    dodge   += 0.005;  // 30Lv 묶음 보정 (24.5→25.0)
-    counter += 0.01;   // 30Lv 묶음 보정 (49→50)
+    dodge += 0.005;  // 30Lv 묶음 보정 (24.5→25.0)
   }
 
   // bonusDodge 는 기존 집계에서 % 단위 (ex 5 = +5%p). 본 스펙은 0.10=10% → × 100 환산.
-  return {
+  const result: MasteryEffects = {
     bonusDodge: dodge * 100,
     dodgeCounterChance: counter,
     dodgeCounterMultiplier: 1.4,
@@ -101,6 +106,18 @@ export function seonghwaEffects(nodeLevels: Record<string, number>): MasteryEffe
     bonusAtkSpeed: 1.0,
     dodgeCounterEnabled: true,
   };
+
+  // 10Lv 특성: 회피 시 HP 4% 회복
+  if (lv >= 10) result.dodgeHealPercent = 4;
+
+  // 20Lv 특성: 회피 시 공격력 +15% (3타, 최대 2스택)
+  if (lv >= 20) {
+    result.dodgeAtkBuffPercent = 15;
+    result.dodgeAtkBuffDuration = 3;
+    result.dodgeAtkBuffMaxStacks = 2;
+  }
+
+  return result;
 }
 
 /**
@@ -128,6 +145,14 @@ export function mergeBaehwagyoEffects(result: MasteryEffects, eff: MasteryEffect
     result.minAtkSpeedOverride = result.minAtkSpeedOverride === undefined
       ? eff.minAtkSpeedOverride
       : Math.min(result.minAtkSpeedOverride, eff.minAtkSpeedOverride);
+  }
+  if (eff.dodgeHealPercent !== undefined) {
+    result.dodgeHealPercent = Math.max(result.dodgeHealPercent ?? 0, eff.dodgeHealPercent);
+  }
+  if (eff.dodgeAtkBuffPercent !== undefined) {
+    result.dodgeAtkBuffPercent = Math.max(result.dodgeAtkBuffPercent ?? 0, eff.dodgeAtkBuffPercent);
+    result.dodgeAtkBuffDuration = Math.max(result.dodgeAtkBuffDuration ?? 0, eff.dodgeAtkBuffDuration ?? 0);
+    result.dodgeAtkBuffMaxStacks = Math.max(result.dodgeAtkBuffMaxStacks ?? 0, eff.dodgeAtkBuffMaxStacks ?? 0);
   }
 
   if (eff.enableBaehwagyoEmberTick) result.enableBaehwagyoEmberTick = true;

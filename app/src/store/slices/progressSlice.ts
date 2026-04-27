@@ -160,8 +160,11 @@ export const createProgressSlice: StateCreator<GameStore, [], [], ProgressSlice>
     const reqs = tierDef.requirements;
     const totalStats = state.stats.gi + state.stats.sim + state.stats.che;
 
+    const totalBossKills = Object.values(state.bossKillCounts).reduce((s, n) => s + n, 0);
+
     if (reqs.totalStats && totalStats < reqs.totalStats) return;
-    if (reqs.bossKills && (state.bossKillCounts['tiger_boss'] ?? 0) < reqs.bossKills) return;
+    if (reqs.bossKills && totalBossKills < reqs.bossKills) return;
+    if (reqs.totalKills && (state.totalKills ?? 0) < reqs.totalKills) return;
     if (reqs.achievementCount && (state.achievementCount ?? 0) < reqs.achievementCount) return;
 
     let newPoints = state.artPoints;
