@@ -75,8 +75,12 @@ export default function NeigongTab() {
     const reqs = nextTier.requirements!;
     if (reqs.totalStats && totalStats < reqs.totalStats) return false;
     if (reqs.bossKills) {
-      const bk = useGameStore.getState().bossKillCounts['tiger_boss'] ?? 0;
+      const bk = Object.values(useGameStore.getState().bossKillCounts).reduce((s, n) => s + n, 0);
       if (bk < reqs.bossKills) return false;
+    }
+    if (reqs.totalKills) {
+      const tk = useGameStore.getState().totalKills ?? 0;
+      if (tk < reqs.totalKills) return false;
     }
     if (reqs.achievementCount) {
       const ac = useGameStore.getState().achievementCount ?? 0;
@@ -180,7 +184,12 @@ export default function NeigongTab() {
             )}
             {nextTier.requirements.bossKills && (
               <span style={{ marginLeft: 12 }}>
-                보스 {useGameStore.getState().bossKillCounts['tiger_boss'] ?? 0}/{nextTier.requirements.bossKills}회
+                보스 {Object.values(useGameStore.getState().bossKillCounts).reduce((s, n) => s + n, 0)}/{nextTier.requirements.bossKills}회
+              </span>
+            )}
+            {nextTier.requirements.totalKills && (
+              <span style={{ marginLeft: 12 }}>
+                처치 {useGameStore.getState().totalKills ?? 0}/{nextTier.requirements.totalKills}마리
               </span>
             )}
             {nextTier.requirements.achievementCount && (
