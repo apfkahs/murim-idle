@@ -16,6 +16,22 @@ import { BALANCE_PARAMS } from '../../data/balance';
 import { INITIAL_BAHWAGYO_STATE, migrateBaehwagyoOwnedArts, migrateBaehwagyoOuterSplit } from './bahwagyoSlice';
 
 /**
+ * 구버전(v2/v3) 세이브 데이터를 v4 포맷으로 변환.
+ * idempotent: v4 이상이면 그대로 반환.
+ */
+function migrateToV4(data: Record<string, unknown>): Record<string, unknown> {
+  const d = { ...data };
+  // v2: neigong → qi
+  if (d.neigong !== undefined && d.qi === undefined) d.qi = d.neigong;
+  // v2: totalSpentNeigong → totalSpentQi
+  if (d.totalSpentNeigong !== undefined && d.totalSpentQi === undefined) d.totalSpentQi = d.totalSpentNeigong;
+  // v2: totalSimdeuk (사용 안 함) — 무시
+  d.version = '4.0';
+  if (d.dataVersion === undefined) d.dataVersion = 0;
+  return d;
+}
+
+/**
  * Legacy flat-prefix bossPatternState → monsterState namespace 격리 마이그레이션.
  * idempotent: 이미 신구조면 즉시 반환, 전투 밖 세이브는 null 즉시 반환.
  */
@@ -209,11 +225,11 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
     if (!raw) return;
 
     try {
-      const data = JSON.parse(raw);
+      let data = JSON.parse(raw);
 
-      if (!data.version || !data.version.startsWith('4')) {
-        return;
-      }
+      if (!data.version) return;
+      if (!data.version.startsWith('4')) data = migrateToV4(data);
+      if (!data.version.startsWith('4')) return;
 
       // fieldUnlocks IIFE 안에서 참조하기 위해 set() 밖에서 먼저 계산
       const migratedBossKillCounts: Record<string, number> = (() => {
@@ -524,10 +540,13 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
 
   importSave: (slot, jsonString) => {
     try {
-      const data = JSON.parse(jsonString);
+      let data = JSON.parse(jsonString);
+      if (!data.version) return false;
+      if (!data.version.startsWith('4')) data = migrateToV4(data);
       if (!data.version?.startsWith('4')) return false;
+      const migratedJson = JSON.stringify(data);
       if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem(`murim_save_slot_${slot}`, jsonString);
+        localStorage.setItem(`murim_save_slot_${slot}`, migratedJson);
       }
       return true;
     } catch {
