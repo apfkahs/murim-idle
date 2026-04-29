@@ -47,9 +47,11 @@ export interface SkillNodeDef {
 
 export interface ExchangeRate {
   id: string;
-  direction: 'up' | 'down';
+  direction: 'up' | 'down' | 'material';
   fromResource: 'ember' | 'flame' | 'divine';
-  toResource: 'ember' | 'flame' | 'divine';
+  // 자원 ↔ 자원 환전일 때만 필수. material 환전이면 toMaterial 사용.
+  toResource?: 'ember' | 'flame' | 'divine';
+  toMaterial?: string;  // materials[id] 인벤토리에 누적
   fromAmount: number;
   toAmount: number;
 }
@@ -79,6 +81,10 @@ export interface BahwagyoState {
   // 모달 상태
   selectedNodeId: string | null;
   showLockedModal: { branch: Exclude<BranchId, 'mystery'>; tier: 2 | 3 } | null;
+  // 검법 — 검기 발현 슬라이더 비율 (0~0.125, 2.5% 단위)
+  swordQiDrainRate: number;
+  // 검법 — 절초 내력폭발 토글 (sword-ult lv10+에서 의미)
+  ultQiAbsorbEnabled: boolean;
 }
 
 export type NodeState = 'normal' | 'dimmed' | 'no_resource' | 'maxed';

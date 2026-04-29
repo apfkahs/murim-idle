@@ -177,6 +177,7 @@ export interface BossSkillDef {
   // 조건 미충족 시 IfCondition 배율, 조건 충족 시 WhenFactionEquipped(naming legacy) 배율 적용.
   damageTakenMultiplierIfCondition?: number;            // 조건 불충족 시 적이 받는 피해 배율 (0.5)
   damageTakenMultiplierWhenFactionEquipped?: number;    // 조건 충족 시 적이 받는 피해 배율 (미지정 시 1.0 = 기존 동작)
+  damageTakenMultiplierWhenSwordEquipped?: number;      // 성화검법 장착 시 추가 분기 배율 (경보사 등 — 1.0 = 철칙 해제)
   battleStartLogs?: string[];                            // 전투 시작 즉시 출력될 로그
   firstHitLogMessagesNoArt?: string[];                  // 조건 불충족 플레이어 첫 공격 시 로그(A/B/C)
   firstHitLogMessagesWithArt?: string[];                // 조건 충족 플레이어 첫 공격 시 로그
@@ -1318,6 +1319,7 @@ export const BOSS_PATTERNS: Record<string, BossPatternDef> = {
         priority: 10,
         damageTakenMultiplierIfCondition: 0.25,
         damageTakenMultiplierWhenFactionEquipped: 0.75,
+        damageTakenMultiplierWhenSwordEquipped: 1.0,
         battleStartLogs: [
           '*경보사가 한 권의 낡은 경전을 가슴 앞에 받쳐 들고 있다. 그가 눈을 감은 채, 경전의 첫 장을 손가락으로 천천히 쓸어내린다.*',
           '*「삼행(三行)의 철칙(鐵則) 아래에서 — 그대는 아직 경(經)의 결을 읽지 못한 자입니다. 함부로 이 자리를 어지럽히지 마십시오.」*',
@@ -1873,7 +1875,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
     materialDrops: [
       { materialId: 'huimihan_janbul', chance: 0.05 },
       { materialId: 'hayan_jae', chance: 0.10 },
-      // 검법 비급 드랍은 검법 무공 정의 후 별도 추가
+      { materialId: 'simbeop_guide_basic', chance: 0.05 / 30 },
     ],
     grade: 12, imageKey: 'baehwa_geombosa',
     hintText: '검신을 따라 흰 불꽃이 결을 그리며 흐른다',
@@ -1892,6 +1894,10 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
     materialDrops: [
       { materialId: 'huimihan_janbul', chance: 0.07 },
       { materialId: 'hayan_jae', chance: 0.15 },
+      { materialId: 'simbeop_guide_basic', chance: 0.07 / 23 },
+    ],
+    equipDrops: [
+      { equipId: 'bulssui_sword', chance: 0.0002 },
     ],
     grade: 13, imageKey: 'baehwa_hwabosa',
     hintText: '성화 위에 명상하는 사제, 자신마저 불꽃의 그릇으로 바친다',
@@ -1908,6 +1914,10 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
     materialDrops: [
       { materialId: 'huimihan_janbul', chance: 0.095 },
       { materialId: 'hayan_jae', chance: 0.20 },
+      { materialId: 'simbeop_guide_basic', chance: 0.095 / 15 },
+    ],
+    equipDrops: [
+      { equipId: 'ash_armor', chance: 0.0002 },
     ],
     grade: 13, imageKey: 'baehwa_gyeongbosa',
     hintText: '경전 한 줄로 살을 베는 노사제, 낭송이 곧 형벌이다',
@@ -1933,6 +1943,8 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
     //   - 사라지는 불꽃(신발) / 탐식하는 불꽃(무기) 각 0.02% (희미한 성화 동일 장비)
     materialDrops: [
       { materialId: 'taoreuneun_bulggot_pyeon', chance: 0.025 },
+      { materialId: 'hot_ash', chance: 0.01 },
+      { materialId: 'bahwagyo_sword_manual', chance: 0.005 },
     ],
     equipDrops: [
       { equipId: 'sarajinun_bulggot_boots', chance: 0.0002 },

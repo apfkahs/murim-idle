@@ -8,12 +8,14 @@ import {
   getNodeMax,
   getCostResource,
   getLevelUpCost,
+  getGuideLevelUpCost,
   RESOURCE_NAMES,
   RESOURCE_ICONS,
   getAbbrev,
   BRANCH_NAMES,
 } from './bahwagyoData';
 import { baehwaEmberIntervalSec } from '../../utils/combat/baehwagyoEffects';
+import { useGameStore } from '../../store/gameStore';
 
 // 소수점이 있으면 최대 소수점 2자리까지만, 정수면 그대로
 function formatNum(n: number): string {
@@ -53,12 +55,36 @@ export default function BahwagyoNodeDetailModal({ nodeId, state, onLevelUp, onCl
     : false);
 
   // 자원 선택 로컬 상태
+  // scroll 슬롯의 source-of-truth 는 노드 종류에 따라 분기:
+  //   - T1 심법 노드 (mind tier 1)   → simbeop_guide_basic 재료 (지침서 N권, N = getGuideLevelUpCost)
+  //   - sword-main 개방 (level === 0) → bahwagyo_sword_manual 재료 (비전서 1권)
+  //   - 그 외 (T2/T3 등)              → state.scrolls[branch-tier] 카운터 (1권)
+  const isMindT1 = node.branch === 'mind' && node.tier === 1;
+  const isSwordMainOpen = node.id === 'sword-main' && level === 0;
+  const allMaterials = useGameStore(s => s.materials);
+  const guideCount = allMaterials['simbeop_guide_basic'] ?? 0;
+  const swordManualCount = allMaterials['bahwagyo_sword_manual'] ?? 0;
+  const guideCost = isMindT1 ? getGuideLevelUpCost(node, level) : 0;
   const scrollKey = `${node.branch}-t${node.tier}`;
-  const scrollCount = state.scrolls[scrollKey] ?? 0;
+  let scrollCount: number;
+  let scrollCostAmt: number;
+  if (isMindT1) {
+    scrollCount = guideCount;
+    scrollCostAmt = guideCost;
+  } else if (isSwordMainOpen) {
+    scrollCount = swordManualCount;
+    scrollCostAmt = 1;
+  } else {
+    scrollCount = state.scrolls[scrollKey] ?? 0;
+    scrollCostAmt = 1;
+  }
   const costRes = getCostResource(node, level);
   const costAmt = getLevelUpCost(node, level);
   const hasEssence = state.resources[costRes] >= costAmt;
-  const hasScroll = scrollCount > 0;
+  const hasScroll = scrollCount >= scrollCostAmt;
+  // sword 가지에서 scroll 옵션이 의미 있는 노드는 sword-main(개방) 뿐. sword-ult / sword-qi-manifest 는 잔불 결제만.
+  const showScrollOption = node.branch !== 'outer'
+    && !(node.branch === 'sword' && !isSwordMainOpen);
 
   // 기본값: 보유량이 있는 쪽 우선 (둘 다 있으면 essence 우선)
   const defaultSel: 'essence' | 'scroll' = hasEssence ? 'essence' : hasScroll ? 'scroll' : 'essence';
@@ -230,14 +256,20 @@ export default function BahwagyoNodeDetailModal({ nodeId, state, onLevelUp, onCl
                     {RESOURCE_ICONS[costRes]} {RESOURCE_NAMES[costRes]} {costAmt}개 사용
                     &nbsp;(보유: {state.resources[costRes].toLocaleString()})
                   </button>
-                  {node.branch !== 'outer' && (
+                  {showScrollOption && (
                     <button
                       className={`fire-resource-btn${selectedResource === 'scroll' ? ' selected' : ''}`}
                       disabled={!hasScroll}
                       onClick={() => hasScroll && setSelectedResource('scroll')}
                     >
-                      📜 {BRANCH_NAMES[node.branch as Exclude<BranchId, 'mystery'>] ?? node.branch} {node.tier}단계 비급 1권 사용
-                      &nbsp;(보유: {scrollCount})
+                      {isMindT1 ? (
+                        <>📘 초급 심법 지침서 {guideCost}권 사용 &nbsp;(보유: {guideCount})</>
+                      ) : isSwordMainOpen ? (
+                        <>📕 검법 비전서 1권 사용 &nbsp;(보유: {swordManualCount})</>
+                      ) : (
+                        <>📜 {BRANCH_NAMES[node.branch as Exclude<BranchId, 'mystery'>] ?? node.branch} {node.tier}단계 비급 1권 사용
+                        &nbsp;(보유: {scrollCount})</>
+                      )}
                     </button>
                   )}
                 </div>

@@ -14,8 +14,12 @@ import {
   getEmberEntry, getEmberOutDamageMultiplier, getEmberAtkSpeedPenaltyMult, applyEmberStack,
   consumeEmberStacks, getEmberStacks,
 } from './emberUtils';
-import { sweepAshOathBuffs, getAshOathAtkMult } from './baehwagyoEmberTick';
-import { isOemunSujaArtEquipped } from './tickContext';
+import { sweepAshOathBuffs, getAshOathAtkMult, applyAshMukneom, applyAshMaengse } from './baehwagyoEmberTick';
+import { isOemunSujaArtEquipped, meetsOemunSuja3Conditions } from './tickContext';
+import { SIKHWA_NODES, SWORD_NODES, SEONGHWA_GEOMBEOP_ART_ID,
+  getSwordGradeMult, getSwordUltMult, getSwordQiManifestX,
+  getSwordUltCooldown, isSeonghwaGeombeopEquipped } from './baehwagyoEffects';
+import { getTamsikSwordUltBonus } from '../tamsikUtils';
 import type { TickContext } from './tickContext';
 
 const B = BALANCE_PARAMS;
@@ -40,6 +44,9 @@ function tryEmberUltDelete(ctx: TickContext): void {
     ctx.bossPatternState = { ...ctx.bossPatternState, playerDotStacks: res.dots };
   }
   ctx.logFlavor('절초의 바람에 불씨가 끌려 꺼진다.', 'left', { actor: 'player' });
+  // 절초 발동 소각도 묵념·맹세 트리거 — 소각 수 = consumed
+  applyAshMukneom(ctx, res.consumed);
+  applyAshMaengse(ctx, res.consumed);
 }
 
 export function executePlayerAttackPhase(ctx: TickContext): void {
@@ -246,13 +253,23 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
       // 절초 판정
       const ultCandidates = ctx.equippedArts.filter(artId => {
         const def = getArtDef(artId);
-        if (!def?.ultMultiplier || def.ultCost == null) return false;
-        const artActiveMasteries = activeMasteries[artId] ?? [];
-        const hasUltUnlock = def.masteries.some(m =>
-          artActiveMasteries.includes(m.id) && m.effects?.unlockUlt);
-        if (!hasUltUnlock) return false;
-        let effectiveUltCost = def.ultCost!;
-        for (const m of def.masteries) {
+        if (!def?.ultMultiplier || def.ultCost == null) {
+          // 검법(baehwa_seonghwa_geombeop)은 ultMultiplier=0/ultCost=30 으로 art 정의되며
+          // ultMultiplier 0 이라도 sword-ult lv5 검화합일 특성으로 절초가 해금된다.
+          if (artId !== SEONGHWA_GEOMBEOP_ART_ID) return false;
+        }
+        // 검법: 검화합일(sword-main lv5) 미해금 시 절초 사용 불가
+        if (artId === SEONGHWA_GEOMBEOP_ART_ID) {
+          const mainLv = ctx.state.bahwagyo.nodeLevels[SWORD_NODES.main] ?? 0;
+          if (mainLv < 5) return false;
+        } else {
+          const artActiveMasteries = activeMasteries[artId] ?? [];
+          const hasUltUnlock = def!.masteries.some(m =>
+            artActiveMasteries.includes(m.id) && m.effects?.unlockUlt);
+          if (!hasUltUnlock) return false;
+        }
+        let effectiveUltCost = def!.ultCost ?? 0;
+        for (const m of def!.masteries) {
           if ((activeMasteries[artId] ?? []).includes(m.id) && m.effects?.ultChange?.ultCostBonus) {
             effectiveUltCost += m.effects.ultChange.ultCostBonus;
           }
@@ -287,19 +304,35 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
 
         const ultProfType = chosenDef.proficiencyType;
         const ultProf = ctx.proficiency[ultProfType] ?? 0;
-        const ultGradeMult = getArtDamageMultiplier(
+        let ultGradeMult = getArtDamageMultiplier(
           chosenDef,
           ctx.artGradeExp[chosenId] ?? 0,
           artMasteryIds,
         );
-        const effectiveUltMultiplier = getEffectiveUltMultiplier(chosenDef, artMasteryIds);
+        let effectiveUltMultiplier = getEffectiveUltMultiplier(chosenDef, artMasteryIds);
+        let ultBaseDmg = chosenDef.ultBaseDamage ?? 0;
+        // 검법: 절초 배율·grade mult를 노드 함수로 동적 교체
+        if (chosenId === SEONGHWA_GEOMBEOP_ART_ID) {
+          const ultLv = ctx.state.bahwagyo.nodeLevels[SWORD_NODES.ult] ?? 0;
+          const mainLv = ctx.state.bahwagyo.nodeLevels[SWORD_NODES.main] ?? 0;
+          ultBaseDmg = 0;
+          effectiveUltMultiplier = getSwordUltMult(ultLv) + getTamsikSwordUltBonus(ctx.state);
+          ultGradeMult = getSwordGradeMult(mainLv);
+        }
         const effectiveInterval = attackInterval * artIntervalMult;
         const ultChargeTime = chosenDef.ultChargeTime ?? 0;
+
+        // 검법 절초 쿨타임 동적 결정
+        let resolvedUltCooldown = chosenDef.ultCooldown ?? 0;
+        if (chosenId === SEONGHWA_GEOMBEOP_ART_ID) {
+          const ultLv = ctx.state.bahwagyo.nodeLevels[SWORD_NODES.ult] ?? 0;
+          resolvedUltCooldown = getSwordUltCooldown(ultLv);
+        }
 
         if (ultChargeTime > 0 && !ultAtkFirst) {
           // 차지 후 공격: 즉시 데미지 없음
           ctx.stamina -= effectiveUltCostFinal;
-          ctx.ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
+          ctx.ultCooldowns[chosenId] = resolvedUltCooldown;
           ctx.currentBattleSkillUseCount += 1;
           tryEmberUltDelete(ctx);
           ctx.playerFinisherCharge = { artId: chosenId, attackFirst: false, timeLeft: ultChargeTime * effectiveInterval, chargeTotal: ultChargeTime * effectiveInterval };
@@ -308,11 +341,20 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
         } else {
           isUlt = true;
           damage = calcAttackDamage(
-            chosenDef.ultBaseDamage ?? 0, effectiveUltMultiplier, getProfDamageValue(ultProf),
+            ultBaseDmg, effectiveUltMultiplier, getProfDamageValue(ultProf),
             ultGradeMult, ctx.equipStats.bonusAtk ?? 0,
           );
           ctx.stamina -= effectiveUltCostFinal;
-          ctx.ultCooldowns[chosenId] = chosenDef.ultCooldown ?? 0;
+          // 성화공명 (sword-ult lv20) — 검법 단독 장착 + 10% → 쿨타임 미소모
+          if (chosenId === SEONGHWA_GEOMBEOP_ART_ID
+              && (ctx.state.bahwagyo.nodeLevels[SWORD_NODES.ult] ?? 0) >= 20
+              && isSeonghwaGeombeopEquipped(ctx.equippedArts)
+              && ctx.equippedArts.length === 1
+              && Math.random() < 0.10) {
+            // 쿨타임 0 (미소모)
+          } else {
+            ctx.ultCooldowns[chosenId] = resolvedUltCooldown;
+          }
           ctx.currentBattleSkillUseCount += 1;
           tryEmberUltDelete(ctx);
           attackName = ultChangeName ?? chosenDef.ultMessages?.[0] ?? '절초';
@@ -333,14 +375,43 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
 
           const normalProfType = chosen.def.proficiencyType;
           const normalProf = ctx.proficiency[normalProfType] ?? 0;
-          const normalGradeMult = getArtDamageMultiplier(
+          let normalGradeMult = getArtDamageMultiplier(
             chosen.def,
             ctx.artGradeExp[chosen.id] ?? 0,
             ctx.state.activeMasteries[chosen.id] ?? [],
           );
+          let normalBaseDmg = chosen.def.baseDamage ?? 0;
+          let normalProfCoeff = chosen.def.proficiencyCoefficient;
+          // 검법: baseDamage=0 유지, proficiencyCoefficient=1, gradeMult를 노드 기반 동적 교체
+          if (chosen.id === SEONGHWA_GEOMBEOP_ART_ID) {
+            const mainLv = ctx.state.bahwagyo.nodeLevels[SWORD_NODES.main] ?? 0;
+            normalBaseDmg = 0;
+            normalProfCoeff = 1;
+            normalGradeMult = getSwordGradeMult(mainLv);
+          }
+
+          // ── 검기 발현 — 검법 일반 공격 시 무기 공격력(bonusAtk)에 합산 ──
+          // 발동: 검법 art + qiLv≥1 + 슬라이더 Y>0 + 현재 stamina ≥ maxStamina×50%.
+          // 차감: maxStamina×Y 만큼 stamina 소모. 추가 피해: floor(burned × X).
+          // 합산 위치: calcAttackDamage 의 bonusAtk 인자 자리 → 분산/grade/치명타/적 디버프 모두 무기 공격력과 동일하게 적용.
+          let qiManifestBonus = 0;
+          if (chosen.id === SEONGHWA_GEOMBEOP_ART_ID) {
+            const qiLv = ctx.state.bahwagyo.nodeLevels[SWORD_NODES.qiManifest] ?? 0;
+            const drainRate = ctx.state.bahwagyo.swordQiDrainRate ?? 0;
+            if (qiLv >= 1 && drainRate > 0 && ctx.stamina >= ctx.maxStamina * 0.5) {
+              const X = getSwordQiManifestX(qiLv);
+              const drain = Math.floor(ctx.maxStamina * drainRate);
+              if (drain > 0 && ctx.stamina > 0) {
+                const burned = Math.min(drain, ctx.stamina);
+                ctx.stamina -= burned;
+                qiManifestBonus = Math.floor(burned * X);
+              }
+            }
+          }
+
           damage = calcAttackDamage(
-            chosen.def.baseDamage ?? 0, chosen.def.proficiencyCoefficient, getProfDamageValue(normalProf),
-            normalGradeMult, ctx.equipStats.bonusAtk ?? 0,
+            normalBaseDmg, normalProfCoeff, getProfDamageValue(normalProf),
+            normalGradeMult, (ctx.equipStats.bonusAtk ?? 0) + qiManifestBonus,
           );
 
           if (chosen.def.normalMessages && chosen.def.normalMessages.length > 0) {
@@ -366,12 +437,16 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
         }
       }
 
-      // 배화교 재의 맹세 — ATK 버프 (식화심법 소각 시점에 쌓인 FIFO 3중첩)
-      // 치명타·회피카운터 배율 적용 전에 기본 데미지에 곱함
+      // 배화교 재의 맹세 — ATK 버프 (식화심법 소각 시점에 쌓인 FIFO 중첩)
+      // 치명타·회피카운터 배율 적용 전에 기본 데미지에 곱함.
+      // lv29 이하: 초식에만 적용. lv30+: 절초에도 적용.
       if (damage > 0 && ctx.baehwagyoAshOathBuffs.length > 0) {
         sweepAshOathBuffs(ctx);
-        const ashOathMult = getAshOathAtkMult(ctx);
-        if (ashOathMult !== 1) damage *= ashOathMult;
+        const maengseLv = ctx.state.bahwagyo.nodeLevels[SIKHWA_NODES.maengse] ?? 0;
+        if (!isUlt || maengseLv >= 30) {
+          const ashOathMult = getAshOathAtkMult(ctx);
+          if (ashOathMult !== 1) damage *= ashOathMult;
+        }
       }
 
       // [A-PRE] 몬스터 회피 (경보사 규율 B / 자화) — 일반/절초 공용
@@ -551,11 +626,13 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
             // 외문수좌 — 0/1+/3종 3-way (현재 검법 미존재 단계: 0/1+ 만)
             let msgList: string[] | undefined;
             if (enemyId === 'baehwa_oemun_suja' && guardSkill) {
-              const equipped = isOemunSujaArtEquipped(ctx.state.bahwagyo.nodeLevels);
-              // TODO: 검법 추가 시 3종 통합 분기 — guardSkill.firstHitLogMessagesAllArt 사용.
-              msgList = equipped
-                ? guardSkill.firstHitLogMessagesPartialArt
-                : guardSkill.firstHitLogMessagesNoArt;
+              const equipped = isOemunSujaArtEquipped(ctx.state.bahwagyo.nodeLevels, ctx.equippedArts);
+              const allThree = meetsOemunSuja3Conditions(ctx.state.bahwagyo.nodeLevels, ctx.equippedArts);
+              msgList = allThree
+                ? guardSkill.firstHitLogMessagesAllArt
+                : equipped
+                  ? guardSkill.firstHitLogMessagesPartialArt
+                  : guardSkill.firstHitLogMessagesNoArt;
             } else {
               msgList = guardSkill?.firstHitLogMessagesNoArt;
             }
@@ -621,6 +698,36 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
         ctx.sessionTotalDamage += damage;
         if (damage > ctx.currentBattleMaxOutgoingHit) ctx.currentBattleMaxOutgoingHit = damage;
         if (isCritical) ctx.currentBattleCritCount += 1;
+
+        // ── 검법 절초 후속: 내력폭발(sword-ult lv10) ──
+        // 절초 데미지 적용 직후 별도 2단 데미지로 처리. 치명타·회피카운터 미적용(정타).
+        // (검기 발현은 일반 공격 분기에서 calcAttackDamage 의 bonusAtk 인자로 합산되므로 여기서 발동하지 않음)
+        if (isUlt && artDefForBonuses?.id === SEONGHWA_GEOMBEOP_ART_ID) {
+          const ultLv = ctx.state.bahwagyo.nodeLevels[SWORD_NODES.ult] ?? 0;
+          const qiLv = ctx.state.bahwagyo.nodeLevels[SWORD_NODES.qiManifest] ?? 0;
+          const X = getSwordQiManifestX(qiLv);
+          const ultQiAbsorbEnabled = ctx.state.bahwagyo.ultQiAbsorbEnabled ?? false;
+
+          // 내력폭발 — sword-ult lv10+ + 토글 ON. 최대 내력 20% 흡수 → 추가 피해 = absorbed × X × 2
+          if (ultLv >= 10 && ultQiAbsorbEnabled && X > 0) {
+            const absorbed = Math.floor(ctx.maxStamina * 0.20);
+            if (absorbed > 0 && ctx.stamina > 0) {
+              const burnedQi = Math.min(absorbed, ctx.stamina);
+              ctx.stamina -= burnedQi;
+              const burstDmg = Math.floor(burnedQi * X * 2);
+              if (burstDmg > 0 && ctx.currentEnemy) {
+                ctx.currentEnemy.hp -= burstDmg;
+                ctx.currentBattleDamageDealt += burstDmg;
+                ctx.sessionTotalDamage += burstDmg;
+                if (burstDmg > ctx.currentBattleMaxOutgoingHit) ctx.currentBattleMaxOutgoingHit = burstDmg;
+                ctx.logEvent({
+                  side: 'outgoing', actor: 'player', name: '내력폭발', subName: '· 절초',
+                  tag: 'special', value: burstDmg, valueTier: 'special',
+                });
+              }
+            }
+          }
+        }
 
         // 배화교 호위 — 성화 맹세 각성 턴: 플레이어 공격 시 공격당 반사 불씨
         const howiState = ctx.bossPatternState?.monsterState?.kind === 'baehwa_howi'

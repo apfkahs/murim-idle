@@ -9,6 +9,7 @@ import { type MonsterDef } from '../data/monsters';
 import { getProfDamageValue, getGradeTableForArt, getArtGradeInfoFromTable } from './artUtils';
 import { applyBaehwagyoArtEffects, isSikhwaEquipped, getSikhwaQiCoeff, SIKHWA_NODES } from './combat/baehwagyoEffects';
 import { TAMSIK_WEAPON_ID, getTamsikWeaponStats } from './tamsikUtils';
+import { BULSSUI_SWORD_ID, getBulssuiSwordEmberBonus } from './bulssuiSwordUtils';
 import type { GameState } from '../store/types';
 
 
@@ -39,6 +40,8 @@ export const CLEAR_BATTLE_STATE = {
   equipmentDotOnEnemy: [] as import('../store/types').EquipmentDotEntry[],
   baehwagyoEmberTimer: 0,
   baehwagyoAshOathBuffs: [] as { expiresAtSec: number; atkMult: number }[],
+  baehwagyoMukneomBurnCounter: 0,
+  baehwagyoMukneomDmgReductBuff: null as { pct: number; expiresAtSec: number } | null,
   sarajinunBulggotTimer: 0,
 };
 
@@ -108,6 +111,15 @@ export function gatherEquipmentStats(state: GameState): EquipStats {
     for (const [key, val] of Object.entries(stats)) {
       if (typeof val === 'number') {
         (result as any)[key] = ((result as any)[key] ?? 0) + val;
+      }
+    }
+    // 불씨의 검: 정적 stats 위에 불씨 스택 기반 추가 ATK 만 가산
+    if (inst.defId === BULSSUI_SWORD_ID) {
+      const bonus = getBulssuiSwordEmberBonus(state);
+      for (const [key, val] of Object.entries(bonus)) {
+        if (typeof val === 'number') {
+          (result as any)[key] = ((result as any)[key] ?? 0) + val;
+        }
       }
     }
   }

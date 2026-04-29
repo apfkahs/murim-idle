@@ -1,7 +1,8 @@
 // components/bahwagyo/BahwagyoExchangeUI.tsx
-// ??? 탭 환전소 UI — 상승 2개 + 하강 2개
+// ??? 탭 환전소 UI — 상승/하강 자원 환전 + 자원→재료 환전
 
 import { EXCHANGE_RATES, RESOURCE_NAMES, RESOURCE_ICONS } from './bahwagyoData';
+import { MATERIALS } from '../../data/materials';
 import type { ExchangeRate } from './bahwagyoTypes';
 
 interface Props {
@@ -9,7 +10,7 @@ interface Props {
   onExchange: (
     fromRes: 'ember' | 'flame' | 'divine',
     fromAmt: number,
-    toRes: 'ember' | 'flame' | 'divine',
+    toRes: 'ember' | 'flame' | 'divine' | { material: string },
     toAmt: number,
   ) => void;
 }
@@ -18,6 +19,11 @@ const MULTIPLIERS = [1, 5, 10] as const;
 
 const upRates = EXCHANGE_RATES.filter(r => r.direction === 'up');
 const downRates = EXCHANGE_RATES.filter(r => r.direction === 'down');
+const materialRates = EXCHANGE_RATES.filter(r => r.direction === 'material');
+
+function getMaterialName(id: string): string {
+  return MATERIALS.find(m => m.id === id)?.name ?? id;
+}
 
 function ExchangeBlock({
   rate,
@@ -33,20 +39,35 @@ function ExchangeBlock({
 
   function doExchange(times: number) {
     if (times <= 0) return;
-    onExchange(
-      rate.fromResource,
-      rate.fromAmount * times,
-      rate.toResource,
-      rate.toAmount * times,
-    );
+    if (rate.direction === 'material') {
+      if (!rate.toMaterial) return;
+      onExchange(
+        rate.fromResource,
+        rate.fromAmount * times,
+        { material: rate.toMaterial },
+        rate.toAmount * times,
+      );
+    } else {
+      if (!rate.toResource) return;
+      onExchange(
+        rate.fromResource,
+        rate.fromAmount * times,
+        rate.toResource,
+        rate.toAmount * times,
+      );
+    }
   }
+
+  const toLabel = rate.direction === 'material'
+    ? `📦 ${getMaterialName(rate.toMaterial ?? '')}`
+    : `${RESOURCE_ICONS[rate.toResource!]} ${RESOURCE_NAMES[rate.toResource!]}`;
 
   return (
     <div className="fire-exchange-block">
       <div className="fire-exchange-title">
         {RESOURCE_ICONS[rate.fromResource]} {RESOURCE_NAMES[rate.fromResource]}
         {' → '}
-        {RESOURCE_ICONS[rate.toResource]} {RESOURCE_NAMES[rate.toResource]}
+        {toLabel}
       </div>
       <div className="fire-exchange-rate">
         {rate.fromAmount.toLocaleString()}개 → {rate.toAmount.toLocaleString()}개
@@ -92,6 +113,14 @@ export default function BahwagyoExchangeUI({ resources, onExchange }: Props) {
           <ExchangeBlock key={rate.id} rate={rate} resources={resources} onExchange={onExchange} />
         ))}
       </div>
+      {materialRates.length > 0 && (
+        <div className="fire-exchange-section">
+          <div className="fire-exchange-section-title">재료 교환</div>
+          {materialRates.map(rate => (
+            <ExchangeBlock key={rate.id} rate={rate} resources={resources} onExchange={onExchange} />
+          ))}
+        </div>
+      )}
     </>
   );
 }

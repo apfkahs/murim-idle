@@ -7,6 +7,8 @@ import { BALANCE_PARAMS } from '../../data/balance';
 import { getArtDef } from '../../data/arts';
 import { BOSS_PATTERNS, getMonsterDef } from '../../data/monsters';
 import { MONSTER_STATE_FACTORIES } from './skillHandlers/registry';
+import { getAshArmorEmberReduction } from '../ashArmorUtils';
+import { SEONGHWA_GEOMBEOP_ART_ID } from './baehwagyoEffects';
 import {
   calcCritDamageMultiplier, calcCritRate, calcDodge, calcDmgReduction, calcTierMultiplier,
   calcStamina, calcEffectiveRegen, calcQiPerSec, calcCombatQiRatio,
@@ -95,6 +97,8 @@ export interface TickContext {
   dodgeCounterActive: boolean;
   baehwagyoEmberTimer: number;
   baehwagyoAshOathBuffs: GameState['baehwagyoAshOathBuffs'];
+  baehwagyoMukneomBurnCounter: number;
+  baehwagyoMukneomDmgReductBuff: GameState['baehwagyoMukneomDmgReductBuff'];
   sarajinunBulggotTimer: number;
   tamsikKillStacks: Record<string, number>;
   tamsikEmberStacks: number;
@@ -213,6 +217,8 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
   let dodgeCounterActive = state.dodgeCounterActive ?? false;
   const baehwagyoEmberTimer = state.baehwagyoEmberTimer ?? 0;
   const baehwagyoAshOathBuffs = [...(state.baehwagyoAshOathBuffs ?? [])];
+  const baehwagyoMukneomBurnCounter = state.baehwagyoMukneomBurnCounter ?? 0;
+  const baehwagyoMukneomDmgReductBuff = state.baehwagyoMukneomDmgReductBuff ?? null;
   let sarajinunBulggotTimer = state.sarajinunBulggotTimer ?? 0;
   const tamsikKillStacks = { ...(state.tamsikKillStacks ?? {}) };
   const tamsikEmberStacks = state.tamsikEmberStacks ?? 0;
@@ -306,6 +312,7 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
     bossPatternState, playerStunTimer, lastEnemyAttack,
     pendingHuntRetry, pendingAutoExplore, dodgeCounterActive,
     baehwagyoEmberTimer, baehwagyoAshOathBuffs,
+    baehwagyoMukneomBurnCounter, baehwagyoMukneomDmgReductBuff,
     sarajinunBulggotTimer, tamsikKillStacks, tamsikEmberStacks,
     playerFinisherCharge,
     totalKills, hiddenRevealedInField,
@@ -449,6 +456,8 @@ export function applyBattleReset(ctx: TickContext): void {
   ctx.lawActiveFromSkillId = null;
   ctx.baehwagyoEmberTimer = 0;
   ctx.baehwagyoAshOathBuffs = [];
+  ctx.baehwagyoMukneomBurnCounter = 0;
+  ctx.baehwagyoMukneomDmgReductBuff = null;
   ctx.sarajinunBulggotTimer = 0;
 }
 
@@ -465,10 +474,28 @@ export function applyUltCooldownReset(ctx: TickContext): void {
 }
 
 export function applyIncomingDamage(ctx: TickContext, damage: number): void {
-  ctx.hp -= damage;
-  ctx.currentBattleDamageTaken += damage;
+  // 묵념 lv10+ 누적 임계 도달 시 받는 피해 곱연산 감소
+  let finalDamage = damage;
+  const buff = ctx.baehwagyoMukneomDmgReductBuff;
+  if (buff) {
+    if (buff.expiresAtSec > ctx.combatElapsed) {
+      finalDamage = Math.floor(finalDamage * (1 - buff.pct));
+    } else {
+      ctx.baehwagyoMukneomDmgReductBuff = null;
+    }
+  }
+  // 재의 갑옷: 불씨 스택 5+ 일 때 강화 단계별 추가 곱연산 피해 감소
+  const ashRed = getAshArmorEmberReduction({
+    equipment: ctx.equipment,
+    bossPatternState: ctx.bossPatternState,
+  });
+  if (ashRed > 0) {
+    finalDamage = Math.floor(finalDamage * (1 - ashRed));
+  }
+  ctx.hp -= finalDamage;
+  ctx.currentBattleDamageTaken += finalDamage;
   ctx.currentBattleHitTakenCount += 1;
-  if (damage > ctx.currentBattleMaxIncomingHit) ctx.currentBattleMaxIncomingHit = damage;
+  if (finalDamage > ctx.currentBattleMaxIncomingHit) ctx.currentBattleMaxIncomingHit = finalDamage;
 }
 
 /**
@@ -564,18 +591,55 @@ function meetsBaehwaGuardCondition(bahwagyoNodeLevels: Record<string, number>): 
   return bobeopLv >= BAEHWA_GUARD_BOBEOP_LEVEL_REQUIRED;
 }
 
-// 외문수좌 전용 — 배화교 무공 1+종 장착 여부 (검법 미존재 단계의 단순화 boolean).
-//   식화심법(mind-*) 합산 ≥ 1 또는 outer-bobeop-open ≥ 1 → 1+종 장착으로 간주
-//   둘 다 0 → 0종 (장착 없음)
-// TODO: 검법 추가 시 0|1|2|3 카테고리로 확장 (3종 통합 = 철칙 해제 0%).
+/**
+ * 경보사(baehwa_guard 슬롯) — 검법/식화/보법 조합에 따른 받는 피해 배율.
+ *  - 검법 단독 장착만으로도 swordMult (1.0) 적용
+ *  - 식화 합산≥15 또는 보법 lv≥15 면 factionMult (0.75)
+ *  - 그 외 defaultMult (0.25)
+ */
+export function evaluateBaehwaGuardMultiplier(
+  bahwagyoNodeLevels: Record<string, number>,
+  equippedArts: readonly string[],
+  defaultMult: number,
+  factionMult: number,
+  swordMult: number = 1.0,
+): number {
+  if (equippedArts.includes(SEONGHWA_GEOMBEOP_ART_ID)) return swordMult;
+  if (meetsBaehwaGuardCondition(bahwagyoNodeLevels)) return factionMult;
+  return defaultMult;
+}
+
+// 외문수좌 전용 — 배화교 무공 1+종 장착 여부.
+//   식화심법(mind-*) 합산 ≥ 1, outer-bobeop-open ≥ 1, 또는 성화검법 장착 → 1+종.
 export function isOemunSujaArtEquipped(
   bahwagyoNodeLevels: Record<string, number>,
+  equippedArts: readonly string[],
 ): boolean {
+  if (equippedArts.includes(SEONGHWA_GEOMBEOP_ART_ID)) return true;
   let mindSum = 0;
   for (const [nodeId, lv] of Object.entries(bahwagyoNodeLevels)) {
     if (nodeId.startsWith('mind-')) mindSum += lv;
   }
   if (mindSum >= 1) return true;
+  return (bahwagyoNodeLevels[BAEHWA_GUARD_BOBEOP_NODE_ID] ?? 0) >= 1;
+}
+
+/**
+ * 외문수좌 — 검법 + 심법 + 성화보법 3종 동시 장착 시 철칙 해제(1.0).
+ *   - 성화검법 장착 필수
+ *   - 식화심법 트리 lv 합산 ≥ 1 (= 심법 노드에 한 점이라도 투자)
+ *   - 성화보법(outer-bobeop-open) lv ≥ 1
+ */
+export function meetsOemunSuja3Conditions(
+  bahwagyoNodeLevels: Record<string, number>,
+  equippedArts: readonly string[],
+): boolean {
+  if (!equippedArts.includes(SEONGHWA_GEOMBEOP_ART_ID)) return false;
+  let mindSum = 0;
+  for (const [nodeId, lv] of Object.entries(bahwagyoNodeLevels)) {
+    if (nodeId.startsWith('mind-')) mindSum += lv;
+  }
+  if (mindSum < 1) return false;
   return (bahwagyoNodeLevels[BAEHWA_GUARD_BOBEOP_NODE_ID] ?? 0) >= 1;
 }
 
@@ -602,10 +666,14 @@ export function applyBattleStartSkills(
   for (const skill of pattern.skills) {
     if (skill.triggerCondition !== 'battle_start') continue;
     if (skill.type === 'baehwa_guard') {
-      const conditionMet = meetsBaehwaGuardCondition(bahwagyoNodeLevels);
-      next.guardDamageTakenMultiplier = conditionMet
-        ? (skill.damageTakenMultiplierWhenFactionEquipped ?? 1.0)
-        : (skill.damageTakenMultiplierIfCondition ?? 0.5);
+      // 데이터에 damageTakenMultiplierWhenSwordEquipped 가 있으면 검법 분기 활성화 (경보사 등).
+      const swordMult = (skill as { damageTakenMultiplierWhenSwordEquipped?: number })
+        .damageTakenMultiplierWhenSwordEquipped;
+      const defaultMult = skill.damageTakenMultiplierIfCondition ?? 0.5;
+      const factionMult = skill.damageTakenMultiplierWhenFactionEquipped ?? 1.0;
+      next.guardDamageTakenMultiplier = swordMult !== undefined
+        ? evaluateBaehwaGuardMultiplier(bahwagyoNodeLevels, equippedArts, defaultMult, factionMult, swordMult)
+        : (meetsBaehwaGuardCondition(bahwagyoNodeLevels) ? factionMult : defaultMult);
       next.guardFirstHitLogged = false;
       // law-banner 엔트리
       const displayName = (skill as { displayName?: string }).displayName ?? skill.id;
@@ -621,14 +689,15 @@ export function applyBattleStartSkills(
         lawName: `${displayName} · 발동`,
         lawText,
       });
-      if (!conditionMet) lawActive = skill.id;
+      // lawActive: guardDamageTakenMultiplier < 1 이면 받피감 표기 활성화.
+      if ((next.guardDamageTakenMultiplier ?? 1) < 1) lawActive = skill.id;
       if (skill.oneTime) usedOne.push(skill.id);
     }
     if (skill.type === 'oemun_suja_guard') {
-      // 검법 미존재 단계 — 0종(미장착) / 1+종(장착) 2단계.
-      // TODO: 검법 추가 시 3종 통합 = 1.0 (철칙 해제) 분기 추가.
-      const equipped = isOemunSujaArtEquipped(bahwagyoNodeLevels);
-      next.guardDamageTakenMultiplier = equipped ? 0.75 : 0.25;
+      // 0종(미장착) / 1+종(장착) / 검법 포함 3종 통합 = 1.0 (철칙 해제).
+      const allThree = meetsOemunSuja3Conditions(bahwagyoNodeLevels, equippedArts);
+      const equipped = isOemunSujaArtEquipped(bahwagyoNodeLevels, equippedArts);
+      next.guardDamageTakenMultiplier = allThree ? 1.0 : (equipped ? 0.75 : 0.25);
       next.guardFirstHitLogged = false;
       const displayName = (skill as { displayName?: string }).displayName ?? skill.id;
       const battleStartLogs = skill.battleStartLogs ?? [];
@@ -648,6 +717,7 @@ export function applyBattleStartSkills(
       if (!equipped) lawActive = skill.id;
       if (skill.oneTime) usedOne.push(skill.id);
     }
+
     if (skill.type === 'sraosha_response') {
       if (next.monsterState?.kind === 'baehwa_howi') {
         next.monsterState = {
@@ -714,6 +784,8 @@ export function buildResult(ctx: TickContext, extras: {
     pendingHuntRetry: ctx.pendingHuntRetry, pendingAutoExplore: ctx.pendingAutoExplore, dodgeCounterActive: ctx.dodgeCounterActive,
     baehwagyoEmberTimer: ctx.baehwagyoEmberTimer,
     baehwagyoAshOathBuffs: ctx.baehwagyoAshOathBuffs,
+    baehwagyoMukneomBurnCounter: ctx.baehwagyoMukneomBurnCounter,
+    baehwagyoMukneomDmgReductBuff: ctx.baehwagyoMukneomDmgReductBuff,
     sarajinunBulggotTimer: ctx.sarajinunBulggotTimer,
     tamsikKillStacks: ctx.tamsikKillStacks,
     tamsikEmberStacks: ctx.tamsikEmberStacks,

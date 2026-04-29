@@ -63,6 +63,8 @@ function migrateBossPatternState(raw: unknown): NonNullable<GameState['bossPatte
 export type SaveSlice = {
   // ── state ──
   lastTickTime: number;
+  monotonicNow: number;
+  lastOfflineRewardAt: number;
   gameSpeed: number;
   currentSaveSlot: number;
 
@@ -80,6 +82,8 @@ export type SaveSlice = {
 export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set, get) => ({
   // ── 초기 상태 ──
   lastTickTime: Date.now(),
+  monotonicNow: Date.now(),
+  lastOfflineRewardAt: 0,
   gameSpeed: 1,
   currentSaveSlot: 0,
 
@@ -116,6 +120,8 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
       playerStunTimer: state.playerStunTimer,
       baehwagyoEmberTimer: state.baehwagyoEmberTimer,
       baehwagyoAshOathBuffs: state.baehwagyoAshOathBuffs,
+      baehwagyoMukneomBurnCounter: state.baehwagyoMukneomBurnCounter,
+      baehwagyoMukneomDmgReductBuff: state.baehwagyoMukneomDmgReductBuff,
       sarajinunBulggotTimer: state.sarajinunBulggotTimer,
       tamsikKillStacks: state.tamsikKillStacks,
       tamsikEmberStacks: state.tamsikEmberStacks,
@@ -173,8 +179,10 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
       selectedProfileKey: state.selectedProfileKey,
       customProfileUrl: state.customProfileUrl,
       currentSaveSlot: targetSlot,
-      lastTickTime: Date.now(),
+      lastTickTime: Math.max(state.lastTickTime, Date.now()),
       savedAt: Date.now(),
+      monotonicNow: Math.max(state.monotonicNow ?? 0, Date.now()),
+      lastOfflineRewardAt: state.lastOfflineRewardAt ?? 0,
       bahwagyo: {
         activeBranch: state.bahwagyo.activeBranch,
         resources: state.bahwagyo.resources,
@@ -183,6 +191,8 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         unlockedTiers: state.bahwagyo.unlockedTiers,
         expandLevel: state.bahwagyo.expandLevel,
         mysteryFragments: state.bahwagyo.mysteryFragments,
+        swordQiDrainRate: state.bahwagyo.swordQiDrainRate,
+        ultQiAbsorbEnabled: state.bahwagyo.ultQiAbsorbEnabled,
       },
     };
 
@@ -226,6 +236,12 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
       const loadEqStats = gatherEquipmentStats({ equipment: data.equipment ?? { weapon: null, armor: null, gloves: null, boots: null } } as GameState);
       const maxHp = calcMaxHp(data.stats?.che ?? 0, loadEqStats.bonusHp ?? 0, tierMult);
       const maxStamina = calcStamina(data.stats?.sim ?? 0, tierMult);
+      // 마이그레이션 클램프: monotonicNow 가 없는 기존 세이브에서 savedAt/lastTickTime 이
+      // 시계 변조로 미래에 박힌 경우, 패치 적용 시 게임이 동결되지 않도록 현재 시각으로 끌어내림.
+      // patched 이후 세이브(monotonicNow 존재)는 그대로 단조성 적용.
+      const monoBaselineFromSave = data.monotonicNow !== undefined
+        ? data.monotonicNow
+        : Math.min(data.savedAt ?? data.lastTickTime ?? Date.now(), Date.now());
       set({
         qi: data.qi ?? 0,
         totalSpentQi: data.totalSpentQi ?? 0,
@@ -284,6 +300,8 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         playerStunTimer: data.playerStunTimer ?? 0,
         baehwagyoEmberTimer: data.baehwagyoEmberTimer ?? 0,
         baehwagyoAshOathBuffs: data.baehwagyoAshOathBuffs ?? [],
+        baehwagyoMukneomBurnCounter: data.baehwagyoMukneomBurnCounter ?? 0,
+        baehwagyoMukneomDmgReductBuff: data.baehwagyoMukneomDmgReductBuff ?? null,
         sarajinunBulggotTimer: data.sarajinunBulggotTimer ?? 0,
         tamsikKillStacks: data.tamsikKillStacks ?? {},
         tamsikEmberStacks: data.tamsikEmberStacks ?? 0,
@@ -293,7 +311,9 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
           ...(data.tutorialFlags ?? createInitialState().tutorialFlags),
           firstBreakthroughNotified: data.tutorialFlags?.firstBreakthroughNotified ?? false,
         },
-        lastTickTime: Date.now(),
+        lastTickTime: monoBaselineFromSave,
+        monotonicNow: monoBaselineFromSave,
+        lastOfflineRewardAt: data.lastOfflineRewardAt ?? 0,
         ...((): { battleMode: GameState['battleMode']; currentField: GameState['currentField']; currentEnemy: GameState['currentEnemy'] } => {
           const staleCurrentField = data.currentField && !FIELDS.find(f => f.id === data.currentField);
           return {
@@ -394,6 +414,8 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
             mysteryFragments: { ...INITIAL_BAHWAGYO_STATE.mysteryFragments, ...(loaded.mysteryFragments ?? {}) },
             selectedNodeId: null,
             showLockedModal: null,
+            swordQiDrainRate: loaded.swordQiDrainRate ?? 0,
+            ultQiAbsorbEnabled: loaded.ultQiAbsorbEnabled ?? false,
           };
         })(),
         selectedProfileKey: data.selectedProfileKey ?? null,
@@ -797,9 +819,14 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
       }
     }
 
+    const nowMs = Date.now();
+    const prevMono = (get() as GameStore).monotonicNow ?? 0;
+    const prevReward = (get() as GameStore).lastOfflineRewardAt ?? 0;
     set({
       ...currentState,
-      lastTickTime: Date.now(),
+      lastTickTime: Math.max(currentState.lastTickTime, nowMs),
+      monotonicNow: Math.max(prevMono, nowMs),
+      lastOfflineRewardAt: Math.max(prevReward, nowMs),
       floatingTexts: [],
       playerAnim: '',
       enemyAnim: '',

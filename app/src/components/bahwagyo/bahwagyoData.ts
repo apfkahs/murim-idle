@@ -4,125 +4,92 @@
 import type { SkillNodeDef, ExchangeRate, BahwagyoState } from './bahwagyoTypes';
 
 // ──────────────────────────────────────────
-// 검법 노드 (8개)
+// 검법 노드 (성화검법) — 5개
+// sword-main (루트, lv5 절초 해금) + sword-ult, sword-qi-manifest + 특성 placeholder 2개
 // ──────────────────────────────────────────
 const swordNodes: SkillNodeDef[] = [
-  // 1단계 (4개) — 검법 가지 전면 잠금(placeholder). 설계 확정 시 placeholder 제거.
   {
-    id: 'sword-t1-1',
-    name: '초식 배율',
+    id: 'sword-main',
+    name: '성화검법(聖火劍法)',
     type: 'multiplier',
     tier: 1,
     branch: 'sword',
     isRoot: true,
-    placeholder: true,
-    description: '염화검법 초식의 위력을 높인다.',
-    functional: '공격 시 배율 증가',
-    baseMax: 30,
-    expandedMax: [45, 50],
-    effectPerLevel: 3,
+    description: '배화교의 검은 불을 베지 않는다. 성화의 마음으로 사람의 몸을 베고, 그 길의 끝에서 다시 불을 본다.',
+    functional: '초식 데미지 배율 증가, 5Lv에서 절초 해금.',
+    effectSummary: '레벨당 배율 +0.05 (1Lv = 1.5×, 만렙 30 = 2.8×)',
+    baseMax: 20,
+    expandedMax: [30, 40],
+    effectPerLevel: 5,
     effectUnit: '%',
+    traits: [
+      {
+        level: 5,
+        name: '검화합일',
+        description: '절초 해금. 이후 절초 배율 노드(sword-ult)가 함께 열린다.',
+      },
+    ],
   },
   {
-    id: 'sword-t1-2',
-    name: '절초',
+    id: 'sword-ult',
+    name: '검법 절초',
     type: 'finisher',
     tier: 1,
     branch: 'sword',
     requiresRoot: true,
-    placeholder: true,
-    description: '염화검법의 절초를 해방한다.',
-    functional: '절초 기술 추가',
-    baseMax: 30,
-    expandedMax: [45, 50],
-    effectPerLevel: 2,
-    effectUnit: '%',
-  },
-  {
-    id: 'sword-t1-3',
-    name: '치명타 확률',
-    type: 'critRate',
-    tier: 1,
-    branch: 'sword',
-    requiresRoot: true,
-    placeholder: true,
-    description: '치명적 일격의 가능성을 키운다.',
-    functional: '치명타 확률 증가',
-    baseMax: 30,
-    expandedMax: [45, 50],
-    effectPerLevel: 1,
-    effectUnit: '%',
-  },
-  {
-    id: 'sword-t1-4',
-    name: '치명타 피해',
-    type: 'critDmg',
-    tier: 1,
-    branch: 'sword',
-    requiresRoot: true,
-    placeholder: true,
-    description: '치명적 일격의 파괴력을 높인다.',
-    functional: '치명타 피해 증가',
-    baseMax: 30,
-    expandedMax: [45, 50],
-    effectPerLevel: 2,
-    effectUnit: '%',
-  },
-  // 2단계 (2개)
-  {
-    id: 'sword-t2-1',
-    name: '절초 강화 1',
-    type: 'finisherBoost',
-    tier: 2,
-    branch: 'sword',
-    placeholder: true,
-    description: '염화검법 절초의 파괴력을 더욱 높인다.',
-    functional: '절초 피해 증가',
-    baseMax: 15,
-    expandedMax: [20],
+    description: '검 하나에 호흡 셋, 그 마지막을 한 줄로 모은다.',
+    functional: '절초 배율 증가. 특정 레벨에서 쿨타임 단축·내력폭발·성화공명 특성을 얻는다.',
+    effectSummary: '레벨당 배율 +1/9 (lv0=3.0×, 만렙 30 = 6.0×)',
+    baseMax: 20,
+    expandedMax: [30, 40],
     effectPerLevel: 5,
     effectUnit: '%',
+    traits: [
+      { level: 5, name: '화염쿨 I', description: '절초 쿨타임 42초 → 35초.' },
+      { level: 10, name: '내력폭발', description: '절초 발동 시 최대 내력 20% 흡수 후 추가 피해(검기 발현 X 배율 × 2).' },
+      { level: 15, name: '화염쿨 II', description: '절초 쿨타임 35초 → 25초.' },
+      { level: 20, name: '성화공명', description: '검법 단독 장착 시, 절초 10% 확률로 쿨타임을 소모하지 않는다.' },
+    ],
   },
   {
-    id: 'sword-t2-2',
-    name: '공격 속도',
-    type: 'atkSpeed',
-    tier: 2,
-    branch: 'sword',
-    placeholder: true,
-    description: '검을 휘두르는 속도를 높인다.',
-    functional: '공격 속도 증가',
-    baseMax: 15,
-    expandedMax: [20],
-    effectPerLevel: 2,
-    effectUnit: '%',
-  },
-  // 3단계 (2개)
-  {
-    id: 'sword-t3-1',
-    name: '절초 강화 3',
+    id: 'sword-qi-manifest',
+    name: '검기 발현',
     type: 'finisherBoost',
-    tier: 3,
+    tier: 1,
     branch: 'sword',
-    placeholder: true,
-    description: '극한까지 단련된 절초가 불꽃을 품는다.',
-    functional: '절초 피해 대폭 증가',
-    baseMax: 5,
-    effectPerLevel: 10,
-    effectUnit: '%',
+    description: '검 끝에서 불씨가 솟구쳐 손에 닿지 않는 자도 베어낸다.',
+    functional: '내력을 일부 소모해 절초에 추가 피해를 더한다.',
+    effectSummary: '레벨당 배율 +1/3 (1Lv = 3.0×, 만렙 30 = 12.0×)',
+    baseMax: 20,
+    expandedMax: [30, 40],
+    effectPerLevel: 0.5,
+    effectUnit: 'X',
   },
   {
-    id: 'sword-t3-2',
-    name: '절초 강화 4',
-    type: 'finisherBoost',
-    tier: 3,
+    id: 'sword-strike-trait',
+    name: '초식 특성',
+    type: 'multiplier',
+    tier: 1,
     branch: 'sword',
     placeholder: true,
-    description: '화염이 절초에 깃들어 천하무적의 경지에 오른다.',
-    functional: '절초 추가 효과',
-    baseMax: 5,
-    effectPerLevel: 10,
-    effectUnit: '%',
+    description: '추후 업데이트 예정.',
+    functional: '추후 업데이트 예정.',
+    baseMax: 1,
+    effectPerLevel: 0,
+    effectUnit: '',
+  },
+  {
+    id: 'sword-ult-trait',
+    name: '절초 특성',
+    type: 'finisherBoost',
+    tier: 1,
+    branch: 'sword',
+    placeholder: true,
+    description: '추후 업데이트 예정.',
+    functional: '추후 업데이트 예정.',
+    baseMax: 1,
+    effectPerLevel: 0,
+    effectUnit: '',
   },
 ];
 
@@ -343,6 +310,8 @@ export const EXCHANGE_RATES: ExchangeRate[] = [
   { id: 'up-2', direction: 'up', fromResource: 'flame', toResource: 'divine', fromAmount: 20, toAmount: 1 },
   { id: 'down-1', direction: 'down', fromResource: 'divine', toResource: 'flame', fromAmount: 1, toAmount: 5 },
   { id: 'down-2', direction: 'down', fromResource: 'flame', toResource: 'ember', fromAmount: 5, toAmount: 25 },
+  // 잔불 → 하얀 재 (장비 강화 재료) 교환
+  { id: 'mat-1', direction: 'material', fromResource: 'ember', toMaterial: 'hayan_jae', fromAmount: 1, toAmount: 3 },
 ];
 
 
@@ -359,7 +328,15 @@ export function getNodeMax(node: SkillNodeDef, expandLevel: 0 | 1 | 2): number {
 // ──────────────────────────────────────────
 // 헬퍼: 레벨업 비용 자원 결정
 // ──────────────────────────────────────────
+const SWORD_DYNAMIC_NODE_IDS = new Set(['sword-main', 'sword-ult', 'sword-qi-manifest']);
+
 export function getCostResource(node: SkillNodeDef, currentLevel: number): 'ember' | 'flame' | 'divine' {
+  // 검법 노드: 만렙 20 기준 9→10 / 19→20 마일스톤이 flame 결제 구간.
+  // currentLevel 0~8 = ember (잔불), 9+ = flame (불꽃).
+  if (SWORD_DYNAMIC_NODE_IDS.has(node.id)) {
+    if (currentLevel >= 9) return 'flame';
+    return 'ember';
+  }
   if (node.tier === 1) {
     if (currentLevel >= 45) return 'divine';
     if (currentLevel >= 30) return 'flame';
@@ -400,7 +377,43 @@ const T1_EMBER_COST_OVERRIDES: Record<string, number[]> = {
   'mind-t1-4': T1_EMBER_COST_ASH_FAST,      // 재의 빠름
 };
 
+// ──────────────────────────────────────────
+// 검법 노드 비용 — 0~8 ember (잔불), 9+ flame (불꽃).
+// 9→10, 19→20 마일스톤은 큰 단가. 만렙 확장(30/40) 시 last-entry 폴백.
+// ──────────────────────────────────────────
+// sword-main: lv0→1 = 500 (오픈 비용 — 비전서 1개의 잔불 대체 결제 수단), lv1→2~lv8→9 는 지시서 표 그대로.
+// 비전서(`bahwagyo_sword_manual`) 사용 시 inventorySlice 가 무료로 0→1 처리하므로, 잔불 결제와 비전서 사용이 택 1.
+const SWORD_EMBER_COST_MAIN = [500, 180, 190, 200, 210, 220, 230, 240, 250];
+const SWORD_FLAME_COST_MAIN = [100, 30, 35, 40, 45, 50, 55, 60, 65, 200];      // 9→19 + 19→20 milestone
+
+// sword-ult: lv0→1 = 350 (오픈 비용), lv1→2~lv8→9 는 검법 메인과 동일 (180~250).
+const SWORD_EMBER_COST_ULT = [350, 180, 190, 200, 210, 220, 230, 240, 250];
+const SWORD_FLAME_COST_ULT = [100, 30, 35, 40, 45, 50, 55, 60, 65, 200];
+
+// sword-qi-manifest: lv0→1 = 525 (오픈 비용), lv1→2~lv8→9 는 지시서 표 그대로.
+const SWORD_EMBER_COST_QI = [525, 248, 262, 275, 289, 303, 317, 330, 344];
+const SWORD_FLAME_COST_QI = [125, 38, 44, 50, 57, 63, 69, 75, 82, 300];
+
+interface SwordCostTable {
+  ember: number[];
+  flame: number[];
+}
+const SWORD_COST_TABLES: Record<string, SwordCostTable> = {
+  'sword-main': { ember: SWORD_EMBER_COST_MAIN, flame: SWORD_FLAME_COST_MAIN },
+  'sword-ult': { ember: SWORD_EMBER_COST_ULT, flame: SWORD_FLAME_COST_ULT },
+  'sword-qi-manifest': { ember: SWORD_EMBER_COST_QI, flame: SWORD_FLAME_COST_QI },
+};
+
 export function getLevelUpCost(node: SkillNodeDef, currentLevel: number): number {
+  // 검법 동적 노드 — lv 0~8 ember, lv 9+ flame. 만렙 확장 시 마지막 entry 폴백.
+  const swordTable = SWORD_COST_TABLES[node.id];
+  if (swordTable) {
+    if (currentLevel >= 9) {
+      const idx = currentLevel - 9;
+      return swordTable.flame[idx] ?? swordTable.flame[swordTable.flame.length - 1];
+    }
+    return swordTable.ember[currentLevel] ?? swordTable.ember[swordTable.ember.length - 1];
+  }
   if (node.tier === 1) {
     if (currentLevel >= 45) return 5;
     if (currentLevel >= 30) return 3;
@@ -409,6 +422,37 @@ export function getLevelUpCost(node: SkillNodeDef, currentLevel: number): number
   }
   if (node.tier === 2) return 30;
   return 10;
+}
+
+// ──────────────────────────────────────────
+// 초급 심법 지침서 — T1 심법 노드 결제 비용 테이블 (잔불 비용 라인을 dimensionless 권수로 환산)
+// 0~29 = 0→1...29→30 비용. 30+ 는 만렙 확장 비용 폴백(default 5).
+// ──────────────────────────────────────────
+const GUIDE_COST_DEFAULT = [
+  5, 1, 1, 1, 2, 2, 2, 3, 3, 10,   // 0→10 (마일스톤=10권)
+  4, 4, 5, 5, 6, 6, 7, 7, 8, 17,   // 10→20
+  8, 9, 9, 10, 10, 11, 11, 12, 12, 25, // 20→30
+];
+const GUIDE_COST_ASH_RECOVERY = [
+  4, 1, 1, 1, 2, 2, 2, 2, 3, 9,
+  3, 4, 4, 5, 5, 6, 6, 7, 7, 16,
+  7, 8, 8, 9, 9, 10, 10, 11, 11, 23,
+];
+const GUIDE_COST_ASH_FAST = [
+  7, 2, 2, 2, 3, 3, 3, 4, 4, 15,
+  5, 6, 7, 8, 8, 9, 10, 10, 11, 26,
+  12, 12, 13, 14, 14, 15, 16, 17, 17, 38,
+];
+
+const GUIDE_COST_OVERRIDES: Record<string, number[]> = {
+  'mind-t1-2': GUIDE_COST_ASH_RECOVERY,
+  'mind-t1-3': GUIDE_COST_ASH_RECOVERY,
+  'mind-t1-4': GUIDE_COST_ASH_FAST,
+};
+
+export function getGuideLevelUpCost(node: SkillNodeDef, currentLevel: number): number {
+  const table = GUIDE_COST_OVERRIDES[node.id] ?? GUIDE_COST_DEFAULT;
+  return table[currentLevel] ?? 5;
 }
 
 // ──────────────────────────────────────────
@@ -450,15 +494,12 @@ export const BRANCH_NAMES: Record<Exclude<import('./bahwagyoTypes').BranchId, 'm
 
 // 노드 이름 → 한자 1글자 매핑 (비급 카드 내부 표기)
 const NODE_ABBREV_BY_NAME: Record<string, string> = {
-  // 검법
-  '초식 배율': '焰',
-  '절초': '絶',
-  '치명타 확률': '命',
-  '치명타 피해': '破',
-  '절초 강화 1': '強',
-  '공격 속도': '迅',
-  '절초 강화 3': '極',
-  '절초 강화 4': '滅',
+  // 검법 (성화검법)
+  '성화검법(聖火劍法)': '聖',
+  '검법 절초': '絶',
+  '검기 발현': '気',
+  '초식 특성': '招',
+  '절초 특성': '極',
   // 심법
   '심법 개방': '心',
   '재의 묵념': '黙',

@@ -189,6 +189,26 @@ export const MATERIALS: MaterialDef[] = [
     excludeFromDropBonus: true,
     consumable: true,
   },
+  // ── 배화교 검법 패치 신규 재료 ──
+  {
+    id: 'simbeop_guide_basic',
+    name: '초급 심법 지침서',
+    description: '배화교 외문 사제들이 처음 호흡을 익힐 때 펼쳐 보던 얇은 책자. T1 심법 노드를 잔불 없이 열어 올리는 데 쓸 수 있다.',
+    excludeFromDropBonus: true,
+  },
+  {
+    id: 'hot_ash',
+    name: '뜨거운 재',
+    description: '아직 온기가 식지 않은 잿덩이. 손바닥에 한 줌 흩뿌리면 하얀 재 서른 줌이 흩어져 나온다.',
+    excludeFromDropBonus: true,
+    consumable: true,
+  },
+  {
+    id: 'bahwagyo_sword_manual',
+    name: '배화교 검법 비전서',
+    description: '성화의 결을 검신에 옮겨 묶는 비결이 담긴 비전서. 배화교 비급 트리에서 성화검법(sword-main) 노드의 첫 단계를 잔불 대신 이 비전서 한 권으로 열 수 있다.',
+    excludeFromDropBonus: true,
+  },
 ];
 
 export const RECIPES: RecipeDef[] = [

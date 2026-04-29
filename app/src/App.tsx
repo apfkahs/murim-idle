@@ -52,16 +52,24 @@ export default function App() {
       const currentSlot = parseInt(localStorage.getItem('murim_save_current') ?? '0', 10);
       loadGame(currentSlot);
 
-      // 오프라인 진행 계산
+      // 오프라인 진행 계산 (단조 시계 기반)
       const raw = localStorage.getItem(`murim_save_slot_${currentSlot}`);
       if (raw) {
         try {
           const data = JSON.parse(raw);
-          const lastTick = data.lastTickTime ?? Date.now();
-          const elapsed = (Date.now() - lastTick) / 1000;
-          if (elapsed >= 5) {
-            const result = useGameStore.getState().processOfflineProgress(elapsed);
-            setOfflineResult(result);
+          const now = Date.now();
+          // 마이그레이션 클램프: monotonicNow 없는 기존 세이브의 미래 시각은 현재 시각으로 끌어내림
+          const monoBaseline = data.monotonicNow !== undefined
+            ? data.monotonicNow
+            : Math.min(data.savedAt ?? data.lastTickTime ?? now, now);
+          const lastReward = data.lastOfflineRewardAt ?? 0;
+          const baseline = Math.max(monoBaseline, lastReward);
+          if (now >= baseline) {
+            const elapsed = (now - baseline) / 1000;
+            if (elapsed >= 5) {
+              const result = useGameStore.getState().processOfflineProgress(elapsed);
+              setOfflineResult(result);
+            }
           }
         } catch (e) {
           console.error('[오프라인 진행 오류]', e);
@@ -77,12 +85,22 @@ export default function App() {
         hiddenAtRef.current = Date.now();
       } else {
         if (hiddenAtRef.current !== null) {
-          const elapsed = (Date.now() - hiddenAtRef.current) / 1000;
+          const hiddenAt = hiddenAtRef.current;
           hiddenAtRef.current = null;
-          if (elapsed >= 5) {
-            const result = useGameStore.getState().processOfflineProgress(elapsed);
-            if (result.elapsedTime > 0) {
-              setOfflineResult(result);
+          const now = Date.now();
+          const state = useGameStore.getState();
+          const baseline = Math.max(
+            state.monotonicNow ?? hiddenAt,
+            state.lastOfflineRewardAt ?? 0,
+            hiddenAt,
+          );
+          if (now >= baseline) {
+            const elapsed = (now - baseline) / 1000;
+            if (elapsed >= 5) {
+              const result = state.processOfflineProgress(elapsed);
+              if (result.elapsedTime > 0) {
+                setOfflineResult(result);
+              }
             }
           }
         }

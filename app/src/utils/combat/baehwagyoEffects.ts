@@ -59,17 +59,68 @@ export function sikhwaEffects(nodeLevels: Record<string, number>): MasteryEffect
   };
 
   if (mukneomLv >= 1) {
-    eff.emberBurnHpRecoveryPerStack = 0.002 + (mukneomLv - 1) * 0.0001;
+    eff.emberBurnHpRecoveryPerStack = getMukneomHpRecoveryPerStack(mukneomLv);
     eff.emberBurnHpRecoveryStackCap = 20;
   }
 
   if (maengseLv >= 1) {
-    eff.emberBurnAtkBuffPerStack = 0.001 + (maengseLv - 1) * 0.00005;
-    eff.emberBurnAtkBuffStackMax = 3;
-    eff.emberBurnAtkBuffDurationSec = 20;
+    eff.emberBurnAtkBuffPerStack = getMaengseAtkPerStack(maengseLv);
+    eff.emberBurnAtkBuffStackMax = getMaengseStackMax(maengseLv);
+    eff.emberBurnAtkBuffDurationSec = getMaengseDuration(maengseLv);
   }
 
   return eff;
+}
+
+// ── 재의 묵념 (mind-t1-2) ──
+// 소각된 1스택당 HP 회복 비율 (lv1=0.5%, lv10=1.0%, lv20=2.5%, lv30=4.0%).
+export function getMukneomHpRecoveryPerStack(lv: number): number {
+  if (lv <= 0) return 0;
+  if (lv === 1) return 0.005;
+  if (lv <= 9) return 0.005 + (lv - 1) * 0.0005;
+  if (lv === 10) return 0.010;
+  if (lv <= 19) return 0.010 + (lv - 10) * 0.001;
+  if (lv === 20) return 0.025;
+  if (lv <= 29) return 0.025 + (lv - 20) * (0.01 / 9);
+  return 0.040;
+}
+
+export interface MukneomTrait {
+  threshold: number;     // 누적 소각 임계값 (10/8/6)
+  duration: number;      // 버프 지속(초) (10/10/15)
+  reduction: number;     // 피해감소율 (0.10/0.15/0.20)
+}
+
+// lv10/20/30 카운터형 피해감소 특성. 미달 시 null.
+export function getMukneomTrait(lv: number): MukneomTrait | null {
+  if (lv >= 30) return { threshold: 6, duration: 15, reduction: 0.20 };
+  if (lv >= 20) return { threshold: 8, duration: 10, reduction: 0.15 };
+  if (lv >= 10) return { threshold: 10, duration: 10, reduction: 0.10 };
+  return null;
+}
+
+// ── 재의 맹세 (mind-t1-3) ──
+export function getMaengseAtkPerStack(lv: number): number {
+  if (lv <= 0) return 0;
+  if (lv === 1) return 0.020;
+  if (lv <= 9) return 0.020 + (lv - 1) * 0.001;
+  if (lv === 10) return 0.035;
+  if (lv <= 19) return 0.035 + (lv - 10) * 0.001;
+  if (lv === 20) return 0.050;
+  if (lv <= 29) return 0.050 + (lv - 20) * 0.001;
+  return 0.070;
+}
+
+export function getMaengseStackMax(lv: number): number {
+  if (lv <= 9) return 3;
+  if (lv <= 19) return 4;
+  return 5;
+}
+
+export function getMaengseDuration(lv: number): number {
+  if (lv <= 9) return 20;
+  if (lv <= 19) return 25;
+  return 30;
 }
 
 /**
@@ -174,6 +225,65 @@ export function mergeBaehwagyoEffects(result: MasteryEffects, eff: MasteryEffect
 /** 식화심법이 심법 슬롯에 장착되어 있는지 */
 export function isSikhwaEquipped(equippedSimbeop: string | null): boolean {
   return equippedSimbeop === 'baehwa_sikhwa_simbeop';
+}
+
+// ── 성화검법 (sword 가지) ──
+export const SEONGHWA_GEOMBEOP_ART_ID = 'baehwa_seonghwa_geombeop';
+
+export const SWORD_NODES = {
+  main: 'sword-main',
+  ult: 'sword-ult',
+  qiManifest: 'sword-qi-manifest',
+} as const;
+
+/** 성화검법 메인 등급 배율 (초식·절초 공용 grade mult) */
+export function getSwordGradeMult(lv: number): number {
+  if (lv <= 0) return 1.0;
+  if (lv === 1) return 1.5;
+  if (lv <= 9) return 1.5 + (lv - 1) * 0.05;
+  if (lv === 10) return 2.1;
+  if (lv <= 19) return 2.1 + (lv - 10) * (0.4 / 9);
+  return 2.8;
+}
+
+/** 검법 절초 ult 배율 (sword-ult lv 기준, lv0 기본 3.0) */
+export function getSwordUltMult(lv: number): number {
+  if (lv <= 0) return 3.0;
+  if (lv <= 9) return 3.0 + lv * (1 / 9);
+  if (lv === 10) return 4.5;
+  if (lv <= 19) return 4.5 + (lv - 10) * (1 / 9);
+  return 6.0;
+}
+
+/** 검기 발현 X 배율 (sword-qi-manifest lv 기준) */
+export function getSwordQiManifestX(lv: number): number {
+  if (lv <= 0) return 0;
+  if (lv === 1) return 3.0;
+  if (lv <= 9) return 3.0 + (lv - 1) * (3 / 8);
+  if (lv === 10) return 7.5;
+  if (lv <= 19) return 7.5 + (lv - 10) * (1 / 3);
+  return 12.0;
+}
+
+/** 검기 발현 슬라이더 상한 (Y) */
+export function getSwordQiMaxDrainRate(lv: number): number {
+  if (lv <= 0) return 0;
+  if (lv <= 9) return 0.05;
+  if (lv <= 14) return 0.075;
+  if (lv <= 19) return 0.10;
+  return 0.125;
+}
+
+/** 검법 절초 쿨타임 — sword-ult lv5/15 특성에 따라 단축 */
+export function getSwordUltCooldown(ultLv: number): number {
+  if (ultLv >= 15) return 25;
+  if (ultLv >= 5) return 35;
+  return 42;
+}
+
+/** 검법(성화검법)이 무공 슬롯에 장착되어 있는지 */
+export function isSeonghwaGeombeopEquipped(equippedArts: readonly string[]): boolean {
+  return equippedArts.includes(SEONGHWA_GEOMBEOP_ART_ID);
 }
 
 /** 성화보법이 주공/보공 슬롯에 장착되어 있는지 */

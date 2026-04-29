@@ -215,6 +215,10 @@ const ASSETS: AssetEntry[] = [
     prompt: 'legendary martial arts boots wreathed in vanishing crimson flame, dark lacquered leather with flame engravings, ethereal fire licking upward from the soles leaving embers in the air, Zoroastrian fire motifs on the ankle guards, sacred artifact of devouring flame, ornate and powerful' },
   { file: 'seonghwa/tamsik_bulggot_weapon.png', category: 'icon', size: '1024x1024',
     prompt: 'devouring flame sword, curved blade engulfed in hungry violet-orange flames that seem to consume the air around it, blackened hilt wrapped in red cord with ember inlays, hungry fire patterns etched on the blade surface, legendary Zoroastrian greedy-flame artifact, menacing and mystical' },
+  { file: 'seonghwa/bulssui_sword.png', category: 'icon', size: '1024x1024',
+    prompt: 'a single straight sword resting flat, slender steel blade with a tiny bound ember-knot smouldering near the guard, faint warm orange glow tracing the blade fuller, dark lacquered leather grip with simple cord wrap, modest sacred-fire artifact rather than a grand weapon, refined Zoroastrian flame motif, somber and elegant' },
+  { file: 'seonghwa/ash_armor.png', category: 'icon', size: '1024x1024',
+    prompt: 'sacred ash-grey scaled cuirass, layered overlapping plates that look like compressed pale ash, faint embers glowing between the seams, muted charcoal and bone palette with subdued warm highlights, reinforced shoulder pauldrons engraved with tiny flame sigils, solemn ascetic Zoroastrian armor of the extinguished pyre, weighty and ceremonial' },
 
   // 플레이어 캐릭터 (4단계 진화)
   { file: 'player/tier0_hucheon.png', category: 'character', size: '1024x1024',

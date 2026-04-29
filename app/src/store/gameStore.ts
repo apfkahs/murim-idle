@@ -51,20 +51,20 @@ export const useGameStore = create<GameStore>()((...args) => ({
     args[0](state => {
       const s = state as GameStore;
       if (s.paused && forceDt === undefined) {
-        return { lastTickTime: Date.now() };
+        return { lastTickTime: Math.max(s.lastTickTime, Date.now()) };
       }
       let dt: number;
       let now: number;
       if (forceDt !== undefined) {
         dt = forceDt;
-        now = (state as GameStore).lastTickTime + forceDt * 1000;
+        now = s.lastTickTime + forceDt * 1000;
       } else {
-        now = Date.now();
-        const rawDt = (now - (state as GameStore).lastTickTime) / 1000;
-        dt = Math.min(rawDt * (state as GameStore).gameSpeed, 5);
+        now = Math.max(s.lastTickTime, Date.now());
+        const rawDt = (now - s.lastTickTime) / 1000;
+        dt = Math.min(rawDt * s.gameSpeed, 5);
         if (dt < 0.05) return { lastTickTime: now };
       }
-      const changes = simulateTick(state as GameStore, dt, false);
+      const changes = simulateTick(s, dt, false);
       return { ...changes, lastTickTime: now };
     });
   },

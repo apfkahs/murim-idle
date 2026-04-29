@@ -10,6 +10,7 @@
  *  - 로그: "불씨 하나가 조용히 꺼진다."
  */
 import { consumeEmberStacks, getEmberStacks } from './emberUtils';
+import { SIKHWA_NODES, getMukneomTrait } from './baehwagyoEffects';
 import type { TickContext } from './tickContext';
 
 /** 만료된 ashOath 버프 in-place 스윕 — 배열 재할당 금지 */
@@ -28,33 +29,49 @@ export function getAshOathAtkMult(ctx: TickContext): number {
   return m;
 }
 
-function applyAshMukneom(ctx: TickContext, stacksBefore: number): void {
+export function applyAshMukneom(ctx: TickContext, burnedStacks: number): void {
   const eff = ctx.masteryEffects;
   const perStack = eff?.emberBurnHpRecoveryPerStack;
-  if (!perStack) return;
-  const cap = eff?.emberBurnHpRecoveryStackCap ?? 20;
-  const stacks = Math.min(stacksBefore, cap);
-  let heal = Math.floor(ctx.maxHp * stacks * perStack);
-  // 외문수좌 인프라 — playerRecoveryDebuff 적용
-  const recDebuffMuk = ctx.bossPatternState?.playerRecoveryDebuff;
-  if (recDebuffMuk && recDebuffMuk.remainingSec > 0) heal = Math.floor(heal * (1 - recDebuffMuk.pct));
-  if (heal <= 0) return;
-  ctx.hp = Math.min(ctx.hp + heal, ctx.maxHp);
-  if (!ctx.isSimulating) {
-    ctx.floatingTexts = [...ctx.floatingTexts, {
-      id: ctx.nextFloatingId++, text: `+${heal}`, type: 'heal' as const, timestamp: Date.now(),
-    }];
-    if (ctx.floatingTexts.length > 15) ctx.floatingTexts = ctx.floatingTexts.slice(-15);
+  if (perStack) {
+    const cap = eff?.emberBurnHpRecoveryStackCap ?? 20;
+    const stacks = Math.min(burnedStacks, cap);
+    let heal = Math.floor(ctx.maxHp * stacks * perStack);
+    // 외문수좌 인프라 — playerRecoveryDebuff 적용
+    const recDebuffMuk = ctx.bossPatternState?.playerRecoveryDebuff;
+    if (recDebuffMuk && recDebuffMuk.remainingSec > 0) heal = Math.floor(heal * (1 - recDebuffMuk.pct));
+    if (heal > 0) {
+      ctx.hp = Math.min(ctx.hp + heal, ctx.maxHp);
+      if (!ctx.isSimulating) {
+        ctx.floatingTexts = [...ctx.floatingTexts, {
+          id: ctx.nextFloatingId++, text: `+${heal}`, type: 'heal' as const, timestamp: Date.now(),
+        }];
+        if (ctx.floatingTexts.length > 15) ctx.floatingTexts = ctx.floatingTexts.slice(-15);
+      }
+    }
+  }
+
+  // 묵념 lv10+ 카운터 처리 — 임계 도달 시 피해감소 버프 발동
+  const mukneomLv = ctx.state.bahwagyo.nodeLevels[SIKHWA_NODES.mukneom] ?? 0;
+  const trait = getMukneomTrait(mukneomLv);
+  if (trait) {
+    ctx.baehwagyoMukneomBurnCounter += burnedStacks;
+    while (ctx.baehwagyoMukneomBurnCounter >= trait.threshold) {
+      ctx.baehwagyoMukneomBurnCounter -= trait.threshold;
+      ctx.baehwagyoMukneomDmgReductBuff = {
+        pct: trait.reduction,
+        expiresAtSec: ctx.combatElapsed + trait.duration,
+      };
+    }
   }
 }
 
-function applyAshMaengse(ctx: TickContext, stacksBefore: number): void {
+export function applyAshMaengse(ctx: TickContext, burnedStacks: number): void {
   const eff = ctx.masteryEffects;
   const perStack = eff?.emberBurnAtkBuffPerStack;
   if (!perStack) return;
   const maxStacks = eff?.emberBurnAtkBuffStackMax ?? 3;
   const duration = eff?.emberBurnAtkBuffDurationSec ?? 20;
-  const atkMult = 1 + stacksBefore * perStack;
+  const atkMult = 1 + burnedStacks * perStack;
   ctx.baehwagyoAshOathBuffs.push({
     expiresAtSec: ctx.combatElapsed + duration,
     atkMult,
@@ -88,6 +105,7 @@ export function tickBaehwagyoEmber(ctx: TickContext, dtSec: number): void {
     ctx.bossPatternState = { ...ctx.bossPatternState, playerDotStacks: res.dots };
   }
   ctx.logFlavor('불씨 하나가 조용히 꺼진다.', 'left', { actor: 'player' });
-  applyAshMukneom(ctx, stacksBefore);
-  applyAshMaengse(ctx, stacksBefore);
+  // 소각된 수 = 1 (자동 소각 1스택). 잔여 스택 기준이 아닌 소각 수 기준.
+  applyAshMukneom(ctx, 1);
+  applyAshMaengse(ctx, 1);
 }

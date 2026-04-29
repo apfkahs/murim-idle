@@ -10,6 +10,7 @@ import type { GameStore } from '../gameStore';
 import type { BahwagyoState, BranchId } from '../../components/bahwagyo/bahwagyoTypes';
 import {
   NODE_MAP, getNodeMax, getCostResource, getLevelUpCost,
+  getGuideLevelUpCost,
   TIER2_UNLOCK_COST_EMBER, TIER2_UNLOCK_REQ_NODES, TIER2_UNLOCK_NODE_MIN_LEVEL,
   TIER3_UNLOCK_COST_FLAME, TIER3_UNLOCK_REQ_LEVEL,
   RESOURCE_MATERIAL_ID,
@@ -20,6 +21,7 @@ import {
 const ROOT_NODE_TO_ART_ID: Record<string, string> = {
   'mind-t1-1': 'baehwa_sikhwa_simbeop',
   'outer-bobeop-open': 'baehwa_seonghwa_bobeop',
+  'sword-main': 'baehwa_seonghwa_geombeop',
 };
 
 function registerBaehwagyoArtIfNeeded(
@@ -109,6 +111,8 @@ export const INITIAL_BAHWAGYO_STATE: BahwagyoState = {
   mysteryFragments: { first: false, second: false },
   selectedNodeId: null,
   showLockedModal: null,
+  swordQiDrainRate: 0,
+  ultQiAbsorbEnabled: false,
 };
 
 export type BahwagyoSlice = {
@@ -117,11 +121,13 @@ export type BahwagyoSlice = {
   bahwagyoSetActiveBranch: (branch: BranchId) => void;
   bahwagyoLevelUpNode: (nodeId: string, useScroll?: boolean) => void;
   bahwagyoUnlockTier: (branch: Exclude<BranchId, 'mystery'>, tier: 2 | 3) => void;
-  bahwagyoExchange: (from: 'ember' | 'flame' | 'divine', fromAmt: number, to: 'ember' | 'flame' | 'divine', toAmt: number) => void;
+  bahwagyoExchange: (from: 'ember' | 'flame' | 'divine', fromAmt: number, to: 'ember' | 'flame' | 'divine' | { material: string }, toAmt: number) => void;
   bahwagyoSelectNode: (nodeId: string | null) => void;
   bahwagyoOpenLockedModal: (branch: Exclude<BranchId, 'mystery'>, tier: 2 | 3) => void;
   bahwagyoCloseLockedModal: () => void;
   bahwagyoReset: () => void;
+  bahwagyoSetSwordQiDrainRate: (rate: number) => void;
+  bahwagyoToggleUltQiAbsorb: () => void;
 };
 
 export const createBahwagyoSlice: StateCreator<GameStore, [], [], BahwagyoSlice> = (set, get) => ({
@@ -148,6 +154,37 @@ export const createBahwagyoSlice: StateCreator<GameStore, [], [], BahwagyoSlice>
     const newOwnedArts = registerBaehwagyoArtIfNeeded(nodeId, newLevel, state.ownedArts);
 
     if (useScroll) {
+      // T1 심법 노드: scroll 슬롯 = 초급 심법 지침서(simbeop_guide_basic)
+      if (node.branch === 'mind' && node.tier === 1) {
+        const guideCost = getGuideLevelUpCost(node, current);
+        const have = state.materials['simbeop_guide_basic'] ?? 0;
+        if (have < guideCost) return;
+        set({
+          bahwagyo: {
+            ...bhw,
+            nodeLevels: { ...bhw.nodeLevels, [nodeId]: newLevel },
+          },
+          materials: { ...state.materials, simbeop_guide_basic: have - guideCost },
+          ...(newOwnedArts ? { ownedArts: newOwnedArts } : {}),
+        });
+        return;
+      }
+      // 성화검법 메인 노드 개방 (lv0 → lv1): scroll 슬롯 = 검법 비전서(bahwagyo_sword_manual) 1권.
+      // lv1 이상에서는 비전서 사용 불가(개방 전용) — UI 에서도 isSwordMainOpen 조건으로 자동 숨김.
+      if (nodeId === 'sword-main' && current === 0) {
+        const have = state.materials['bahwagyo_sword_manual'] ?? 0;
+        if (have < 1) return;
+        set({
+          bahwagyo: {
+            ...bhw,
+            nodeLevels: { ...bhw.nodeLevels, [nodeId]: newLevel },
+          },
+          materials: { ...state.materials, bahwagyo_sword_manual: have - 1 },
+          ...(newOwnedArts ? { ownedArts: newOwnedArts } : {}),
+        });
+        return;
+      }
+      // T2/T3 (또는 다른 브랜치) — 기존 scrolls 카운터 차감
       const scrollKey = `${node.branch}-t${node.tier}`;
       const scrollCount = bhw.scrolls[scrollKey] ?? 0;
       if (scrollCount <= 0) return;
@@ -226,16 +263,20 @@ export const createBahwagyoSlice: StateCreator<GameStore, [], [], BahwagyoSlice>
   bahwagyoExchange: (from, fromAmt, to, toAmt) => {
     const state = get() as GameStore;
     const fromId = RESOURCE_MATERIAL_ID[from];
-    const toId = RESOURCE_MATERIAL_ID[to];
     const haveFrom = state.materials[fromId] ?? 0;
     if (haveFrom < fromAmt) return;
+    const toId = typeof to === 'string' ? RESOURCE_MATERIAL_ID[to] : to.material;
     const haveTo = state.materials[toId] ?? 0;
+    const newObtained = state.obtainedMaterials.includes(toId)
+      ? state.obtainedMaterials
+      : [...state.obtainedMaterials, toId];
     set({
       materials: {
         ...state.materials,
         [fromId]: haveFrom - fromAmt,
         [toId]: haveTo + toAmt,
       },
+      obtainedMaterials: newObtained,
     });
   },
 
@@ -268,5 +309,23 @@ export const createBahwagyoSlice: StateCreator<GameStore, [], [], BahwagyoSlice>
         nodeLevels: resetLevels,
       },
     });
+  },
+
+  bahwagyoSetSwordQiDrainRate: (rate) => {
+    const clamped = Math.max(0, Math.min(0.125, rate));
+    // 2.5% 단위로 스냅
+    const snapped = Math.round(clamped / 0.025) * 0.025;
+    set(s => ({
+      bahwagyo: { ...(s as GameStore).bahwagyo, swordQiDrainRate: snapped },
+    }));
+  },
+
+  bahwagyoToggleUltQiAbsorb: () => {
+    set(s => ({
+      bahwagyo: {
+        ...(s as GameStore).bahwagyo,
+        ultQiAbsorbEnabled: !(s as GameStore).bahwagyo.ultQiAbsorbEnabled,
+      },
+    }));
   },
 });

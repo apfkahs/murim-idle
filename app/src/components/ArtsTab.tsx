@@ -10,6 +10,10 @@ import { BALANCE_PARAMS } from '../data/balance';
 import ArtGradeBar from './arts/ArtGradeBar';
 import { MasteryPanel } from './arts/MasteryPanel';
 import { formatPassiveEffectSummary, PROF_STAGE_LABELS, STAR_HANJA, GRADE_KOREAN } from './arts/artsUtils';
+import {
+  SEONGHWA_GEOMBEOP_ART_ID, SWORD_NODES,
+  getSwordQiMaxDrainRate,
+} from '../utils/combat/baehwagyoEffects';
 
 function getSamjaeGradeDisplay(cumExp: number): string {
   const artDef = getArtDef('samjae_simbeop')!;
@@ -33,6 +37,10 @@ export default function ArtsTab() {
   const materials = useGameStore(s => s.materials);
   const baehwaUnlocked = useGameStore(s => s.firstEnteredFields?.['baehwagyo_oemun'] === true);
   const bahwagyoNodeLevels = useGameStore(s => s.bahwagyo.nodeLevels);
+  const swordQiDrainRate = useGameStore(s => s.bahwagyo.swordQiDrainRate);
+  const ultQiAbsorbEnabled = useGameStore(s => s.bahwagyo.ultQiAbsorbEnabled);
+  const setSwordQiDrainRate = useGameStore(s => s.bahwagyoSetSwordQiDrainRate);
+  const toggleUltQiAbsorb = useGameStore(s => s.bahwagyoToggleUltQiAbsorb);
   const equipArt = useGameStore(s => s.equipArt);
   const unequipArt = useGameStore(s => s.unequipArt);
   const equipSimbeop = useGameStore(s => s.equipSimbeop);
@@ -426,6 +434,59 @@ export default function ArtsTab() {
                         <div style={{ fontSize: 13, color: 'var(--accent)' }}>{summary}</div>
                       </div>
                     ) : null;
+                  })()}
+
+                  {/* 성화검법 — 검기 발현 슬라이더 / 절초 내력흡수 토글 */}
+                  {owned.id === SEONGHWA_GEOMBEOP_ART_ID && (() => {
+                    const qiLv = bahwagyoNodeLevels[SWORD_NODES.qiManifest] ?? 0;
+                    const ultLv = bahwagyoNodeLevels[SWORD_NODES.ult] ?? 0;
+                    const maxDrain = getSwordQiMaxDrainRate(qiLv);
+                    // 0%, 2.5%, 5%, ... maxDrain 까지 단계 버튼 (2.5% 단위)
+                    const steps: number[] = [];
+                    for (let v = 0; v <= maxDrain + 1e-9; v += 0.025) {
+                      steps.push(Math.round(v * 1000) / 1000);
+                    }
+                    return (
+                      <>
+                        {qiLv >= 1 && (
+                          <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(212,175,55,0.05)', borderRadius: 6, borderLeft: '2px solid var(--gold)' }}>
+                            <div style={{ fontSize: 11, color: 'var(--gold)', marginBottom: 4 }}>검기 발현 — 내력 소모율</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 6 }}>
+                              절초 발동 시 최대 내력의 일부를 추가 피해로 환원한다. (현재 {(swordQiDrainRate * 100).toFixed(1)}% / 상한 {(maxDrain * 100).toFixed(1)}%)
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {steps.map(v => (
+                                <button
+                                  key={v}
+                                  className={`btn btn-small${Math.abs(v - swordQiDrainRate) < 1e-6 ? '' : ' btn-secondary'}`}
+                                  onClick={() => setSwordQiDrainRate(v)}
+                                  disabled={battling}
+                                >
+                                  {(v * 100).toFixed(1)}%
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {ultLv >= 10 && (
+                          <div style={{ marginTop: 6, padding: '8px 10px', background: 'rgba(212,175,55,0.05)', borderRadius: 6, borderLeft: '2px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div>
+                              <div style={{ fontSize: 11, color: 'var(--gold)' }}>내력폭발 — 절초 시 최대 내력 20% 흡수</div>
+                              <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
+                                흡수한 내력 × (검기 발현 X 배율 × 2)만큼 추가 피해.
+                              </div>
+                            </div>
+                            <button
+                              className={`btn btn-small${ultQiAbsorbEnabled ? '' : ' btn-secondary'}`}
+                              onClick={() => toggleUltQiAbsorb()}
+                              disabled={battling}
+                            >
+                              {ultQiAbsorbEnabled ? 'ON' : 'OFF'}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    );
                   })()}
 
                   {def.artType === 'simbeop' && (() => {

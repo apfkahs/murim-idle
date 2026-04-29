@@ -674,6 +674,45 @@ export const ARTS: ArtDef[] = [
     baseEffects: {},
   },
 
+  // ── 성화검법 (배화교, 검법) ──
+  // 실제 per-level 효과(grade mult, ult mult, qi manifest X)는 baehwagyoEffects.ts 가
+  // bahwagyoSlice 의 nodeLevels(sword-main / sword-ult / sword-qi-manifest)를 읽어 계산.
+  // arts.ts 에는 식별자/슬롯 비용/이미지 키 등 최소 엔트리만 둔다. baseDamage, ultBaseDamage,
+  // ultMultiplier 는 placeholder(0). playerCombat 가 chosenId === 'baehwa_seonghwa_geombeop' 일 때
+  // 노드 함수로 동적 교체.
+  {
+    id: 'baehwa_seonghwa_geombeop',
+    name: '성화검법(聖火劍法)',
+    faction: 'baehwagyo',
+    artType: 'active',
+    cost: 1,
+    baseGrade: 5,
+    exclusiveGroup: 'sword',
+    proficiencyType: 'sword',
+    proficiencyCoefficient: 0,  // playerCombat 분기에서 1로 교체
+    baseDamage: 0,              // 동적 — 노드 grade mult 로 대체
+    ultBaseDamage: 0,           // 동적
+    ultMultiplier: 0,           // 동적 — getSwordUltMult(ultLv) + getTamsikSwordUltBonus(ctx)
+    ultCost: 30,
+    ultCooldown: 42,            // 기본값. lv5/15 특성으로 35/25초 단축.
+    imageKey: 'baehwa_seonghwa_geombeop',
+    descriptionByStage: [
+      '성화의 마음으로 사람의 몸을 베고, 그 길의 끝에서 다시 불을 본다. 배화교 비급 트리에서 레벨을 올려 효과를 키운다.',
+    ],
+    growth: {},
+    masteries: [],
+    baseEffects: {},
+    normalMessages: [
+      '성화검의 빛이 흐른다.',
+      '검 끝이 한 줄의 불을 그렸다.',
+      '성화가 검의 결을 따라 베어 나간다.',
+    ],
+    ultMessages: [
+      '성화의 절초!',
+      '한 호흡, 한 베어냄, 한 불꽃!',
+    ],
+  },
+
   // ── 성화보법 (배화교, 보법) ──
   {
     id: 'baehwa_seonghwa_bobeop',

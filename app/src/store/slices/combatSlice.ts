@@ -55,6 +55,8 @@ export type CombatSlice = {
   dodgeCounterActive: boolean;
   baehwagyoEmberTimer: number;
   baehwagyoAshOathBuffs: GameState['baehwagyoAshOathBuffs'];
+  baehwagyoMukneomBurnCounter: number;
+  baehwagyoMukneomDmgReductBuff: GameState['baehwagyoMukneomDmgReductBuff'];
   battleResult: BattleResult | null;
   floatingTexts: FloatingText[];
   nextFloatingId: number;
@@ -96,6 +98,8 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
   dodgeCounterActive: false,
   baehwagyoEmberTimer: 0,
   baehwagyoAshOathBuffs: [],
+  baehwagyoMukneomBurnCounter: 0,
+  baehwagyoMukneomDmgReductBuff: null,
   combatElapsed: 0,
   logEntryIdSeq: 0,
   lawActiveFromSkillId: null,

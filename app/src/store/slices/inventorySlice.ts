@@ -421,6 +421,23 @@ export const createInventorySlice: StateCreator<GameStore, [], [], InventorySlic
     if (!matDef?.consumable) return false;
     if ((state.materials[materialId] ?? 0) < 1) return false;
 
+    // ── 뜨거운 재 → 하얀 재 +30 ──
+    if (materialId === 'hot_ash') {
+      const newMaterials = { ...state.materials };
+      newMaterials['hot_ash'] = (newMaterials['hot_ash'] ?? 0) - 1;
+      newMaterials['hayan_jae'] = (newMaterials['hayan_jae'] ?? 0) + 30;
+      const newObtained = state.obtainedMaterials.includes('hayan_jae')
+        ? state.obtainedMaterials
+        : [...state.obtainedMaterials, 'hayan_jae'];
+      set({ materials: newMaterials, obtainedMaterials: newObtained });
+      (get() as GameStore).saveGame();
+      return true;
+    }
+
+    // 배화교 검법 비전서는 인벤토리에서 직접 사용하지 않는다.
+    // BahwagyoNodeDetailModal 의 sword-main 노드 결제 UI 에서 scroll(비급) 슬롯으로 소비된다.
+    // (잔불 500 또는 비전서 1개 — 택 1)
+
     if (materialId !== 'huimihan_seonghwa') return false;
 
     const roll = Math.random();

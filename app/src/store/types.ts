@@ -334,6 +334,8 @@ export interface GameState {
   dodgeCounterActive: boolean;
   baehwagyoEmberTimer: number;
   baehwagyoAshOathBuffs: { expiresAtSec: number; atkMult: number }[];
+  baehwagyoMukneomBurnCounter: number;                                          // 묵념 lv10+ 누적 소각 카운터
+  baehwagyoMukneomDmgReductBuff: { pct: number; expiresAtSec: number } | null;  // 묵념 임계 도달 피해감소 버프
   sarajinunBulggotTimer: number;
   tamsikKillStacks: Record<string, number>;
   tamsikEmberStacks: number;
@@ -350,6 +352,8 @@ export interface GameState {
   };
 
   lastTickTime: number;
+  monotonicNow: number;
+  lastOfflineRewardAt: number;
   battleResult: BattleResult | null;
 
   // 전투 애니메이션 상태

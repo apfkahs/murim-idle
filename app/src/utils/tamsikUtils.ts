@@ -70,3 +70,17 @@ export function getTamsikWeaponStats(state: Partial<GameState>): EquipStats {
 export function isBaehwaMonster(monId: string): boolean {
   return monId.startsWith('baehwa_');
 }
+
+/**
+ * 탐식하는 불꽃 장착 + 검법 절초 발동 시 추가되는 ult mult 보너스.
+ * killStacksSum (5종 × 20,000 cap = 100,000)이 5만/10만 이상일 때 +1.0 / +2.0.
+ * 미장착이거나 미달이면 0 반환.
+ */
+export function getTamsikSwordUltBonus(state: Partial<GameState>): number {
+  const equipped = state.equipment?.weapon?.defId === TAMSIK_WEAPON_ID;
+  if (!equipped) return 0;
+  const info = getTamsikTotalStacks(state);
+  if (info.killStacksSum >= 100_000) return 2.0;
+  if (info.killStacksSum >= 50_000) return 1.0;
+  return 0;
+}
