@@ -14,6 +14,47 @@ import { createBossPatternState, applyBattleStartSkills } from '../../utils/comb
 import { MONSTER_STATE_FACTORIES, type MonsterState } from '../../utils/combat/skillHandlers/registry';
 import { BALANCE_PARAMS } from '../../data/balance';
 import { INITIAL_BAHWAGYO_STATE, migrateBaehwagyoOwnedArts, migrateBaehwagyoOuterSplit } from './bahwagyoSlice';
+import { PROF_TABLE } from '../../utils/artUtils';
+
+/**
+ * 처치 수 × baseProficiency 합산으로 숙련도 경험치 추정.
+ * 훈련용 몬스터(training_*)는 실제 숙련도를 주지 않으므로 제외.
+ */
+function estimateProfExpFromKills(killCounts: Record<string, number>): number {
+  let total = 0;
+  for (const [monsterId, count] of Object.entries(killCounts)) {
+    if (monsterId.startsWith('training_')) continue;
+    const mon = getMonsterDef(monsterId);
+    if (!mon || !(mon.baseProficiency ?? 0)) continue;
+    total += count * mon.baseProficiency!;
+  }
+  return total;
+}
+
+/**
+ * 저장된 equippedArts 배열을 현재 exclusiveGroup/compatibleWith 규칙에 맞게 정규화.
+ * 구버전 버그로 같은 그룹의 무공이 함께 들어 있는 세이브를 자동 정리한다.
+ * 배열 순서를 equip 이력으로 간주하여, 충돌 시 더 나중에 들어온 무공을 유지(equipArt 동작과 일치).
+ */
+function normalizeEquippedArts(equipped: string[]): string[] {
+  const result: string[] = [];
+  for (const artId of equipped) {
+    const artDef = getArtDef(artId);
+    if (!artDef) continue;
+    if (artDef.exclusiveGroup) {
+      for (let i = result.length - 1; i >= 0; i--) {
+        const keptId = result[i];
+        const keptDef = getArtDef(keptId);
+        if (keptDef?.exclusiveGroup !== artDef.exclusiveGroup) continue;
+        if (artDef.compatibleWith?.includes(keptId)) continue;
+        if (keptDef.compatibleWith?.includes(artId)) continue;
+        result.splice(i, 1);
+      }
+    }
+    result.push(artId);
+  }
+  return result;
+}
 
 /**
  * 구버전(v2/v3) 세이브 데이터를 v4 포맷으로 변환.
@@ -28,6 +69,47 @@ function migrateToV4(data: Record<string, unknown>): Record<string, unknown> {
   // v2: totalSimdeuk (사용 안 함) — 무시
   d.version = '4.0';
   if (d.dataVersion === undefined) d.dataVersion = 0;
+
+  const killCounts = (d.killCounts ?? {}) as Record<string, number>;
+  const ownedArts = (d.ownedArts ?? []) as { id: string }[];
+
+  // 숙련도 추정: 보유 무공의 숙련도 타입별로 처치 기반 경험치 부여
+  if (!d.proficiency) {
+    const rawExp = estimateProfExpFromKills(killCounts);
+    // 3단계(달인) 시작 지점(star 25 = PROF_TABLE index 24)을 초과하지 않도록 캡
+    const grade3Start = PROF_TABLE[24]?.cumExp ?? 1_900_000;
+    const cappedExp = Math.min(rawExp, grade3Start - 1);
+
+    const trainedTypes = new Set<string>();
+    for (const { id } of ownedArts) {
+      const def = getArtDef(id);
+      if (def?.proficiencyType) trainedTypes.add(def.proficiencyType);
+    }
+    const prof: Record<string, number> = { sword: 1, palm: 1, footwork: 1, mental: 1, fist: 1 };
+    for (const pt of trainedTypes) prof[pt] = Math.max(1, cappedExp);
+    d.proficiency = prof;
+  }
+
+  // 무공 등급 경험치 추정: 보유 무공 전체에 처치 기반 경험치 부여
+  if (!d.artGradeExp || Object.keys(d.artGradeExp as object).length === 0) {
+    const rawExp = estimateProfExpFromKills(killCounts);
+    const artGradeExp: Record<string, number> = {};
+    for (const { id } of ownedArts) artGradeExp[id] = rawExp;
+    d.artGradeExp = artGradeExp;
+  }
+
+  // 심득 발견 목록: 활성화된 심득은 이미 발견된 것이므로 복원
+  if (!d.discoveredMasteries) {
+    const activeMasteries = (d.activeMasteries ?? {}) as Record<string, string[]>;
+    const discovered: string[] = [];
+    for (const ids of Object.values(activeMasteries)) {
+      for (const id of ids) {
+        if (!discovered.includes(id)) discovered.push(id);
+      }
+    }
+    d.discoveredMasteries = discovered;
+  }
+
   return d;
 }
 
@@ -272,7 +354,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
           (data.bahwagyo?.nodeLevels ?? {}) as Record<string, number>,
           (data.ownedArts ?? []).map((a: { id: string }) => ({ id: a.id })),
         ),
-        equippedArts: data.equippedArts ?? [],
+        equippedArts: normalizeEquippedArts(data.equippedArts ?? []),
         artPoints: data.artPoints ?? 3,
         artGradeExp: { ...(data.artGradeExp ?? {}) },
         achievements: (() => {

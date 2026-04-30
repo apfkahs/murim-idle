@@ -100,7 +100,8 @@ export default function SaveSlotModal({ onClose }: Props) {
         alert('파일을 읽을 수 없습니다.');
         return;
       }
-      if (!String(data.version ?? '').startsWith('4')) {
+      const ver = String(data.version ?? '');
+      if (!ver.startsWith('2') && !ver.startsWith('3') && !ver.startsWith('4')) {
         alert('지원하지 않는 저장 버전입니다.');
         return;
       }

@@ -52,10 +52,17 @@ export const createArtsSlice: StateCreator<GameStore, [], [], ArtsSlice> = (set,
     if (state.equippedArts.includes(artId)) return;
 
     // exclusiveGroup: 동일 그룹의 기존 장착 무공 자동 해제 (초식 데이터는 보존)
+    // compatibleWith 양방향 예외 — 짝으로 선언된 무공끼리는 같은 그룹이라도 공존 허용.
     let filteredEquipped = state.equippedArts;
     if (artDef.exclusiveGroup) {
       const group = artDef.exclusiveGroup;
-      const swapped = state.equippedArts.filter(id => getArtDef(id)?.exclusiveGroup === group);
+      const swapped = state.equippedArts.filter(id => {
+        const def = getArtDef(id);
+        if (def?.exclusiveGroup !== group) return false;
+        if (artDef.compatibleWith?.includes(id)) return false;
+        if (def.compatibleWith?.includes(artId)) return false;
+        return true;
+      });
       if (swapped.length > 0) {
         filteredEquipped = state.equippedArts.filter(id => !swapped.includes(id));
       }
@@ -155,6 +162,10 @@ export const createArtsSlice: StateCreator<GameStore, [], [], ArtsSlice> = (set,
   deactivateMastery: (artId, masteryId) => {
     const state = get() as GameStore;
     if (state.battleMode !== 'none') return;
+
+    // 종이/비급 등으로 자동 활성화되는 무공의 초식은 해제 불가 (재활성 수단이 없음)
+    const artDef = getArtDef(artId);
+    if (artDef?.autoActivateMastery) return;
 
     const currentMasteries = state.activeMasteries[artId] ?? [];
     if (!currentMasteries.includes(masteryId)) return;

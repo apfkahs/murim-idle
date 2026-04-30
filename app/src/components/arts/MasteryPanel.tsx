@@ -362,7 +362,7 @@ export function MasteryPanel({ artId, artGradeExp, materials, tier, discoveredMa
                   {m.pointCost > 0 && <span className="mastery-cost">({m.pointCost}pt)</span>}
                 </div>
                 <div className="mastery-item-right">
-                  {isActive && !m.autoActivate && (
+                  {isActive && !m.autoActivate && !artDef.autoActivateMastery && (
                     <button
                       className="btn btn-small btn-danger"
                       onClick={(e) => { e.stopPropagation(); deactivateMastery(artId, m.id); }}

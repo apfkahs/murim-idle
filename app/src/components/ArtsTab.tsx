@@ -13,6 +13,9 @@ import { formatPassiveEffectSummary, PROF_STAGE_LABELS, STAR_HANJA, GRADE_KOREAN
 import {
   SEONGHWA_GEOMBEOP_ART_ID, SWORD_NODES,
   getSwordQiMaxDrainRate,
+  getSwordGradeMult,
+  getSwordUltMult,
+  getSwordUltCooldown,
 } from '../utils/combat/baehwagyoEffects';
 
 function getSamjaeGradeDisplay(cumExp: number): string {
@@ -350,6 +353,21 @@ export default function ArtsTab() {
           const normalDmg = Math.floor(((def.baseDamage ?? 0) + Math.floor(def.proficiencyCoefficient * getProfDamageValue(prof))) * artGradeMult);
           const normalCrit = Math.floor(normalDmg * 1.5);
 
+          // 성화검법 동적 피해량 (baseDamage/proficiencyCoefficient = 0 플레이스홀더 보정)
+          const isSeonghwa = owned.id === SEONGHWA_GEOMBEOP_ART_ID;
+          const seonghwaMainLv = isSeonghwa ? (bahwagyoNodeLevels[SWORD_NODES.main] ?? 0) : 0;
+          const seonghwaUltLv = isSeonghwa ? (bahwagyoNodeLevels[SWORD_NODES.ult] ?? 0) : 0;
+          const seonghwaProfVal = isSeonghwa ? getProfDamageValue(proficiency?.sword ?? 0) : 0;
+          const seonghwaNormalDmg = isSeonghwa
+            ? Math.floor(seonghwaProfVal * getSwordGradeMult(seonghwaMainLv))
+            : normalDmg;
+          const seonghwaNormalCrit = Math.floor(seonghwaNormalDmg * 1.5);
+          const seonghwaUltUnlocked = isSeonghwa && seonghwaMainLv >= 5;
+          const seonghwaUltDmg = seonghwaUltUnlocked
+            ? Math.floor(Math.floor(getSwordUltMult(seonghwaUltLv) * seonghwaProfVal) * getSwordGradeMult(seonghwaMainLv))
+            : 0;
+          const seonghwaUltCrit = Math.floor(seonghwaUltDmg * 1.5);
+
           // passive 성급 배율
           let passiveStarMult = 1;
           if (def.growth.proficiencyCoefficientByGrade) {
@@ -362,7 +380,12 @@ export default function ArtsTab() {
           // 접힌 요약
           let collapsedSummary: string;
           if (def.artType === 'active') {
-            collapsedSummary = `피해 ${normalDmg}`;
+            if (isSeonghwa) {
+              collapsedSummary = `피해 ${seonghwaNormalDmg}`;
+              if (seonghwaUltUnlocked) collapsedSummary += ` / 절초 ${seonghwaUltDmg}`;
+            } else {
+              collapsedSummary = `피해 ${normalDmg}`;
+            }
           } else if (def.artType === 'passive') {
             collapsedSummary = formatPassiveEffectSummary(def, activeMasteries[owned.id] ?? [], passiveStarMult, bahwagyoNodeLevels);
           } else if (def.artType === 'simbeop') {
@@ -415,7 +438,7 @@ export default function ArtsTab() {
                   {/* 등급 진행 바 (성급 시스템 있는 무공만) */}
                   {def.growth.gradeMaxStars && <ArtGradeBar artId={owned.id} artGradeExp={artGradeExp} />}
 
-                  {def.artType === 'active' && (
+                  {def.artType === 'active' && !isSeonghwa && (
                     <div style={{ marginTop: 10, padding: '7px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
                       <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>{def.name} · 초식</div>
                       <div style={{ fontSize: 16, fontWeight: 500 }}>
@@ -424,6 +447,32 @@ export default function ArtsTab() {
                         <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 8, fontWeight: 400 }}>치명(致命) {normalCrit.toLocaleString()}</span>
                       </div>
                     </div>
+                  )}
+
+                  {isSeonghwa && (
+                    <>
+                      <div style={{ marginTop: 10, padding: '7px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>성화검법(聖火劍法) · 초식</div>
+                        <div style={{ fontSize: 16, fontWeight: 500 }}>
+                          <span style={{ fontSize: 11, color: 'var(--text-dim)', marginRight: 6, fontWeight: 400 }}>피해</span>
+                          {seonghwaNormalDmg.toLocaleString()}
+                          <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 8, fontWeight: 400 }}>치명(致命) {seonghwaNormalCrit.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      {seonghwaUltUnlocked && (
+                        <div style={{ marginTop: 6, padding: '7px 10px', background: 'rgba(212,175,55,0.06)', borderRadius: 6, borderLeft: '2px solid var(--gold)' }}>
+                          <div style={{ fontSize: 10, marginBottom: 4 }}>
+                            <span style={{ color: 'var(--gold)' }}>성화의 절초 · 절초</span>
+                            <span style={{ color: 'var(--text-dim)', marginLeft: 8 }}>내력 {def.ultCost} · 쿨타임 {getSwordUltCooldown(seonghwaUltLv)}초</span>
+                          </div>
+                          <div style={{ fontSize: 16, fontWeight: 500 }}>
+                            <span style={{ fontSize: 11, color: 'var(--text-dim)', marginRight: 6, fontWeight: 400 }}>피해</span>
+                            {seonghwaUltDmg.toLocaleString()}
+                            <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 8, fontWeight: 400 }}>치명(致命) {seonghwaUltCrit.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {def.artType === 'passive' && (() => {

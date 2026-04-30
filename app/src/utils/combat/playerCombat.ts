@@ -249,6 +249,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
       let isUlt = false;
       let artDefForBonuses: ReturnType<typeof getArtDef> | null = null;
       let artMasteryIdsForBonuses: string[] = [];
+      let qiManifestBonus = 0;
 
       // 절초 판정
       const ultCandidates = ctx.equippedArts.filter(artId => {
@@ -394,7 +395,6 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           // 발동: 검법 art + qiLv≥1 + 슬라이더 Y>0 + 현재 stamina ≥ maxStamina×50%.
           // 차감: maxStamina×Y 만큼 stamina 소모. 추가 피해: floor(burned × X).
           // 합산 위치: calcAttackDamage 의 bonusAtk 인자 자리 → 분산/grade/치명타/적 디버프 모두 무기 공격력과 동일하게 적용.
-          let qiManifestBonus = 0;
           if (chosen.id === SEONGHWA_GEOMBEOP_ART_ID) {
             const qiLv = ctx.state.bahwagyo.nodeLevels[SWORD_NODES.qiManifest] ?? 0;
             const drainRate = ctx.state.bahwagyo.swordQiDrainRate ?? 0;
@@ -893,6 +893,12 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           ctx.logEvent({ side: 'outgoing', actor: 'player', name: attackName, tag: 'crit', value: damage, valueTier: 'crit' });
         } else if (!isUlt && damage > 0) {
           ctx.logEvent({ side: 'outgoing', actor: 'player', name: attackName, value: damage, valueTier: 'normal' });
+        }
+        if (!isUlt && qiManifestBonus > 0 && !enemyGenericDodge) {
+          ctx.logEvent({
+            side: 'outgoing', actor: 'player', name: '검기(劍氣)', subName: '· 검기 발현',
+            tag: 'special', value: qiManifestBonus, valueTier: 'special',
+          });
         }
         if (isCounterHit) {
           ctx.logFlavor('적의 공격을 간파하고 강력한 공격을 가했다!', 'left', { actor: 'player', minor: true });

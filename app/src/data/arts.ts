@@ -152,6 +152,11 @@ export interface ArtDef {
   externalDefenseGrade?: number;   // 외공 등급 (철포삼 = 1)
   proficiencyGainMultiplier?: number; // 숙련도 획득 배율 (마령심법 = 0.5)
   exclusiveGroup?: string;         // 동일 그룹의 다른 무공은 장착 시 자동 해제 (예: 'footwork')
+  // compatibleWith 사용 규칙:
+  //  - exclusiveGroup이 같은 두 무공이 짝으로 공존해야 할 때 사용한다.
+  //  - 양쪽 무공 정의에 서로의 id를 대칭으로 적는다 (한쪽만 적어도 동작은 하지만 가독성·유지보수를 위해 양방향 권장).
+  //  - 짝 외의 같은 그룹 무공과는 정상적으로 충돌하여 자동 해제된다.
+  compatibleWith?: string[];
 }
 
 // ============================================================
@@ -344,6 +349,8 @@ export const ARTS: ArtDef[] = [
     cost: 0,
     baseGrade: 1,
     imageKey: 'crude_bobeop',
+    exclusiveGroup: 'footwork',
+    compatibleWith: ['nokrim_bobeop'],
     autoActivateMastery: true,
 
     proficiencyType: 'footwork',
@@ -406,6 +413,7 @@ export const ARTS: ArtDef[] = [
     imageKey: 'nokrim_bobeop',
     autoActivateMastery: true,
     exclusiveGroup: 'footwork',
+    compatibleWith: ['crude_bobeop'],
 
     proficiencyType: 'footwork',
     proficiencyCoefficient: 0,  // 0이면 숙련도 스케일링 비활성 (성급 배율로 대체)
