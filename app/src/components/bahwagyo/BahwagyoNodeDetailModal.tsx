@@ -50,15 +50,17 @@ export default function BahwagyoNodeDetailModal({ nodeId, state, onLevelUp, onCl
   const isPlaceholder = node.placeholder === true;
 
   // 선행 조건 미충족 여부 (흐림 노드)
+  // sword-ult: 검화합일(劍火合一) 특성 — 성화검법 5Lv에서 절초 해금
+  const rootThreshold = node.id === 'sword-ult' ? 5 : 1;
   const isLocked = !isPlaceholder && (node.requiresRoot
-    ? (state.nodeLevels[`${node.branch}-t1-1`] ?? 0) < 1
+    ? (state.nodeLevels[node.branch === 'sword' ? 'sword-main' : `${node.branch}-t1-1`] ?? 0) < rootThreshold
     : false);
 
   // 자원 선택 로컬 상태
   // scroll 슬롯의 source-of-truth 는 노드 종류에 따라 분기:
-  //   - T1 심법 노드 (mind tier 1)   → simbeop_guide_basic 재료 (지침서 N권, N = getGuideLevelUpCost)
-  //   - sword-main 개방 (level === 0) → bahwagyo_sword_manual 재료 (비전서 1권)
-  //   - 그 외 (T2/T3 등)              → state.scrolls[branch-tier] 카운터 (1권)
+  //   - T1 심법 노드 (mind tier 1)             → simbeop_guide_basic 재료 (지침서 N권)
+  //   - sword-main 개방 (level === 0)          → bahwagyo_sword_manual 재료 (비전서 1권)
+  //   - 그 외 (T2/T3 등)                        → state.scrolls[branch-tier] 카운터 (1권)
   const isMindT1 = node.branch === 'mind' && node.tier === 1;
   const isSwordMainOpen = node.id === 'sword-main' && level === 0;
   const allMaterials = useGameStore(s => s.materials);
@@ -82,7 +84,7 @@ export default function BahwagyoNodeDetailModal({ nodeId, state, onLevelUp, onCl
   const costAmt = getLevelUpCost(node, level);
   const hasEssence = state.resources[costRes] >= costAmt;
   const hasScroll = scrollCount >= scrollCostAmt;
-  // sword 가지에서 scroll 옵션이 의미 있는 노드는 sword-main(개방) 뿐. sword-ult / sword-qi-manifest 는 잔불 결제만.
+  // sword-ult / sword-qi-manifest는 아직 비급서 미구현 — scroll 옵션 미노출
   const showScrollOption = node.branch !== 'outer'
     && !(node.branch === 'sword' && !isSwordMainOpen);
 
@@ -183,7 +185,9 @@ export default function BahwagyoNodeDetailModal({ nodeId, state, onLevelUp, onCl
           </div>
         ) : isLocked ? (
           <div className="fire-modal-locked-msg">
-            먼저 초식 배율을 1레벨 이상 투자하라.
+            {node.id === 'sword-ult'
+              ? '검화합일(劍火合一) 특성을 먼저 해금하라. (성화검법 5Lv 필요)'
+              : '먼저 초식 배율을 1레벨 이상 투자하라.'}
           </div>
         ) : (
           <>

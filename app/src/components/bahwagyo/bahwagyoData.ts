@@ -25,8 +25,18 @@ const swordNodes: SkillNodeDef[] = [
     traits: [
       {
         level: 5,
-        name: '검화합일',
+        name: '검화합일(劍火合一)',
         description: '절초 해금. 이후 절초 배율 노드(sword-ult)가 함께 열린다.',
+      },
+      {
+        level: 10,
+        name: '화골입수(火骨入髓)',
+        description: '성화의 기가 뼛속까지 스며든다. 검세가 한 차원 깊어진다. (초식 배율 도약 · 2.1×)',
+      },
+      {
+        level: 20,
+        name: '성화일도(聖火一刀)',
+        description: '검이 곧 성화다. 한 줄의 검이 한 줄의 불이 된다. 성화검법의 극의에 이른다. (배율 2.8×)',
       },
     ],
   },
@@ -45,10 +55,10 @@ const swordNodes: SkillNodeDef[] = [
     effectPerLevel: 5,
     effectUnit: '%',
     traits: [
-      { level: 5, name: '화염쿨 I', description: '절초 쿨타임 42초 → 35초.' },
-      { level: 10, name: '내력폭발', description: '절초 발동 시 최대 내력 20% 흡수 후 추가 피해(검기 발현 X 배율 × 2).' },
-      { level: 15, name: '화염쿨 II', description: '절초 쿨타임 35초 → 25초.' },
-      { level: 20, name: '성화공명', description: '검법 단독 장착 시, 절초 10% 확률로 쿨타임을 소모하지 않는다.' },
+      { level: 5,  name: '검화숙련(劍火熟練)', description: '검과 불의 합일이 익숙해진다. 절초의 호흡이 빨라진다. (쿨타임 42초 → 35초)' },
+      { level: 10, name: '기화폭발(氣火爆發)', description: '절초 발동 시 남은 내력이 성화와 함께 폭발한다. (최대 내력 20% 흡수 → 추가 피해, 검기 발현 X × 2)' },
+      { level: 15, name: '성화일체(聖火一體)', description: '검·불·기운이 하나로 합쳐진다. 절초의 호흡이 다시 한번 빨라진다. (쿨타임 35초 → 25초)' },
+      { level: 20, name: '성화공명(聖火共鳴)', description: '검법 단독 장착 시, 절초 10% 확률로 쿨타임을 소모하지 않는다.' },
     ],
   },
   {
@@ -59,11 +69,28 @@ const swordNodes: SkillNodeDef[] = [
     branch: 'sword',
     description: '검 끝에서 불씨가 솟구쳐 손에 닿지 않는 자도 베어낸다.',
     functional: '내력을 일부 소모해 절초에 추가 피해를 더한다.',
-    effectSummary: '레벨당 배율 +1/3 (1Lv = 3.0×, 만렙 30 = 12.0×)',
+    effectSummary: '레벨당 배율 성장 (1Lv = 3.5×, 만렙 30 = 15.0×)',
     baseMax: 20,
     expandedMax: [30, 40],
     effectPerLevel: 0.5,
     effectUnit: 'X',
+    traits: [
+      {
+        level: 10,
+        name: '기날(氣刃)',
+        description: '검 끝의 기운이 날을 이룬다. 내력을 더 깊이 소모해 검기를 불릴 수 있다. (소모 상한 5% → 7.5%)',
+      },
+      {
+        level: 15,
+        name: '기세(氣勢)',
+        description: '검기가 더 넓게 뻗어나간다. 더 많은 내력을 검기로 전환할 수 있다. (소모 상한 7.5% → 10%)',
+      },
+      {
+        level: 20,
+        name: '성화기류(聖火氣流)',
+        description: '검기와 성화가 하나의 흐름으로 합쳐진다. 내력 소모 한도가 최고에 달한다. (소모 상한 10% → 12.5%)',
+      },
+    ],
   },
   {
     id: 'sword-strike-trait',
@@ -390,9 +417,9 @@ const SWORD_FLAME_COST_MAIN = [100, 30, 35, 40, 45, 50, 55, 60, 65, 200];      /
 const SWORD_EMBER_COST_ULT = [350, 180, 190, 200, 210, 220, 230, 240, 250];
 const SWORD_FLAME_COST_ULT = [100, 30, 35, 40, 45, 50, 55, 60, 65, 200];
 
-// sword-qi-manifest: lv0→1 = 525 (오픈 비용), lv1→2~lv8→9 는 지시서 표 그대로.
-const SWORD_EMBER_COST_QI = [525, 248, 262, 275, 289, 303, 317, 330, 344];
-const SWORD_FLAME_COST_QI = [125, 38, 44, 50, 57, 63, 69, 75, 82, 300];
+// sword-qi-manifest: lv0→1 = 394 (오픈 비용, 기존 525의 3/4), lv1→2~lv8→9 는 지시서 표 그대로 (기존의 3/4).
+const SWORD_EMBER_COST_QI = [394, 186, 197, 206, 217, 227, 238, 248, 258];
+const SWORD_FLAME_COST_QI = [94, 29, 33, 38, 43, 47, 52, 56, 62, 225];
 
 interface SwordCostTable {
   ember: number[];

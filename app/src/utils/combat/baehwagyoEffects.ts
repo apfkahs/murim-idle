@@ -258,11 +258,11 @@ export function getSwordUltMult(lv: number): number {
 /** 검기 발현 X 배율 (sword-qi-manifest lv 기준) */
 export function getSwordQiManifestX(lv: number): number {
   if (lv <= 0) return 0;
-  if (lv === 1) return 3.0;
-  if (lv <= 9) return 3.0 + (lv - 1) * (3 / 8);
-  if (lv === 10) return 7.5;
-  if (lv <= 19) return 7.5 + (lv - 10) * (1 / 3);
-  return 12.0;
+  if (lv === 1) return 3.5;
+  if (lv <= 9) return 3.5 + (lv - 1) * (5.5 / 8);  // lv2~9: 3.5 → 9.0
+  if (lv === 10) return 9.0;
+  if (lv <= 19) return 9.0 + (lv - 10) * (2 / 3);  // lv11~19: 9.0 → 15.0
+  return 15.0;
 }
 
 /** 검기 발현 슬라이더 상한 (Y) */

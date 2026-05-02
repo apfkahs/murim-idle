@@ -29,9 +29,11 @@ function getNodeState(
 
   // 흐림: 선행 조건 미충족
   if (node.requiresRoot) {
-    const rootId = `${node.branch}-t1-1`;
+    const rootId = node.branch === 'sword' ? 'sword-main' : `${node.branch}-t1-1`;
     const rootLevel = nodeLevels[rootId] ?? 0;
-    if (rootLevel < 1) return 'dimmed';
+    // sword-ult: 검화합일(劍火合一) 특성 — 성화검법 5Lv에서 절초 해금 (sword-main >= 5)
+    const rootThreshold = node.id === 'sword-ult' ? 5 : 1;
+    if (rootLevel < rootThreshold) return 'dimmed';
   }
 
   // 자원 부족

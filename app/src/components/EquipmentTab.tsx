@@ -89,15 +89,16 @@ const TAMSIK_MON_NAMES: Record<string, string> = {
   baehwa_gyeongbosa: '경보사',
 };
 
-function TamsikPanel() {
+// 탐식하는 불꽃 — 인벤토리 아이템 내부에 삽입되는 스택/강화 패널
+function TamsikInventorySection() {
   const tamsikKillStacks = useGameStore(s => s.tamsikKillStacks);
   const tamsikEmberStacks = useGameStore(s => s.tamsikEmberStacks);
   const materials = useGameStore(s => s.materials);
   const reinforceTamsik = useGameStore(s => s.reinforceTamsik);
   const [reinforceMsg, setReinforceMsg] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(true);
 
   const info = getTamsikTotalStacks({ tamsikKillStacks, tamsikEmberStacks });
-  const stats = getTamsikWeaponStats({ tamsikKillStacks, tamsikEmberStacks });
   const janbul = materials['huimihan_janbul'] ?? 0;
   const atCap = info.remainingCapacity === 0;
   const pct = (info.totalStacks / TAMSIK_TOTAL_STACK_CAP) * 100;
@@ -112,130 +113,87 @@ function TamsikPanel() {
   }
 
   return (
-    <div style={{
-      marginTop: 12, background: 'var(--bg-card)', borderRadius: 8,
-      border: '1px solid rgba(255,140,0,0.4)', padding: '12px 14px',
-    }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold)', marginBottom: 10 }}>
-        탐식하는 불꽃
+    <div style={{ width: '100%', marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+      {/* 접기/펼치기 헤더 */}
+      <div
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+        onClick={() => setCollapsed(v => !v)}
+      >
+        <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>스택 현황</span>
+        <span style={{ fontSize: 11, color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums', userSelect: 'none' }}>
+          {info.totalStacks.toLocaleString()} / {TAMSIK_TOTAL_STACK_CAP.toLocaleString()} · {pct.toFixed(1)}%&nbsp;{collapsed ? '▶' : '▼'}
+        </span>
       </div>
 
-      {/* 총 스택 진행 바 */}
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-          <span style={{ color: 'var(--text-dim)' }}>총 스택</span>
-          <span style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-            {info.totalStacks.toLocaleString()} / {TAMSIK_TOTAL_STACK_CAP.toLocaleString()} · {pct.toFixed(1)}%
-          </span>
-        </div>
-        <div style={{ height: 6, background: 'var(--bg-elevated)', borderRadius: 3, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: 'rgba(255,140,0,0.7)', borderRadius: 3, transition: 'width 0.3s' }} />
-        </div>
-      </div>
+      {!collapsed && (
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* 총 스택 진행 바 */}
+          <div style={{ height: 5, background: 'var(--bg-elevated)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${pct}%`, background: 'rgba(255,140,0,0.7)', borderRadius: 3, transition: 'width 0.3s' }} />
+          </div>
 
-      {/* 현재 스탯 */}
-      <div style={{
-        background: 'var(--bg-elevated)', borderRadius: 6, padding: '8px 10px', marginBottom: 10,
-        border: '1px solid var(--border)',
-      }}>
-        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>현재 스탯</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-            <span style={{ color: 'var(--text-secondary)' }}>공격력</span>
-            <span style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-              {Math.round(stats.bonusAtk ?? 100)}
-              <span style={{ color: 'var(--text-dim)', marginLeft: 6 }}>(100 → 300)</span>
-            </span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-            <span style={{ color: 'var(--text-secondary)' }}>치명타</span>
-            <span style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-              +{((stats.bonusCritRate ?? 0.05) * 100).toFixed(1)}%
-              <span style={{ color: 'var(--text-dim)', marginLeft: 6 }}>(+5% → +15%)</span>
-            </span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-            <span style={{ color: 'var(--text-secondary)' }}>치명피해</span>
-            <span style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-              +{((stats.bonusCritDmgPercent ?? 0.10) * 100).toFixed(1)}%
-              <span style={{ color: 'var(--text-dim)', marginLeft: 6 }}>(+10% → +30%)</span>
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 몬스터별 처치 스택 */}
-      <div style={{
-        background: 'var(--bg-elevated)', borderRadius: 6, padding: '8px 10px', marginBottom: 10,
-        border: '1px solid var(--border)',
-      }}>
-        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>몬스터별 처치 스택</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {TAMSIK_BAEHWA_MONSTER_IDS.map(monId => {
-            const stacks = tamsikKillStacks[monId] ?? 0;
-            const monPct = (stacks / TAMSIK_PER_MONSTER_CAP) * 100;
-            return (
-              <div key={monId}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>{TAMSIK_MON_NAMES[monId]}</span>
-                  <span style={{ color: stacks > 0 ? 'var(--text-primary)' : 'var(--text-dim)', fontVariantNumeric: 'tabular-nums' }}>
-                    {stacks.toLocaleString()} / {TAMSIK_PER_MONSTER_CAP.toLocaleString()}
-                  </span>
+          {/* 몬스터별 처치 스택 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {TAMSIK_BAEHWA_MONSTER_IDS.map(monId => {
+              const stacks = tamsikKillStacks[monId] ?? 0;
+              const monPct = (stacks / TAMSIK_PER_MONSTER_CAP) * 100;
+              return (
+                <div key={monId}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{TAMSIK_MON_NAMES[monId]}</span>
+                    <span style={{ color: stacks > 0 ? 'var(--text-primary)' : 'var(--text-dim)', fontVariantNumeric: 'tabular-nums' }}>
+                      {stacks.toLocaleString()} / {TAMSIK_PER_MONSTER_CAP.toLocaleString()}
+                    </span>
+                  </div>
+                  <div style={{ height: 3, background: 'var(--bg-elevated)', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${monPct}%`, background: 'rgba(255,100,50,0.6)', borderRadius: 2 }} />
+                  </div>
                 </div>
-                <div style={{ height: 4, background: 'var(--bg-card)', borderRadius: 2, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${monPct}%`, background: 'rgba(255,100,50,0.6)', borderRadius: 2 }} />
-                </div>
+              );
+            })}
+          </div>
+
+          {/* 잔불 강화 */}
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>
+              <span>잔불 강화 (1개 = 스택 {TAMSIK_EMBER_PER_JANBUL}) · 보유 {janbul.toLocaleString()}</span>
+              <span>강화 스택: {info.emberStacks.toLocaleString()}</span>
+            </div>
+            {atCap ? (
+              <div style={{ fontSize: 11, color: 'var(--gold)', textAlign: 'center' }}>
+                강화 최대 달성
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 잔불 강화 */}
-      <div style={{
-        background: 'var(--bg-elevated)', borderRadius: 6, padding: '8px 10px',
-        border: '1px solid var(--border)',
-      }}>
-        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>
-          잔불 강화 (잔불 1개 = 스택 {TAMSIK_EMBER_PER_JANBUL})
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 8 }}>
-          <span style={{ color: 'var(--text-secondary)' }}>보유 잔불: {janbul.toLocaleString()}</span>
-          <span style={{ color: 'var(--text-secondary)' }}>강화 스택: {info.emberStacks.toLocaleString()}</span>
-        </div>
-        {atCap ? (
-          <div style={{ fontSize: 12, color: 'var(--gold)', textAlign: 'center', padding: '4px 0' }}>
-            강화 최대 달성 ({TAMSIK_TOTAL_STACK_CAP.toLocaleString()} / {TAMSIK_TOTAL_STACK_CAP.toLocaleString()})
+            ) : janbul === 0 ? (
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', textAlign: 'center' }}>희미한 잔불이 없습니다</div>
+            ) : (
+              <div style={{ display: 'flex', gap: 5 }}>
+                <button
+                  className="btn btn-small"
+                  style={{ flex: 1, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)', fontSize: 11 }}
+                  onClick={e => { e.stopPropagation(); handleReinforce(1); }}
+                  disabled={janbul < 1}
+                >1개</button>
+                <button
+                  className="btn btn-small"
+                  style={{ flex: 1, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)', fontSize: 11 }}
+                  onClick={e => { e.stopPropagation(); handleReinforce(10); }}
+                  disabled={janbul < 10}
+                >10개</button>
+                <button
+                  className="btn btn-small btn-gold"
+                  style={{ flex: 1, fontSize: 11 }}
+                  onClick={e => { e.stopPropagation(); handleReinforce(janbul); }}
+                >전부</button>
+              </div>
+            )}
+            {reinforceMsg && (
+              <div style={{ marginTop: 5, fontSize: 11, color: 'var(--text-secondary)', textAlign: 'center' }}>
+                {reinforceMsg}
+              </div>
+            )}
           </div>
-        ) : janbul === 0 ? (
-          <div style={{ fontSize: 11, color: 'var(--text-dim)', textAlign: 'center' }}>희미한 잔불이 없습니다</div>
-        ) : (
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button
-              className="btn btn-small"
-              style={{ flex: 1, background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)', fontSize: 11 }}
-              onClick={() => handleReinforce(1)}
-              disabled={janbul < 1}
-            >1개 투입</button>
-            <button
-              className="btn btn-small"
-              style={{ flex: 1, background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)', fontSize: 11 }}
-              onClick={() => handleReinforce(10)}
-              disabled={janbul < 10}
-            >10개 투입</button>
-            <button
-              className="btn btn-small btn-gold"
-              style={{ flex: 1, fontSize: 11 }}
-              onClick={() => handleReinforce(janbul)}
-            >가능한 만큼</button>
-          </div>
-        )}
-        {reinforceMsg && (
-          <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-secondary)', textAlign: 'center' }}>
-            {reinforceMsg}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -353,13 +311,14 @@ export default function EquipmentTab() {
   const equipItem = useGameStore(s => s.equipItem);
   const unequipItem = useGameStore(s => s.unequipItem);
   const discardEquipment = useGameStore(s => s.discardEquipment);
+  const tamsikKillStacks = useGameStore(s => s.tamsikKillStacks);
+  const tamsikEmberStacks = useGameStore(s => s.tamsikEmberStacks);
   const [enhancingId, setEnhancingId] = useState<string | null>(null);
 
   const battling = battleMode !== 'none';
 
-  const hasTamsikWeapon =
-    equipment.weapon?.defId === 'tamsik_bulggot_weapon' ||
-    equipmentInventory.some(e => e.defId === 'tamsik_bulggot_weapon');
+  // 탐식하는 불꽃 동적 스탯 (스택 기반)
+  const tamsikStats = getTamsikWeaponStats({ tamsikKillStacks, tamsikEmberStacks });
 
   return (
     <div>
@@ -410,7 +369,9 @@ export default function EquipmentTab() {
                   >
                     {getEnhanceName(instance)}
                   </span>
-                  <span className="equip-item-stats">{formatStats(getEffectiveStats(instance))}</span>
+                  <span className="equip-item-stats">
+                    {formatStats(instance.defId === 'tamsik_bulggot_weapon' ? tamsikStats : getEffectiveStats(instance))}
+                  </span>
                   {kcInfo && (
                     <span style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
                       처치 {kcInfo.killCount.toLocaleString()}/{kcInfo.maxKillCount.toLocaleString()} | 독 {kcInfo.currentDotDamage} x{kcInfo.currentMaxStacks}
@@ -428,9 +389,6 @@ export default function EquipmentTab() {
         })}
       </div>
 
-      {/* 탐식하는 불꽃 패널 */}
-      {hasTamsikWeapon && <TamsikPanel />}
-
       {/* 장비 인벤토리 */}
       <div className="card" style={{ marginTop: 12 }}>
         <div className="card-label">보유 장비</div>
@@ -446,9 +404,11 @@ export default function EquipmentTab() {
               if (!def) return null;
               const enhanceLevel = instance.enhanceLevel ?? 0;
               const kcInfo = getKillCountInfo(instance);
+              const isTamsik = instance.defId === 'tamsik_bulggot_weapon';
+              const displayStats = isTamsik ? tamsikStats : getEffectiveStats(instance);
 
               return (
-                <div key={instance.instanceId} className="equip-inventory-item">
+                <div key={instance.instanceId} className="equip-inventory-item" style={{ flexWrap: 'wrap' }}>
                   <div className="equip-inventory-item-info">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span
@@ -467,7 +427,7 @@ export default function EquipmentTab() {
                         {RARITY_NAMES[def.rarity]}
                       </span>
                     </div>
-                    <span className="equip-item-stats">{formatStats(getEffectiveStats(instance))}</span>
+                    <span className="equip-item-stats">{formatStats(displayStats)}</span>
                     <span className="equip-item-slot">
                       {SLOT_NAMES[def.slot]}
                     </span>
@@ -510,6 +470,7 @@ export default function EquipmentTab() {
                   {enhancingId === instance.instanceId && (
                     <EnhancePanel instance={instance} />
                   )}
+                  {isTamsik && <TamsikInventorySection />}
                 </div>
               );
             })}
