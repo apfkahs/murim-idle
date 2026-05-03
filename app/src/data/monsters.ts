@@ -1835,6 +1835,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
     materialDrops: [
       { materialId: 'huimihan_janbul', chance: 0.025 },
       { materialId: 'hayan_jae', chance: 0.05 },
+      { materialId: 'waebeopse_basic', chance: 0.00167 },
     ],
     grade: 11, imageKey: 'baehwa_haengja',
     hintText: '옷자락 끝에 작은 불씨를 옮겨오는 견습 사제',
@@ -1858,6 +1859,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
     materialDrops: [
       { materialId: 'huimihan_janbul', chance: 0.035 },
       { materialId: 'hayan_jae', chance: 0.07 },
+      { materialId: 'waebeopse_basic', chance: 0.00167 },
     ],
     grade: 12, imageKey: 'baehwa_howi',
     hintText: '성화 앞에 한 번 무릎 꿇은 자, 맹세의 창은 흔들리지 않는다',
@@ -1876,6 +1878,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
       { materialId: 'huimihan_janbul', chance: 0.05 },
       { materialId: 'hayan_jae', chance: 0.10 },
       { materialId: 'simbeop_guide_basic', chance: 0.05 / 30 },
+      { materialId: 'waebeopse_basic', chance: 0.00167 },
     ],
     grade: 12, imageKey: 'baehwa_geombosa',
     hintText: '검신을 따라 흰 불꽃이 결을 그리며 흐른다',
@@ -1895,6 +1898,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
       { materialId: 'huimihan_janbul', chance: 0.07 },
       { materialId: 'hayan_jae', chance: 0.15 },
       { materialId: 'simbeop_guide_basic', chance: 0.07 / 23 },
+      { materialId: 'waebeopse_basic', chance: 0.00167 },
     ],
     equipDrops: [
       { equipId: 'bulssui_sword', chance: 0.0002 },
@@ -1915,6 +1919,7 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
       { materialId: 'huimihan_janbul', chance: 0.095 },
       { materialId: 'hayan_jae', chance: 0.20 },
       { materialId: 'simbeop_guide_basic', chance: 0.095 / 15 },
+      { materialId: 'waebeopse_basic', chance: 0.00167 },
     ],
     equipDrops: [
       { equipId: 'ash_armor', chance: 0.0002 },

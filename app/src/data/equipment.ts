@@ -210,8 +210,8 @@ export const EQUIPMENT: EquipmentDef[] = [
     slot: 'weapon',
     rarity: 'superior',
     // 검법 장착 시 절초배율 보너스: killStacksSum 5만 +1.0 / 10만 +2.0 (tamsikUtils.getTamsikSwordUltBonus).
-    stats: { bonusAtk: 100, bonusCritRate: 0.05, bonusCritDmgPercent: 0.10 },
-    description: '배화교 몬스터를 처치하고 잔불을 투입할수록 성장하는 무기. 공격력·치명타·치명타 피해가 스택에 따라 100/+5%/+10%에서 300/+15%/+30%까지 오른다.',
+    stats: { bonusAtk: 150, bonusCritRate: 0.075, bonusCritDmgPercent: 0.15 },
+    description: '배화교 몬스터를 처치하고 잔불을 투입할수록 성장하는 무기. 공격력·치명타·치명타 피해가 스택에 따라 150/+7.5%/+15%에서 300/+15%/+30%까지 오른다.',
     imageKey: 'tamsik_bulggot_weapon',
   },
   // ── 배화교 검법 장비 ──

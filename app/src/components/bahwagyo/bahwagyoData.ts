@@ -17,7 +17,7 @@ const swordNodes: SkillNodeDef[] = [
     isRoot: true,
     description: '배화교의 검은 불을 베지 않는다. 성화의 마음으로 사람의 몸을 베고, 그 길의 끝에서 다시 불을 본다.',
     functional: '초식 데미지 배율 증가, 5Lv에서 절초 해금.',
-    effectSummary: '레벨당 배율 +0.05 (1Lv = 1.5×, 만렙 30 = 2.8×)',
+    effectSummary: '배율 성장 (1Lv = 1.5×, 20Lv 이상 = 2.8× 고정)',
     baseMax: 20,
     expandedMax: [30, 40],
     effectPerLevel: 5,
@@ -49,7 +49,7 @@ const swordNodes: SkillNodeDef[] = [
     requiresRoot: true,
     description: '검 하나에 호흡 셋, 그 마지막을 한 줄로 모은다.',
     functional: '절초 배율 증가. 특정 레벨에서 쿨타임 단축·내력폭발·성화공명 특성을 얻는다.',
-    effectSummary: '레벨당 배율 +1/9 (lv0=3.0×, 만렙 30 = 6.0×)',
+    effectSummary: '배율 성장 (lv0 = 3.0×, 20Lv 이상 = 6.0× 고정)',
     baseMax: 20,
     expandedMax: [30, 40],
     effectPerLevel: 5,
@@ -69,7 +69,7 @@ const swordNodes: SkillNodeDef[] = [
     branch: 'sword',
     description: '검 끝에서 불씨가 솟구쳐 손에 닿지 않는 자도 베어낸다.',
     functional: '내력을 일부 소모해 절초에 추가 피해를 더한다.',
-    effectSummary: '레벨당 배율 성장 (1Lv = 3.5×, 만렙 30 = 15.0×)',
+    effectSummary: '배율 성장 (1Lv = 3.5×, 20Lv 이상 = 15.0× 고정)',
     baseMax: 20,
     expandedMax: [30, 40],
     effectPerLevel: 0.5,
@@ -355,7 +355,7 @@ export function getNodeMax(node: SkillNodeDef, expandLevel: 0 | 1 | 2): number {
 // ──────────────────────────────────────────
 // 헬퍼: 레벨업 비용 자원 결정
 // ──────────────────────────────────────────
-const SWORD_DYNAMIC_NODE_IDS = new Set(['sword-main', 'sword-ult', 'sword-qi-manifest']);
+export const SWORD_DYNAMIC_NODE_IDS = new Set(['sword-main', 'sword-ult', 'sword-qi-manifest']);
 
 export function getCostResource(node: SkillNodeDef, currentLevel: number): 'ember' | 'flame' | 'divine' {
   // 검법 노드: 만렙 20 기준 9→10 / 19→20 마일스톤이 flame 결제 구간.
@@ -483,6 +483,14 @@ const GUIDE_COST_OVERRIDES: Record<string, number[]> = {
 export function getGuideLevelUpCost(node: SkillNodeDef, currentLevel: number): number {
   const table = GUIDE_COST_OVERRIDES[node.id] ?? GUIDE_COST_DEFAULT;
   return table[currentLevel] ?? 5;
+}
+
+// ──────────────────────────────────────────
+// 초급 외법서 — 성화보법 개방 노드 레벨업 비용 (waebeopse_basic)
+// GUIDE_COST_DEFAULT 와 동일한 비용 테이블 사용
+// ──────────────────────────────────────────
+export function getWaebeopseBobeoplevelUpCost(currentLevel: number): number {
+  return GUIDE_COST_DEFAULT[currentLevel] ?? 5;
 }
 
 // ──────────────────────────────────────────

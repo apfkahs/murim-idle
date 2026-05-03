@@ -52,17 +52,17 @@ export function getTamsikTotalStacks(state: Partial<GameState>): TamsikStackInfo
 /**
  * 탐식하는 불꽃 현재 실효 스탯 (선형 보간).
  * progress = totalStacks / 100000
- *  - bonusAtk:           100 → 300
- *  - bonusCritRate:      0.05 → 0.15 (소수)
- *  - bonusCritDmgPercent: 0.10 → 0.30 (소수)
+ *  - bonusAtk:           150 → 300
+ *  - bonusCritRate:      0.075 → 0.15 (소수)
+ *  - bonusCritDmgPercent: 0.15 → 0.30 (소수)
  */
 export function getTamsikWeaponStats(state: Partial<GameState>): EquipStats {
   const info = getTamsikTotalStacks(state);
   const progress = info.totalStacks / TAMSIK_TOTAL_STACK_CAP;
   return {
-    bonusAtk: 100 + 200 * progress,
-    bonusCritRate: 0.05 + 0.10 * progress,
-    bonusCritDmgPercent: 0.10 + 0.20 * progress,
+    bonusAtk: 150 + 150 * progress,
+    bonusCritRate: 0.075 + 0.075 * progress,
+    bonusCritDmgPercent: 0.15 + 0.15 * progress,
   };
 }
 

@@ -10,7 +10,7 @@ import type { GameStore } from '../gameStore';
 import type { BahwagyoState, BranchId } from '../../components/bahwagyo/bahwagyoTypes';
 import {
   NODE_MAP, getNodeMax, getCostResource, getLevelUpCost,
-  getGuideLevelUpCost,
+  getGuideLevelUpCost, getWaebeopseBobeoplevelUpCost,
   TIER2_UNLOCK_COST_EMBER, TIER2_UNLOCK_REQ_NODES, TIER2_UNLOCK_NODE_MIN_LEVEL,
   TIER3_UNLOCK_COST_FLAME, TIER3_UNLOCK_REQ_LEVEL,
   RESOURCE_MATERIAL_ID,
@@ -119,7 +119,7 @@ export type BahwagyoSlice = {
   bahwagyo: BahwagyoState;
 
   bahwagyoSetActiveBranch: (branch: BranchId) => void;
-  bahwagyoLevelUpNode: (nodeId: string, useScroll?: boolean) => void;
+  bahwagyoLevelUpNode: (nodeId: string, useScroll?: boolean, useWaebeopse?: boolean) => void;
   bahwagyoUnlockTier: (branch: Exclude<BranchId, 'mystery'>, tier: 2 | 3) => void;
   bahwagyoExchange: (from: 'ember' | 'flame' | 'divine', fromAmt: number, to: 'ember' | 'flame' | 'divine' | { material: string }, toAmt: number) => void;
   exchangeSwordManualForAsh: (amount?: number) => number;
@@ -140,7 +140,7 @@ export const createBahwagyoSlice: StateCreator<GameStore, [], [], BahwagyoSlice>
     }));
   },
 
-  bahwagyoLevelUpNode: (nodeId, useScroll = false) => {
+  bahwagyoLevelUpNode: (nodeId, useScroll = false, useWaebeopse = false) => {
     const state = get() as GameStore;
     if (state.battleMode !== 'none') return;
     const node = NODE_MAP[nodeId];
@@ -195,6 +195,21 @@ export const createBahwagyoSlice: StateCreator<GameStore, [], [], BahwagyoSlice>
           nodeLevels: { ...bhw.nodeLevels, [nodeId]: newLevel },
           scrolls: { ...bhw.scrolls, [scrollKey]: scrollCount - 1 },
         },
+        ...(newOwnedArts ? { ownedArts: newOwnedArts } : {}),
+      });
+      return;
+    }
+
+    if (useWaebeopse && node.id === 'outer-bobeop-open') {
+      const cost = getWaebeopseBobeoplevelUpCost(current);
+      const have = state.materials['waebeopse_basic'] ?? 0;
+      if (have < cost) return;
+      set({
+        bahwagyo: {
+          ...bhw,
+          nodeLevels: { ...bhw.nodeLevels, [nodeId]: newLevel },
+        },
+        materials: { ...state.materials, waebeopse_basic: have - cost },
         ...(newOwnedArts ? { ownedArts: newOwnedArts } : {}),
       });
       return;

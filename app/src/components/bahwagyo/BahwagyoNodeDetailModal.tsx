@@ -9,13 +9,20 @@ import {
   getCostResource,
   getLevelUpCost,
   getGuideLevelUpCost,
+  getWaebeopseBobeoplevelUpCost,
   RESOURCE_NAMES,
   RESOURCE_ICONS,
   getAbbrev,
   BRANCH_NAMES,
   SWORD_ULT_UNLOCK_THRESHOLD,
 } from './bahwagyoData';
-import { baehwaEmberIntervalSec } from '../../utils/combat/baehwagyoEffects';
+import {
+  baehwaEmberIntervalSec,
+  getSwordGradeMult,
+  getSwordUltMult,
+  getSwordQiManifestX,
+} from '../../utils/combat/baehwagyoEffects';
+import { SWORD_DYNAMIC_NODE_IDS } from './bahwagyoData';
 import { useGameStore } from '../../store/gameStore';
 
 // 소수점이 있으면 최대 소수점 2자리까지만, 정수면 그대로
@@ -27,17 +34,21 @@ function formatNum(n: number): string {
 
 // 노드별 효과 수치 계산 — 기본은 선형, 특수 노드는 실제 게임 공식 참조
 function computeEffectValue(node: SkillNodeDef, lv: number): number {
-  // 재의 빠름: 소각 주기 감소 (누적) = 25 - baehwaEmberIntervalSec(lv)
-  if (node.id === 'mind-t1-4') {
-    return 25 - baehwaEmberIntervalSec(lv);
-  }
+  if (node.id === 'mind-t1-4') return 25 - baehwaEmberIntervalSec(lv);
+  if (node.id === 'sword-main') return getSwordGradeMult(lv);
+  if (node.id === 'sword-ult') return getSwordUltMult(lv);
+  if (node.id === 'sword-qi-manifest') return getSwordQiManifestX(lv);
   return lv * node.effectPerLevel;
+}
+
+function isSwordDynamic(nodeId: string): boolean {
+  return SWORD_DYNAMIC_NODE_IDS.has(nodeId);
 }
 
 interface Props {
   nodeId: string;
   state: BahwagyoState;
-  onLevelUp: (nodeId: string, useScroll: boolean) => void;
+  onLevelUp: (nodeId: string, useScroll: boolean, useWaebeopse?: boolean) => void;
   onClose: () => void;
 }
 
@@ -89,9 +100,17 @@ export default function BahwagyoNodeDetailModal({ nodeId, state, onLevelUp, onCl
   const showScrollOption = node.branch !== 'outer'
     && !(node.branch === 'sword' && !isSwordMainOpen);
 
+  // 외법서 옵션 — 성화보법 개방 노드 전용
+  const isBobeop = node.id === 'outer-bobeop-open';
+  const waebeopseCount = allMaterials['waebeopse_basic'] ?? 0;
+  const waeboepseCost = isBobeop ? getWaebeopseBobeoplevelUpCost(level) : 0;
+  const hasWaebeopse = waebeopseCount >= waeboepseCost;
   // 기본값: 보유량이 있는 쪽 우선 (둘 다 있으면 essence 우선)
-  const defaultSel: 'essence' | 'scroll' = hasEssence ? 'essence' : hasScroll ? 'scroll' : 'essence';
-  const [selectedResource, setSelectedResource] = useState<'essence' | 'scroll'>(defaultSel);
+  const defaultSel: 'essence' | 'scroll' | 'waebeopse' = hasEssence ? 'essence'
+    : (isBobeop && hasWaebeopse) ? 'waebeopse'
+    : hasScroll ? 'scroll'
+    : 'essence';
+  const [selectedResource, setSelectedResource] = useState<'essence' | 'scroll' | 'waebeopse'>(defaultSel);
 
   // 현재/다음 효과 계산 (특수 노드는 자체 공식 사용)
   const currentEffect = computeEffectValue(node, level);
@@ -100,12 +119,13 @@ export default function BahwagyoNodeDetailModal({ nodeId, state, onLevelUp, onCl
 
   function handleLevelUp() {
     if (isMaxed || isLocked) return;
-    onLevelUp(nodeId, selectedResource === 'scroll');
+    onLevelUp(nodeId, selectedResource === 'scroll', selectedResource === 'waebeopse');
   }
 
   const canLevelUp = !isMaxed && !isLocked && (
     (selectedResource === 'essence' && hasEssence) ||
-    (selectedResource === 'scroll' && hasScroll)
+    (selectedResource === 'scroll' && hasScroll) ||
+    (selectedResource === 'waebeopse' && hasWaebeopse)
   );
 
   // 클릭한 노드 위치 기준으로 모달을 앵커링
@@ -193,18 +213,38 @@ export default function BahwagyoNodeDetailModal({ nodeId, state, onLevelUp, onCl
         ) : (
           <>
             {/* 효과 수치 */}
-            <div className="fire-modal-effect-row">
-              <span className="fire-modal-effect-label">현재</span>
-              <span className="fire-modal-effect-value">+{formatNum(currentEffect)}{node.effectUnit}</span>
-            </div>
-            {isMaxed ? (
-              <div className="fire-modal-maxed">✨ 만렙 도달</div>
+            {isSwordDynamic(node.id) ? (
+              <>
+                <div className="fire-modal-effect-row">
+                  <span className="fire-modal-effect-label">현재</span>
+                  <span className="fire-modal-effect-value">{formatNum(currentEffect)}×</span>
+                </div>
+                {isMaxed ? (
+                  <div className="fire-modal-maxed">✨ 만렙 도달</div>
+                ) : (
+                  <div className="fire-modal-effect-row">
+                    <span className="fire-modal-effect-label">다음</span>
+                    <span className="fire-modal-effect-value">{formatNum(nextEffect)}×</span>
+                    <span className="fire-modal-effect-next">&nbsp;(▲ +{formatNum(effectDelta)}×)</span>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="fire-modal-effect-row">
-                <span className="fire-modal-effect-label">다음</span>
-                <span className="fire-modal-effect-value">+{formatNum(nextEffect)}{node.effectUnit}</span>
-                <span className="fire-modal-effect-next">&nbsp;(▲ +{formatNum(effectDelta)}{node.effectUnit})</span>
-              </div>
+              <>
+                <div className="fire-modal-effect-row">
+                  <span className="fire-modal-effect-label">현재</span>
+                  <span className="fire-modal-effect-value">+{formatNum(currentEffect)}{node.effectUnit}</span>
+                </div>
+                {isMaxed ? (
+                  <div className="fire-modal-maxed">✨ 만렙 도달</div>
+                ) : (
+                  <div className="fire-modal-effect-row">
+                    <span className="fire-modal-effect-label">다음</span>
+                    <span className="fire-modal-effect-value">+{formatNum(nextEffect)}{node.effectUnit}</span>
+                    <span className="fire-modal-effect-next">&nbsp;(▲ +{formatNum(effectDelta)}{node.effectUnit})</span>
+                  </div>
+                )}
+              </>
             )}
 
             {/* 특성 패널 — 점진 공개 (10/20/30Lv 등 단계 해금) */}
@@ -275,6 +315,15 @@ export default function BahwagyoNodeDetailModal({ nodeId, state, onLevelUp, onCl
                         <>📜 {BRANCH_NAMES[node.branch as Exclude<BranchId, 'mystery'>] ?? node.branch} {node.tier}단계 비급 1권 사용
                         &nbsp;(보유: {scrollCount})</>
                       )}
+                    </button>
+                  )}
+                  {isBobeop && (
+                    <button
+                      className={`fire-resource-btn${selectedResource === 'waebeopse' ? ' selected' : ''}`}
+                      disabled={!hasWaebeopse}
+                      onClick={() => hasWaebeopse && setSelectedResource('waebeopse')}
+                    >
+                      외법서 ({waebeopseCount}/{waeboepseCost})
                     </button>
                   )}
                 </div>

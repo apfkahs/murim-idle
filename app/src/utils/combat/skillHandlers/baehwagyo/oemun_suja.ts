@@ -1,7 +1,7 @@
 // 배화교 외문수좌 — 2페이즈 보스 핸들러
 //   P1-A: 사제 톤. 평타/공양/회수 + 성화 권능 게이지 (HP 50% 또는 게이지 100 → P1-B)
 //   P1-B: 사제 톤. 영의 고함/권능의 구각/불꽃의 인/불의 단련 + 강림의 결 게이지 (게이지 100 → 성화의 강림)
-//   전환: HP 0 도달 시 100% 회복 + 15초 양측 액션락 (gameLoop 가로채기 분기에서 처리)
+//   전환: HP 0 도달 시 100% 회복 + 6초 양측 액션락 (gameLoop 가로채기 분기에서 처리)
 //   P2: 광전사 톤. 광화 평타 ×1.3 / 광분의 연격 / 업화 일격 / 아타르의 채찍 + 분노 가속(50%/25%)
 //
 // 훅 분담:
@@ -46,7 +46,7 @@ export interface OemunSujaState {
   sacredFireGauge: number;       // 0~100, P1-A 성화 권능 게이지
   descentGauge: number;          // 0~100, P1-B 강림의 결 게이지
   absorbedEmberStacks: number;   // P1 전체 누적 회수량 (P2 공양의 회수 산정 기준)
-  transitionTimer: number;       // 페이즈 전환 카운트다운 (15.0 → 0)
+  transitionTimer: number;       // 페이즈 전환 카운트다운 (6.0 → 0)
   hasTriggeredP2: boolean;       // P2 회복 1회만 발동
   younguiCdRemaining: number;    // 영의 고함 자체 쿨 (10초)
   gugakRemaining: number;        // 권능의 구각 지속 (10초)
@@ -102,10 +102,10 @@ function perTickOemunSuja(ctx: TickContext, _pattern: BossPatternDef | null): vo
   }
   if (st.transitionTimer > 0) st.transitionTimer = Math.max(0, st.transitionTimer - dt);
 
-  // (b-2) 전환 연출 중(15초) 사이사이 분위기 로그 출력 — 게임이 멈춘 게 아니라는 신호.
-  // 진입 직후 큰 로그(아타시 바흐람 강림)는 gameLoop가 출력. 여기서는 12s/9s/6s/3s 시점에 한 줄씩.
+  // (b-2) 전환 연출 중(6초) 사이사이 분위기 로그 출력 — 게임이 멈춘 게 아니라는 신호.
+  // 진입 직후 큰 로그(아타시 바흐람 강림)는 gameLoop가 출력. 여기서는 4.8s/3.6s/2.4s/1.2s 시점에 한 줄씩.
   if (st.phase === 'transition' && st.transitionLogStage < 4) {
-    const TRANSITION_THRESHOLDS = [12, 9, 6, 3] as const;
+    const TRANSITION_THRESHOLDS = [4.8, 3.6, 2.4, 1.2] as const;
     const TRANSITION_FLAVORS = [
       '*외문수좌의 사제복 안쪽에서, 붉은 빛이 한 번 흘러나왔다 사라진다.*',
       '*그의 손등 위로 보이지 않는 불꽃이 결을 그리며 흘러내린다. 입가의 미소는 어느새 굳어 있다.*',

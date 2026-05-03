@@ -285,9 +285,9 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       const sujaSt = ctx.bossPatternState.monsterState;
       ctx.currentEnemy = { ...ctx.currentEnemy, hp: ctx.currentEnemy.maxHp };
       sujaSt.phase = 'transition';
-      sujaSt.transitionTimer = 15;
+      sujaSt.transitionTimer = 6;
       sujaSt.hasTriggeredP2 = true;
-      ctx.bossPatternState.globalActionLockTimer = 15;
+      ctx.bossPatternState.globalActionLockTimer = 6;
       ctx.bossPatternState.bossDamageTakenMultiplier = undefined;
       // P1 잔여 상태 정리
       sujaSt.gugakRemaining = 0;

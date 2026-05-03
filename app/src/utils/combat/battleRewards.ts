@@ -460,7 +460,6 @@ function processExploreMode(
         ctx.currentBattleMaxOutgoingHit = 0;
         ctx.currentBattleMaxIncomingHit = 0;
         ctx.currentBattleSkillUseCount = 0;
-        ctx.stamina = 0;
         applyUltCooldownReset(ctx);
         if (nextMon.isHidden && ctx.currentField) {
           if (!ctx.hiddenRevealedInField[ctx.currentField]) {
@@ -524,7 +523,6 @@ function processExploreMode(
           ctx.currentBattleMaxOutgoingHit = 0;
           ctx.currentBattleMaxIncomingHit = 0;
           ctx.currentBattleSkillUseCount = 0;
-          ctx.stamina = 0;
           applyUltCooldownReset(ctx);
           if (spawnHiddenAtBoss) {
             // 히든 조우 연출: 대사 로그 출력 + 공격 타이머 지연
@@ -615,6 +613,7 @@ function processHuntMode(
       ctx.currentBattleMaxOutgoingHit = 0;
       ctx.currentBattleMaxIncomingHit = 0;
       ctx.currentBattleSkillUseCount = 0;
+      ctx.stamina = 0;
       ctx.playerAttackTimer = B.BASE_ATTACK_INTERVAL;
       ctx.enemyAttackTimer = nextMon.attackInterval;
       const newBps = createBossPatternState(ctx.huntTarget);

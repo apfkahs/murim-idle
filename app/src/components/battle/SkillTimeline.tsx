@@ -1,6 +1,7 @@
 import { useGameStore, getMonsterRevealLevel } from '../../store/gameStore';
 import { getArtDef, type ArtDef } from '../../data/arts';
 import { BOSS_PATTERNS } from '../../data/monsters';
+import { SEONGHWA_GEOMBEOP_ART_ID, SWORD_NODES } from '../../utils/combat/baehwagyoEffects';
 
 /**
  * 스킬 타임라인 — 절초(플레이어) + 보스 차징(적) 통합 표시.
@@ -24,6 +25,7 @@ export default function SkillTimeline() {
   const stamina = useGameStore(s => s.stamina);
   const bossPatternState = useGameStore(s => s.bossPatternState);
   const killCounts = useGameStore(s => s.killCounts);
+  const bahwagyoNodeLevels = useGameStore(s => s.bahwagyo?.nodeLevels ?? {});
 
   if (!currentEnemy) return null;
 
@@ -49,10 +51,10 @@ export default function SkillTimeline() {
     if (def.ultMultiplier == null) continue;
 
     const masteryIds = activeMasteries[artId] ?? [];
-    // 절초 해금 여부 — unlockUlt 마스터리 중 하나라도 active면 해금
-    const ultUnlocked = def.masteries.some(
-      m => masteryIds.includes(m.id) && m.effects?.unlockUlt === true,
-    );
+    // 절초 해금 여부 — 성화검법은 bahwagyo sword-main lv5+ 조건, 나머지는 unlockUlt 마스터리
+    const ultUnlocked = artId === SEONGHWA_GEOMBEOP_ART_ID
+      ? (bahwagyoNodeLevels[SWORD_NODES.main] ?? 0) >= 5
+      : def.masteries.some(m => masteryIds.includes(m.id) && m.effects?.unlockUlt === true);
     if (!ultUnlocked) continue;
 
     const ultName = getUltNameForArt(def, masteryIds);

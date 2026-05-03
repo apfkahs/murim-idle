@@ -197,6 +197,12 @@ export const MATERIALS: MaterialDef[] = [
     excludeFromDropBonus: true,
   },
   {
+    id: 'waebeopse_basic',
+    name: '초급 외법서',
+    description: '배화교 외문 수련자들이 몸을 움직이기 앞서 펼쳐 보던 낡은 보법 지침서. 성화보법 개방 노드를 한 단계 높이는 데 쓸 수 있다.',
+    excludeFromDropBonus: true,
+  },
+  {
     id: 'hot_ash',
     name: '뜨거운 재',
     description: '아직 온기가 식지 않은 잿덩이. 손바닥에 한 줌 흩뿌리면 하얀 재 서른 줌이 흩어져 나온다.',
