@@ -404,6 +404,9 @@ const T1_EMBER_COST_OVERRIDES: Record<string, number[]> = {
   'mind-t1-4': T1_EMBER_COST_ASH_FAST,      // 재의 빠름
 };
 
+// sword-ult 잠금 해제 임계값 — sword-main 이 이 레벨 이상이어야 sword-ult 활성
+export const SWORD_ULT_UNLOCK_THRESHOLD = 5;
+
 // ──────────────────────────────────────────
 // 검법 노드 비용 — 0~8 ember (잔불), 9+ flame (불꽃).
 // 9→10, 19→20 마일스톤은 큰 단가. 만렙 확장(30/40) 시 last-entry 폴백.

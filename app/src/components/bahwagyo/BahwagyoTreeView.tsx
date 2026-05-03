@@ -2,7 +2,7 @@
 // 단계별 노드 배치 + 블러 영역 + 연결선
 
 import type { BranchId, SkillNodeDef, NodeState } from './bahwagyoTypes';
-import { ALL_NODES, getNodeMax, getCostResource, getLevelUpCost } from './bahwagyoData';
+import { ALL_NODES, getNodeMax, getCostResource, getLevelUpCost, SWORD_ULT_UNLOCK_THRESHOLD } from './bahwagyoData';
 import BahwagyoNodeBox from './BahwagyoNodeBox';
 
 interface Props {
@@ -32,7 +32,7 @@ function getNodeState(
     const rootId = node.branch === 'sword' ? 'sword-main' : `${node.branch}-t1-1`;
     const rootLevel = nodeLevels[rootId] ?? 0;
     // sword-ult: 검화합일(劍火合一) 특성 — 성화검법 5Lv에서 절초 해금 (sword-main >= 5)
-    const rootThreshold = node.id === 'sword-ult' ? 5 : 1;
+    const rootThreshold = node.id === 'sword-ult' ? SWORD_ULT_UNLOCK_THRESHOLD : 1;
     if (rootLevel < rootThreshold) return 'dimmed';
   }
 

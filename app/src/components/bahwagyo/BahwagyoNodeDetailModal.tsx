@@ -13,6 +13,7 @@ import {
   RESOURCE_ICONS,
   getAbbrev,
   BRANCH_NAMES,
+  SWORD_ULT_UNLOCK_THRESHOLD,
 } from './bahwagyoData';
 import { baehwaEmberIntervalSec } from '../../utils/combat/baehwagyoEffects';
 import { useGameStore } from '../../store/gameStore';
@@ -51,7 +52,7 @@ export default function BahwagyoNodeDetailModal({ nodeId, state, onLevelUp, onCl
 
   // 선행 조건 미충족 여부 (흐림 노드)
   // sword-ult: 검화합일(劍火合一) 특성 — 성화검법 5Lv에서 절초 해금
-  const rootThreshold = node.id === 'sword-ult' ? 5 : 1;
+  const rootThreshold = node.id === 'sword-ult' ? SWORD_ULT_UNLOCK_THRESHOLD : 1;
   const isLocked = !isPlaceholder && (node.requiresRoot
     ? (state.nodeLevels[node.branch === 'sword' ? 'sword-main' : `${node.branch}-t1-1`] ?? 0) < rootThreshold
     : false);

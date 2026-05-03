@@ -99,6 +99,7 @@ function TamsikInventorySection() {
   const [collapsed, setCollapsed] = useState(true);
 
   const info = getTamsikTotalStacks({ tamsikKillStacks, tamsikEmberStacks });
+  const stats = getTamsikWeaponStats({ tamsikKillStacks, tamsikEmberStacks });
   const janbul = materials['huimihan_janbul'] ?? 0;
   const atCap = info.remainingCapacity === 0;
   const pct = (info.totalStacks / TAMSIK_TOTAL_STACK_CAP) * 100;
@@ -130,6 +131,13 @@ function TamsikInventorySection() {
           {/* 총 스택 진행 바 */}
           <div style={{ height: 5, background: 'var(--bg-elevated)', borderRadius: 3, overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${pct}%`, background: 'rgba(255,140,0,0.7)', borderRadius: 3, transition: 'width 0.3s' }} />
+          </div>
+
+          {/* 현재 스탯 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-dim)' }}>
+            <span>공격력 {Math.round(stats.bonusAtk ?? 0)}</span>
+            <span>치명타 +{((stats.bonusCritRate ?? 0) * 100).toFixed(1)}%</span>
+            <span>치명피해 +{((stats.bonusCritDmgPercent ?? 0) * 100).toFixed(1)}%</span>
           </div>
 
           {/* 몬스터별 처치 스택 */}

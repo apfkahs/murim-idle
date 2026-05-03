@@ -28,7 +28,9 @@ export default function BahwagyoTab({ onClose }: Props) {
   const openLockedModal = useGameStore(s => s.bahwagyoOpenLockedModal);
   const closeLockedModal = useGameStore(s => s.bahwagyoCloseLockedModal);
   const resetTree = useGameStore(s => s.bahwagyoReset);
+  const exchangeSwordManualForAsh = useGameStore(s => s.exchangeSwordManualForAsh);
   const [softMode, setSoftMode] = useState(false);
+  const [manualExchangeMsg, setManualExchangeMsg] = useState<string | null>(null);
 
   // resources 는 state.materials 를 단일 소스로 삼아 파생값으로 제공. bahwagyoSlice actions 도 동일.
   const derivedResources = {
@@ -37,6 +39,7 @@ export default function BahwagyoTab({ onClose }: Props) {
     divine: materials[RESOURCE_MATERIAL_ID.divine] ?? 0,
   };
   const st = { ...rawSt, resources: derivedResources };
+  const swordManualCount = materials['bahwagyo_sword_manual'] ?? 0;
 
   const isMystery = st.activeBranch === 'mystery';
 
@@ -66,6 +69,49 @@ export default function BahwagyoTab({ onClose }: Props) {
         {isMystery ? (
           <>
             <BahwagyoExchangeUI resources={st.resources} onExchange={exchange} />
+            <div className="fire-exchange-section">
+              <div className="fire-exchange-section-title">비급서 교환</div>
+              <div className="fire-exchange-block">
+                <div className="fire-exchange-title">📕 배화교 검법 비전서 → 🌫 하얀 재</div>
+                <div className="fire-exchange-rate">1권 → 30개</div>
+                <div className="fire-exchange-have">보유: {swordManualCount}권</div>
+                <div className="fire-exchange-btns">
+                  <button
+                    className="fire-exchange-btn"
+                    disabled={swordManualCount < 1}
+                    onClick={() => {
+                      const used = exchangeSwordManualForAsh(1);
+                      setManualExchangeMsg(`비전서 ${used}권 → 하얀 재 ${used * 30}개`);
+                    }}
+                  >
+                    1권
+                  </button>
+                  <button
+                    className="fire-exchange-btn"
+                    disabled={swordManualCount < 10}
+                    onClick={() => {
+                      const used = exchangeSwordManualForAsh(10);
+                      setManualExchangeMsg(`비전서 ${used}권 → 하얀 재 ${used * 30}개`);
+                    }}
+                  >
+                    10권
+                  </button>
+                  <button
+                    className="fire-exchange-btn"
+                    disabled={swordManualCount < 1}
+                    onClick={() => {
+                      const used = exchangeSwordManualForAsh(swordManualCount);
+                      setManualExchangeMsg(`비전서 ${used}권 → 하얀 재 ${used * 30}개`);
+                    }}
+                  >
+                    전부
+                  </button>
+                </div>
+                {manualExchangeMsg && (
+                  <div className="fire-exchange-result">{manualExchangeMsg}</div>
+                )}
+              </div>
+            </div>
             <BahwagyoMysteryNode fragments={st.mysteryFragments} />
           </>
         ) : (

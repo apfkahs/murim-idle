@@ -96,7 +96,7 @@ export {
   calcMaxHp, calcStamina, calcStaminaRegen, calcEffectiveRegen,
   calcQiPerSec, calcCombatQiRatio, gatherMasteryEffects, gatherEquipmentStats,
   spawnEnemy, calcCritRate, calcDodge, calcDmgReduction, calcCritDmg,
-  calcTierMultiplier, getActiveUltName, CLEAR_BATTLE_STATE,
+  calcCritDamageMultiplier, calcTierMultiplier, getActiveUltName, CLEAR_BATTLE_STATE,
 } from '../utils/combatCalc';
 
 // GameActions는 슬라이스 타입들의 합집합으로 교체되었으므로 빈 인터페이스로 re-export

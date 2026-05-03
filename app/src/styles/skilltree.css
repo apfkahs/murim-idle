@@ -1339,6 +1339,13 @@
   cursor: not-allowed;
 }
 
+.fire-exchange-result {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
 /* 어둠의 노드 — plum 정체성 유지 */
 .fire-mystery-node {
   margin-top: 16px;

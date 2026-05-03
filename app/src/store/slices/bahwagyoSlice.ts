@@ -122,6 +122,7 @@ export type BahwagyoSlice = {
   bahwagyoLevelUpNode: (nodeId: string, useScroll?: boolean) => void;
   bahwagyoUnlockTier: (branch: Exclude<BranchId, 'mystery'>, tier: 2 | 3) => void;
   bahwagyoExchange: (from: 'ember' | 'flame' | 'divine', fromAmt: number, to: 'ember' | 'flame' | 'divine' | { material: string }, toAmt: number) => void;
+  exchangeSwordManualForAsh: (amount?: number) => number;
   bahwagyoSelectNode: (nodeId: string | null) => void;
   bahwagyoOpenLockedModal: (branch: Exclude<BranchId, 'mystery'>, tier: 2 | 3) => void;
   bahwagyoCloseLockedModal: () => void;
@@ -278,6 +279,26 @@ export const createBahwagyoSlice: StateCreator<GameStore, [], [], BahwagyoSlice>
       },
       obtainedMaterials: newObtained,
     });
+  },
+
+  exchangeSwordManualForAsh: (amount = 1) => {
+    const state = get() as GameStore;
+    const have = state.materials['bahwagyo_sword_manual'] ?? 0;
+    const used = Math.min(amount, have);
+    if (used < 1) return 0;
+    const haveAsh = state.materials['hayan_jae'] ?? 0;
+    const newObtained = state.obtainedMaterials.includes('hayan_jae')
+      ? state.obtainedMaterials
+      : [...state.obtainedMaterials, 'hayan_jae'];
+    set({
+      materials: {
+        ...state.materials,
+        bahwagyo_sword_manual: have - used,
+        hayan_jae: haveAsh + used * 30,
+      },
+      obtainedMaterials: newObtained,
+    });
+    return used;
   },
 
   bahwagyoSelectNode: (nodeId) => {

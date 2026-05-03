@@ -1,9 +1,11 @@
 import {
   useGameStore,
-  calcStamina, calcTierMultiplier, calcCritRate, calcCritDmg,
+  calcStamina, calcTierMultiplier, calcCritRate,
+  calcCritDamageMultiplier,
   calcDodge, calcDmgReduction, gatherEquipmentStats,
   getArtCurrentGrade, getArtDamageMultiplier,
 } from '../../store/gameStore';
+import { BALANCE_PARAMS as B } from '../../data/balance';
 import { getArtDef } from '../../data/arts';
 import { getEquipmentDef, type EquipSlot } from '../../data/equipment';
 import { getActiveProfile } from '../../assets';
@@ -46,12 +48,16 @@ export default function CharacterInfoTab() {
   const tierMult = calcTierMultiplier(tier);
   const maxStamina = calcStamina(stats.sim, tierMult);
   const atkInterval = getAttackInterval();
-  const critRate = Math.round(calcCritRate(state) * 100);
-  const critDmg = Math.round(calcCritDmg(state));
-  const dodge = Math.round(calcDodge(state) * 100);
-  const dmgRed = Math.round(calcDmgReduction(state));
   const equipStats = gatherEquipmentStats(state);
   const equipAtk = equipStats.bonusAtk ?? 0;
+  const critRate = Math.round(
+    Math.min(calcCritRate(state) + (equipStats.bonusCritRate ?? 0), B.CRIT_RATE_CAP) * 100
+  );
+  const critDmg = Math.round(calcCritDamageMultiplier(state));
+  const dodge = Math.round(
+    Math.min(calcDodge(state) + (equipStats.bonusDodge ?? 0) / 100, B.DODGE_CAP) * 100
+  );
+  const dmgRed = Math.round(calcDmgReduction(state) + (equipStats.bonusDmgReduction ?? 0));
 
   const selectedProfileKey = useGameStore(s => s.selectedProfileKey);
   const customProfileUrl = useGameStore(s => s.customProfileUrl);
