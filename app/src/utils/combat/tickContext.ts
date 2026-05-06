@@ -466,9 +466,10 @@ export function applyUltCooldownReset(ctx: TickContext): void {
   for (const artId of Object.keys(ctx.ultCooldowns)) {
     const artDef = getArtDef(artId);
     const activeIds = activeMasteries[artId] ?? [];
-    const persist = artDef?.masteries.some(
-      m => activeIds.includes(m.id) && m.effects?.ultCooldownPersist
-    );
+    const persist = artDef?.ultCooldownPersistAlways ||
+      artDef?.masteries.some(
+        m => activeIds.includes(m.id) && m.effects?.ultCooldownPersist
+      );
     if (!persist) delete ctx.ultCooldowns[artId];
   }
 }

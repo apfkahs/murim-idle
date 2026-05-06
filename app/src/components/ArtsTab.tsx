@@ -507,7 +507,7 @@ export default function ArtsTab() {
                               {steps.map(v => (
                                 <button
                                   key={v}
-                                  className={`btn btn-small${Math.abs(v - swordQiDrainRate) < 1e-6 ? '' : ' btn-secondary'}`}
+                                  className={`btn btn-small${Math.abs(v - swordQiDrainRate) < 1e-6 ? ' btn-gold' : ' btn-secondary'}`}
                                   onClick={() => setSwordQiDrainRate(v)}
                                   disabled={battling}
                                 >

@@ -140,6 +140,7 @@ export interface ArtDef {
   attackIntervalMultiplier?: number;  // 이 무공 발동 후 다음 공격 간격 배율 (녹림권: 1.5)
   ultChargeTime?: number;             // 절초 발동 전 차지 턴수 (강렬한 일권: 1.5)
   ultBypassWeakDefense?: boolean;     // 약한 방어력 무시 플래그
+  ultCooldownPersistAlways?: boolean; // true이면 mastery 무관하게 적 전환 시 절초 쿨타임 유지
 
   growth: ArtGrowth;
   masteries: MasteryDef[];
@@ -703,6 +704,7 @@ export const ARTS: ArtDef[] = [
     ultMultiplier: 0,           // 동적 — getSwordUltMult(ultLv) + getTamsikSwordUltBonus(ctx)
     ultCost: 30,
     ultCooldown: 42,            // 기본값. lv5/15 특성으로 35/25초 단축.
+    ultCooldownPersistAlways: true,
     imageKey: 'baehwa_seonghwa_geombeop',
     descriptionByStage: [
       '성화의 마음으로 사람의 몸을 베고, 그 길의 끝에서 다시 불을 본다. 배화교 비급 트리에서 레벨을 올려 효과를 키운다.',

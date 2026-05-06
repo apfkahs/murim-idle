@@ -377,9 +377,12 @@ export default function EquipmentTab() {
                   >
                     {getEnhanceName(instance)}
                   </span>
-                  <span className="equip-item-stats">
-                    {formatStats(instance.defId === 'tamsik_bulggot_weapon' ? tamsikStats : getEffectiveStats(instance))}
-                  </span>
+                  {(() => {
+                    const s = formatStats(instance.defId === 'tamsik_bulggot_weapon' ? tamsikStats : getEffectiveStats(instance));
+                    return s === '효과 없음'
+                      ? <span style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2, lineHeight: 1.4 }}>{def.description}</span>
+                      : <span className="equip-item-stats">{s}</span>;
+                  })()}
                   {kcInfo && (
                     <span style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
                       처치 {kcInfo.killCount.toLocaleString()}/{kcInfo.maxKillCount.toLocaleString()} | 독 {kcInfo.currentDotDamage} x{kcInfo.currentMaxStacks}
@@ -435,7 +438,12 @@ export default function EquipmentTab() {
                         {RARITY_NAMES[def.rarity]}
                       </span>
                     </div>
-                    <span className="equip-item-stats">{formatStats(displayStats)}</span>
+                    {(() => {
+                      const s = formatStats(displayStats);
+                      return s === '효과 없음'
+                        ? <span style={{ fontSize: 10, color: 'var(--text-dim)', lineHeight: 1.4 }}>{def.description}</span>
+                        : <span className="equip-item-stats">{s}</span>;
+                    })()}
                     <span className="equip-item-slot">
                       {SLOT_NAMES[def.slot]}
                     </span>
