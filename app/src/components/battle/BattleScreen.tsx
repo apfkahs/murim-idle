@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { getFieldDef } from '../../data/fields';
+import { getMonsterDef } from '../../data/monsters';
+import { getOathDef, calcOathBoost, calcOathFlatBonuses } from '../../data/oaths';
 import { type DensityMode } from './BattleLog';
 import BattleScene from './BattleScene';
 import CombatBars from './CombatBars';
@@ -28,7 +30,34 @@ export default function BattleScreen() {
   const isBossPhase = useGameStore(s => s.isBossPhase);
   const maxHp = useGameStore(s => s.maxHp);
   const battleLog = useGameStore(s => s.battleLog);
+  const oathSystem = useGameStore(s => s.oathSystem);
   const abandonBattle = useGameStore(s => s.abandonBattle);
+
+  // 맹세 활성 정보 (lockedAt + forbid 합산 → 효과 적용 중인 맹세만 카운트)
+  const oathInfo = (() => {
+    const locked = oathSystem.lockedAt;
+    if (!locked) return null;
+    const fieldDef = currentField ? getFieldDef(currentField) : null;
+    const enemyMonDef = currentEnemy ? getMonsterDef(currentEnemy.id) : null;
+    const forbids = [
+      ...(fieldDef?.forbidOathIds ?? []),
+      ...(enemyMonDef?.forbidOathIds ?? []),
+    ];
+    const activeIds = locked.snapshotIds.filter(id => !forbids.includes(id));
+    if (activeIds.length === 0) return null;
+    const weightSum = activeIds.reduce((sum, id) => sum + (getOathDef(id)?.weight ?? 0), 0);
+    const boost = calcOathBoost(weightSum);
+    const flat = calcOathFlatBonuses(weightSum);
+    const names = activeIds.map(id => getOathDef(id)?.name ?? id);
+    return {
+      count: activeIds.length,
+      weightSum,
+      profPct: Math.round((boost.profMult - 1) * 100),
+      dropPct: Math.round((boost.dropMult - 1) * 100),
+      rankBonus: flat.monsterRankBonus,
+      names,
+    };
+  })();
 
   const [density, setDensity] = useState<DensityMode>(readInitialDensity);
   useEffect(() => {
@@ -56,6 +85,29 @@ export default function BattleScreen() {
           )}
           {!isExplore && (
             <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>지정 사냥</span>
+          )}
+          {oathInfo && (
+            <span
+              className="badge"
+              style={{
+                fontSize: 11,
+                padding: '2px 8px',
+                background: 'rgba(255,215,0,0.12)',
+                color: 'var(--gold)',
+                border: '1px solid rgba(255,215,0,0.35)',
+                fontWeight: 500,
+              }}
+              title={
+                `활성 맹세 ${oathInfo.count}종 (가중치 ${oathInfo.weightSum})\n` +
+                `· 숙련도 +${oathInfo.profPct}%\n` +
+                `· 드랍률 +${oathInfo.dropPct}%` +
+                (oathInfo.rankBonus > 0 ? `\n· 몬스터 등급 +${oathInfo.rankBonus}` : '') +
+                `\n\n[ ${oathInfo.names.join(' · ')} ]`
+              }
+            >
+              誓 {oathInfo.count}종 · 숙련 +{oathInfo.profPct}% / 드랍 +{oathInfo.dropPct}%
+              {oathInfo.rankBonus > 0 && ` · 등급 +${oathInfo.rankBonus}`}
+            </span>
           )}
         </div>
         <button className="btn btn-small btn-danger" onClick={abandonBattle}>포기</button>

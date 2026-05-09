@@ -12,6 +12,7 @@
 import { consumeEmberStacks, getEmberStacks } from './emberUtils';
 import { SIKHWA_NODES, getMukneomTrait } from './baehwagyoEffects';
 import type { TickContext } from './tickContext';
+import { applyHealing } from './tickContext';
 
 /** 만료된 ashOath 버프 in-place 스윕 — 배열 재할당 금지 */
 export function sweepAshOathBuffs(ctx: TickContext): void {
@@ -35,18 +36,13 @@ export function applyAshMukneom(ctx: TickContext, burnedStacks: number): void {
   if (perStack) {
     const cap = eff?.emberBurnHpRecoveryStackCap ?? 20;
     const stacks = Math.min(burnedStacks, cap);
-    let heal = Math.floor(ctx.maxHp * stacks * perStack);
-    // 외문수좌 인프라 — playerRecoveryDebuff 적용
-    const recDebuffMuk = ctx.bossPatternState?.playerRecoveryDebuff;
-    if (recDebuffMuk && recDebuffMuk.remainingSec > 0) heal = Math.floor(heal * (1 - recDebuffMuk.pct));
-    if (heal > 0) {
-      ctx.hp = Math.min(ctx.hp + heal, ctx.maxHp);
-      if (!ctx.isSimulating) {
-        ctx.floatingTexts = [...ctx.floatingTexts, {
-          id: ctx.nextFloatingId++, text: `+${heal}`, type: 'heal' as const, timestamp: Date.now(),
-        }];
-        if (ctx.floatingTexts.length > 15) ctx.floatingTexts = ctx.floatingTexts.slice(-15);
-      }
+    // applyHealing 단일 진입점 — 맹세 hpRegenPenaltyPct + 외문수좌 playerRecoveryDebuff 적용
+    const heal = applyHealing(ctx, Math.floor(ctx.maxHp * stacks * perStack));
+    if (heal > 0 && !ctx.isSimulating) {
+      ctx.floatingTexts = [...ctx.floatingTexts, {
+        id: ctx.nextFloatingId++, text: `+${heal}`, type: 'heal' as const, timestamp: Date.now(),
+      }];
+      if (ctx.floatingTexts.length > 15) ctx.floatingTexts = ctx.floatingTexts.slice(-15);
     }
   }
 

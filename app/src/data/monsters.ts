@@ -1565,6 +1565,7 @@ export interface MonsterDef {
   description?: string;      // 도감 설명 (10마리 처치 시 해금)
   hintText?: string;         // 도감/필드 상세에서 표시되는 한 줄 인상 텍스트 (지정 시 power 기반 일반 등급 텍스트 대체)
   hiddenEncounterLogs?: string[];  // 히든 스폰 시 대사 로그
+  forbidOathIds?: string[];        // 이 맹세들은 이 적 전투에서 효과·보상 모두 무효
 }
 
 const GRADE_NAMES = ['등급외', '1등급', '2등급', '3등급', '4등급'];

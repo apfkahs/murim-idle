@@ -174,7 +174,7 @@ const mindNodes: SkillNodeDef[] = [
     branch: 'mind',
     requiresRoot: true,
     description: '사라진 불 하나하나가 팔 끝으로 옮겨 앉는다.',
-    functional: '불씨가 자동 소각될 때 남은 불씨 스택 수에 비례해 공격력이 잠시 오른다. (최대 3중첩 · 20초 지속)',
+    functional: '불씨가 자동 소각될 때 소각된 불씨 수에 비례해 공격력이 잠시 오른다. (최대 3중첩 · 20초 지속)',
     effectSummary: '레벨당 ATK +0.005%p/스택 (1Lv = 0.1%/스택)',
     baseMax: 30,
     expandedMax: [45, 50],

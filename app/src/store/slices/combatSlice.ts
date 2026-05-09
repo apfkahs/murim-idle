@@ -6,6 +6,7 @@ import { getMonsterDef } from '../../data/monsters';
 import { getFieldDef, generateExploreOrder } from '../../data/fields';
 import { spawnEnemy, CLEAR_BATTLE_STATE, calcPlayerAttackInterval } from '../../utils/combatCalc';
 import { createBossPatternState, applyBattleStartSkills } from '../../utils/combat/tickContext';
+import { isOathEnabledInField } from './oathSlice';
 
 const B = BALANCE_PARAMS;
 
@@ -176,6 +177,12 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
       lawActive = applied.lawActiveFromSkillId;
     }
 
+    // 새 필드 진입 시 stale lockedAt 정리 후 재평가
+    // (이전 필드 락이 살아남는 케이스 방지 — 다른 지역으로 이동 시 페널티 누수)
+    (get() as GameStore).unlockOaths();
+    if (isOathEnabledInField(fieldId, get() as GameStore)) {
+      (get() as GameStore).lockOathsForField(fieldId);
+    }
     set({
       ...CLEAR_BATTLE_STATE,
       ...maybeResetSession(state, fieldId),
@@ -226,6 +233,11 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
       lawActive = applied.lawActiveFromSkillId;
     }
 
+    // 새 필드 진입 시 stale lockedAt 정리 후 재평가
+    (get() as GameStore).unlockOaths();
+    if (isOathEnabledInField(fieldId, get() as GameStore)) {
+      (get() as GameStore).lockOathsForField(fieldId);
+    }
     set({
       ...CLEAR_BATTLE_STATE,
       ...maybeResetSession(state, fieldId),
@@ -270,8 +282,11 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
         },
       });
     } else {
+      // hunt 포기: 결과 화면 없이 즉시 종료 → 마을 복귀 + 맹세 잠금 해제
+      (get() as GameStore).unlockOaths();
       set({
         ...CLEAR_BATTLE_STATE,
+        currentField: null,    // 마을 복귀 — OathTab 토글 게이트(currentField == null)
         battleLog: [],
         combatElapsed: 0,
         logEntryIdSeq: 0,
@@ -288,11 +303,13 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
 
     if (fieldId && state.autoExploreFields[fieldId]) {
       if (result?.type === 'explore_win') {
-        // 자동 답파: 결과 닫고 즉시 재시작
+        // 자동 답파: 결과 닫고 즉시 재시작 (startExplore 내부에서 재잠금)
+        (get() as GameStore).unlockOaths();
         (get() as GameStore).startExplore(fieldId);
         return;
       } else if (result?.type === 'explore_fail') {
         // 실패 시 자동 답파 비활성화
+        (get() as GameStore).unlockOaths();
         set({
           battleResult: null,
           pendingHuntRetry: false,
@@ -300,7 +317,8 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
         });
         return;
       } else if (result?.type === 'death') {
-        // 사망 + 자동 답파: HP 회복 후 재탐험 예약
+        // 사망 + 자동 답파: HP 회복 후 재탐험 예약 (재탐험 시 재잠금됨)
+        (get() as GameStore).unlockOaths();
         set({
           battleResult: null,
           pendingHuntRetry: false,
@@ -310,7 +328,9 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
       }
     }
 
-    set({ battleResult: null, pendingHuntRetry: false });
+    // 일반 결과 화면 닫기 → 마을 복귀 (currentField=null)
+    (get() as GameStore).unlockOaths();
+    set({ battleResult: null, pendingHuntRetry: false, currentField: null });
   },
 
   toggleAutoExplore: (fieldId) => {

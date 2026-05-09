@@ -10,6 +10,7 @@ import { getProfDamageValue, getGradeTableForArt, getArtGradeInfoFromTable } fro
 import { applyBaehwagyoArtEffects, isSikhwaEquipped, getSikhwaQiCoeff, SIKHWA_NODES } from './combat/baehwagyoEffects';
 import { TAMSIK_WEAPON_ID, getTamsikWeaponStats } from './tamsikUtils';
 import { BULSSUI_SWORD_ID, getBulssuiSwordEmberBonus } from './bulssuiSwordUtils';
+import { getOathDef } from '../data/oaths';
 import type { GameState } from '../store/types';
 
 
@@ -77,6 +78,28 @@ export function calcFullMaxHp(state: GameState): number {
 /** STAMINA = STAM_BASE + 심 × K_SIM × tierMult */
 export function calcStamina(sim: number, tierMult: number = 1): number {
   return Math.floor(B.STAM_BASE + sim * B.STAT_K_SIM * tierMult);
+}
+
+/**
+ * 맹세 maxQiPenaltyPct 적용된 effective maxStamina.
+ * UI 표시(CombatBars/CharacterInfoTab/NeigongTab)와 tickContext 공용 — 중복 구현 방지.
+ * lockedAt이 null이면 페널티 0으로 단락.
+ */
+export function calcEffectiveMaxStamina(
+  sim: number, tierMult: number,
+  oathSystem?: GameState['oathSystem'],
+  forbidIds: string[] = [],
+): number {
+  const base = calcStamina(sim, tierMult);
+  if (!oathSystem?.lockedAt) return base;
+  let penalty = 0;
+  for (const id of oathSystem.lockedAt.snapshotIds) {
+    if (forbidIds.includes(id)) continue;
+    const def = getOathDef(id);
+    if (def?.effect.maxQiPenaltyPct) penalty += def.effect.maxQiPenaltyPct;
+  }
+  if (penalty <= 0) return base;
+  return Math.floor(base * (1 - Math.min(penalty, 1)));
 }
 
 /** STAMINA_REGEN = REGEN_BASE + 기 × K_GI × tierMult */

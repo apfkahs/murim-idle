@@ -9,13 +9,14 @@ import { createProgressSlice, type ProgressSlice } from './slices/progressSlice'
 import { createInventorySlice, type InventorySlice } from './slices/inventorySlice';
 import { createSaveSlice, type SaveSlice } from './slices/saveSlice';
 import { createBahwagyoSlice, type BahwagyoSlice } from './slices/bahwagyoSlice';
+import { createOathSlice, type OathSlice } from './slices/oathSlice';
 import { simulateTick } from '../utils/gameLoop';
 import { calcPlayerAttackInterval } from '../utils/combatCalc';
 
 // ============================================================
 // GameStore 타입 조합
 // ============================================================
-export type GameStore = CombatSlice & ArtsSlice & ProgressSlice & InventorySlice & SaveSlice & BahwagyoSlice & {
+export type GameStore = CombatSlice & ArtsSlice & ProgressSlice & InventorySlice & SaveSlice & BahwagyoSlice & OathSlice & {
   tick: (forceDt?: number) => void;
   setGameSpeed: (speed: number) => void;
   setPaused: (paused: boolean) => void;
@@ -32,6 +33,7 @@ export const useGameStore = create<GameStore>()((...args) => ({
   ...createInventorySlice(...args),
   ...createSaveSlice(...args),
   ...createBahwagyoSlice(...args),
+  ...createOathSlice(...args),
 
   // ─── 루트 레벨 액션 ───
   setGameSpeed: (speed: number) => {
@@ -93,7 +95,7 @@ export {
 
 export {
   // combatCalc
-  calcMaxHp, calcStamina, calcStaminaRegen, calcEffectiveRegen,
+  calcMaxHp, calcStamina, calcEffectiveMaxStamina, calcStaminaRegen, calcEffectiveRegen,
   calcQiPerSec, calcCombatQiRatio, gatherMasteryEffects, gatherEquipmentStats,
   spawnEnemy, calcCritRate, calcDodge, calcDmgReduction, calcCritDmg,
   calcCritDamageMultiplier, calcTierMultiplier, getActiveUltName, CLEAR_BATTLE_STATE,

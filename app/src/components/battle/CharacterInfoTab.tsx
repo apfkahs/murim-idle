@@ -1,6 +1,6 @@
 import {
   useGameStore,
-  calcStamina, calcTierMultiplier, calcCritRate,
+  calcEffectiveMaxStamina, calcTierMultiplier, calcCritRate,
   calcCritDamageMultiplier,
   calcDodge, calcDmgReduction, gatherEquipmentStats,
   getArtCurrentGrade, getArtDamageMultiplier,
@@ -42,11 +42,12 @@ export default function CharacterInfoTab() {
   const artGradeExp = useGameStore(s => s.artGradeExp);
   const equipment = useGameStore(s => s.equipment);
   const bahwagyoNodeLevels = useGameStore(s => s.bahwagyo.nodeLevels);
+  const oathSystem = useGameStore(s => s.oathSystem);
   const getAttackInterval = useGameStore(s => s.getAttackInterval);
   const state = useGameStore.getState();
 
   const tierMult = calcTierMultiplier(tier);
-  const maxStamina = calcStamina(stats.sim, tierMult);
+  const maxStamina = calcEffectiveMaxStamina(stats.sim, tierMult, oathSystem);
   const atkInterval = getAttackInterval();
   const equipStats = gatherEquipmentStats(state);
   const equipAtk = equipStats.bonusAtk ?? 0;

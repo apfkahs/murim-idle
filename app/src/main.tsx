@@ -15,6 +15,7 @@ import './styles/misc.css';
 import './styles/inventory.css';
 import './styles/equipment.css';
 import './styles/skilltree.css';
+import './styles/oath.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

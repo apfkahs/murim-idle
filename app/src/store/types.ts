@@ -9,6 +9,18 @@ import type { MonsterState } from '../utils/combat/skillHandlers/registry';
 import type { BahwagyoState } from '../components/bahwagyo/bahwagyoTypes';
 
 // ============================================================
+// 맹세 시스템 상태
+// ============================================================
+export interface OathSystemState {
+  activeOathIds: string[];    // 현재 토글된 맹세 ID 목록 (마을에서 자유 변경)
+  lockedAt: {
+    fieldId: string;
+    lockedAtTimestamp: number;
+    snapshotIds: string[];    // 필드 진입 시 스냅샷 (이 목록만 효과·보상 적용)
+  } | null;
+}
+
+// ============================================================
 // 희미한 성화 개봉 연출 — 대기 중인 결과
 // ============================================================
 export type PendingReveal = {
@@ -400,4 +412,7 @@ export interface GameState {
 
   // 희미한 성화 개봉 연출 대기
   pendingReveal: PendingReveal | null;
+
+  // 맹세 시스템
+  oathSystem: OathSystemState;
 }

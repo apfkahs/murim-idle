@@ -135,5 +135,6 @@ export function createInitialState(): GameState {
     autoExploreFields: {},
     repeatableAchCounts: {},
     bahwagyo: INITIAL_BAHWAGYO_STATE,
+    oathSystem: { activeOathIds: [], lockedAt: null },
   };
 }

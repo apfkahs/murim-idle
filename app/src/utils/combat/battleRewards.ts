@@ -9,6 +9,9 @@ import { FIELDS, getFieldDef } from '../../data/fields';
 import { MATERIALS } from '../../data/materials';
 import { getEquipmentDef, type EquipmentInstance, type EquipSlot } from '../../data/equipment';
 import {
+  getOathDef, calcOathBoost, calcOathFlatBonuses, OATH_TIER2_EXTRA_DROPS,
+} from '../../data/oaths';
+import {
   getMaxEquippedArtGrade, getArtGradeInfo, getProfStarInfo,
   PROF_TABLE, getGradeTableForArt, getArtGradeInfoFromTable,
   getProficiencyGrade,
@@ -16,7 +19,7 @@ import {
 import { spawnEnemy, calcPlayerAttackInterval } from '../combatCalc';
 import { PROF_LABEL } from './damageCalc';
 import type { TickContext } from './tickContext';
-import { applyBattleReset, applyUltCooldownReset, createBossPatternState, applyBattleStartSkills } from './tickContext';
+import { applyBattleReset, applyUltCooldownReset, createBossPatternState, applyBattleStartSkills, applyHealing } from './tickContext';
 import { carryEmberInto } from './emberUtils';
 import { TAMSIK_WEAPON_ID, TAMSIK_PER_MONSTER_CAP, TAMSIK_TOTAL_STACK_CAP, isBaehwaMonster, getTamsikTotalStacks } from '../tamsikUtils';
 
@@ -28,6 +31,30 @@ export function processEnemyDeath(ctx: TickContext): void {
   const potionConsumedRage = ctx.currentEnemy.potionConsumedRage ?? false;
   const monDef = getMonsterDef(ctx.currentEnemy.id);
   if (!monDef) return;
+
+  // 맹세(盟誓) 보상 부스트 — lockedAt != null 일 때만 활성 (단일 게이트)
+  // forbidOathIds: 현재 필드 + 처치한 적의 forbid 합집합으로 weightSum에서 제외 (스펙 4-4)
+  const oathLocked = ctx.state.oathSystem?.lockedAt;
+  let oathProfMult = 1;
+  let oathDropMult = 1;
+  let oathMonsterRankBonus = 0;
+  let oathExtraDropTableUnlocked = false;
+  if (oathLocked) {
+    const fieldDef = ctx.currentField ? getFieldDef(ctx.currentField) : null;
+    const oathForbids = [
+      ...(fieldDef?.forbidOathIds ?? []),
+      ...(monDef.forbidOathIds ?? []),
+    ];
+    const weightSum = oathLocked.snapshotIds
+      .filter(id => !oathForbids.includes(id))
+      .reduce((sum, id) => sum + (getOathDef(id)?.weight ?? 0), 0);
+    const boost = calcOathBoost(weightSum);
+    const flat = calcOathFlatBonuses(weightSum);
+    oathProfMult = boost.profMult;
+    oathDropMult = boost.dropMult;
+    oathMonsterRankBonus = flat.monsterRankBonus;
+    oathExtraDropTableUnlocked = flat.extraDropTableUnlocked;
+  }
 
   if (monDef.isHidden && ctx.currentField) {
     ctx.hiddenRevealedInField[ctx.currentField] = monDef.id;
@@ -123,7 +150,8 @@ export function processEnemyDeath(ctx: TickContext): void {
   const profGainParts: string[] = [];
   if (!skipRewards && !monDef.isTraining && (monDef.baseProficiency ?? 0) > 0) {
     const baseProfGain = monDef.baseProficiency!;
-    const monsterGrade = monDef.grade >= 1 ? monDef.grade : 1;
+    // 맹세 티어 3·4: 등급 +1/+2 평면 보너스 (rank 데이터는 변형 안 함, 계산 시점에만 가산)
+    const monsterGrade = (monDef.grade >= 1 ? monDef.grade : 1) + oathMonsterRankBonus;
     const profGainMap: Partial<Record<ProficiencyType, number>> = {};
     for (const artId of [...ctx.equippedArts, ...(ctx.equippedSimbeop ? [ctx.equippedSimbeop] : [])]) {
       const artDef = getArtDef(artId);
@@ -152,7 +180,7 @@ export function processEnemyDeath(ctx: TickContext): void {
           footworkBonus = 1.3;
         }
       }
-      profGainMap[pType] = baseProfGain * multiplier * artProfMult * heraldBonus * footworkBonus;
+      profGainMap[pType] = baseProfGain * multiplier * artProfMult * heraldBonus * footworkBonus * oathProfMult;
     }
     for (const [pType, gain] of Object.entries(profGainMap) as [ProficiencyType, number][]) {
       ctx.proficiency[pType] = Math.min((ctx.proficiency[pType] ?? 0) + gain, PROF_TABLE[PROF_TABLE.length - 1].cumExp);
@@ -172,7 +200,7 @@ export function processEnemyDeath(ctx: TickContext): void {
       const currentArtStar = getArtGradeInfo(ctx.artGradeExp[artId] ?? 0).starIndex;
       const artDiff = monsterGrade - currentArtStar;
       const artGradeMultiplier = artDiff >= 0 ? Math.pow(3, artDiff) : Math.pow(1 / 4, -artDiff);
-      ctx.artGradeExp[artId] = (ctx.artGradeExp[artId] ?? 0) + baseProfGain * artGradeMultiplier;
+      ctx.artGradeExp[artId] = (ctx.artGradeExp[artId] ?? 0) + baseProfGain * artGradeMultiplier * oathProfMult;
     }
 
     // artStar 타입 초식 발견 + 자동 해금 처리
@@ -217,6 +245,8 @@ export function processEnemyDeath(ctx: TickContext): void {
       dropRateMultiplier = 1 + Math.min((diff - 1) * 0.5, 2.0);
     }
   }
+  // 맹세(盟誓) 드랍률 곱연산 — excludeFromDropBonus 재료는 하단 effectiveMultiplier 가드로 1 사용
+  dropRateMultiplier *= oathDropMult;
 
   // 드롭
   const drops: string[] = [];
@@ -287,6 +317,31 @@ export function processEnemyDeath(ctx: TickContext): void {
           const md = ctx.explorePendingRewards.materialDrops ?? {};
           md[mDrop.materialId] = (md[mDrop.materialId] ?? 0) + 1;
           ctx.explorePendingRewards.materialDrops = md;
+        }
+      }
+    }
+  }
+
+  // 맹세(盟誓) 티어 2 추가 드랍 — extraDropTableUnlocked(weightSum ≥ 5) 시에만 롤
+  // 대상 재료는 모두 excludeFromDropBonus: true 이므로 chance 는 고정값 (oathDropMult 미적용)
+  if (!skipRewards && oathExtraDropTableUnlocked) {
+    const extras = OATH_TIER2_EXTRA_DROPS[monDef.id];
+    if (extras) {
+      for (const ed of extras) {
+        if (Math.random() < ed.chance) {
+          ctx.materials[ed.materialId] = (ctx.materials[ed.materialId] ?? 0) + 1;
+          ctx.sessionDrops[ed.materialId] = (ctx.sessionDrops[ed.materialId] ?? 0) + 1;
+          if (!ctx.obtainedMaterials.includes(ed.materialId)) {
+            ctx.obtainedMaterials.push(ed.materialId);
+          }
+          const matDef = MATERIALS.find(m => m.id === ed.materialId);
+          const matName = matDef?.name ?? ed.materialId;
+          ctx.logSystem(`${matName}을(를) 주웠다! (${ctx.materials[ed.materialId]}개)`);
+          if (ctx.battleMode === 'explore') {
+            const md = ctx.explorePendingRewards.materialDrops ?? {};
+            md[ed.materialId] = (md[ed.materialId] ?? 0) + 1;
+            ctx.explorePendingRewards.materialDrops = md;
+          }
         }
       }
     }
@@ -434,14 +489,8 @@ function processExploreMode(
     applyBattleReset(ctx);
     ctx.logSystem('괴이한 존재를 물리치고 답파에 성공했다!');
   } else {
-    // 일반 처치 후 HP 15% 회복
-    let exploreHeal = Math.floor(ctx.maxHp * 0.15);
-    // 외문수좌 인프라 — playerRecoveryDebuff 적용 (적 처치 직후, applyBattleReset 전이라 ctx.bossPatternState 잔존)
-    const recDebuffEx = ctx.bossPatternState?.playerRecoveryDebuff;
-    if (recDebuffEx && recDebuffEx.remainingSec > 0) {
-      exploreHeal = Math.floor(exploreHeal * (1 - recDebuffEx.pct));
-    }
-    ctx.hp = Math.min(ctx.hp + exploreHeal, ctx.maxHp);
+    // 일반 처치 후 HP 15% 회복 — applyHealing 단일 진입점
+    const exploreHeal = applyHealing(ctx, Math.floor(ctx.maxHp * 0.15));
     ctx.logSystem(`적을 격파한 후 휴식을 취해 일부 체력을 회복했다! (+${exploreHeal})`);
 
     const nextStep = ctx.exploreStep + 1;

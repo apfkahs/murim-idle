@@ -15,6 +15,8 @@ import { MONSTER_STATE_FACTORIES, type MonsterState } from '../../utils/combat/s
 import { BALANCE_PARAMS } from '../../data/balance';
 import { INITIAL_BAHWAGYO_STATE, migrateBaehwagyoOwnedArts, migrateBaehwagyoOuterSplit } from './bahwagyoSlice';
 import { PROF_TABLE } from '../../utils/artUtils';
+import { getOathDef } from '../../data/oaths';
+import { isOathEnabledInField } from './oathSlice';
 
 /**
  * 처치 수 × baseProficiency 합산으로 숙련도 경험치 추정.
@@ -292,6 +294,7 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
         swordQiDrainRate: state.bahwagyo.swordQiDrainRate,
         ultQiAbsorbEnabled: state.bahwagyo.ultQiAbsorbEnabled,
       },
+      oathSystem: state.oathSystem,
     };
 
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -515,6 +518,30 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
             swordQiDrainRate: loaded.swordQiDrainRate ?? 0,
             ultQiAbsorbEnabled: loaded.ultQiAbsorbEnabled ?? false,
           };
+        })(),
+        oathSystem: (() => {
+          const saved = data.oathSystem as Record<string, unknown> | undefined;
+          if (!saved || typeof saved !== 'object') return { activeOathIds: [], lockedAt: null };
+          const activeOathIds: string[] = Array.isArray(saved.activeOathIds)
+            ? (saved.activeOathIds as string[]).filter((id: string) => !!getOathDef(id))
+            : [];
+          const rawLocked = saved.lockedAt as Record<string, unknown> | null | undefined;
+          let lockedAt: GameState['oathSystem']['lockedAt'] = null;
+          if (rawLocked && typeof rawLocked === 'object') {
+            const fieldId = String(rawLocked.fieldId ?? '');
+            // stale fieldId 검증 — 삭제된 필드 ID가 lockedAt에 남으면 영구 락 위험
+            const fieldExists = !!FIELDS.find(f => f.id === fieldId);
+            if (fieldExists) {
+              lockedAt = {
+                fieldId,
+                lockedAtTimestamp: Number(rawLocked.lockedAtTimestamp ?? 0),
+                snapshotIds: Array.isArray(rawLocked.snapshotIds)
+                  ? (rawLocked.snapshotIds as string[]).filter((id: string) => !!getOathDef(id))
+                  : [...activeOathIds],
+              };
+            }
+          }
+          return { activeOathIds, lockedAt };
         })(),
         selectedProfileKey: data.selectedProfileKey ?? null,
         customProfileUrl: data.customProfileUrl ?? null,
@@ -776,6 +803,15 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
               logEntryIdSeq: appliedA ? appliedA.logEntryIdSeq : seqA,
               combatElapsed: 0,
               lawActiveFromSkillId: appliedA ? appliedA.lawActiveFromSkillId : null,
+              oathSystem: (currentState.oathSystem.lockedAt === null
+                && isOathEnabledInField(fieldId, currentState)) ? {
+                ...currentState.oathSystem,
+                lockedAt: {
+                  fieldId,
+                  lockedAtTimestamp: Date.now(),
+                  snapshotIds: [...currentState.oathSystem.activeOathIds],
+                },
+              } : currentState.oathSystem,
             } as GameState;
           }
         }
@@ -893,6 +929,16 @@ export const createSaveSlice: StateCreator<GameStore, [], [], SaveSlice> = (set,
                 logEntryIdSeq: appliedB ? appliedB.logEntryIdSeq : seqB,
                 combatElapsed: 0,
                 lawActiveFromSkillId: appliedB ? appliedB.lawActiveFromSkillId : null,
+                // 새 전투 재시작 시 맹세 스냅샷 갱신 (해금 필드만 박제 — 스펙 4-1)
+                oathSystem: (currentState.oathSystem.lockedAt === null
+                  && isOathEnabledInField(fieldId, currentState)) ? {
+                  ...currentState.oathSystem,
+                  lockedAt: {
+                    fieldId,
+                    lockedAtTimestamp: Date.now(),
+                    snapshotIds: [...currentState.oathSystem.activeOathIds],
+                  },
+                } : currentState.oathSystem,
               } as GameState;
             }
           }

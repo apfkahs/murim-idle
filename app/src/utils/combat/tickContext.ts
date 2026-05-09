@@ -6,12 +6,14 @@
 import { BALANCE_PARAMS } from '../../data/balance';
 import { getArtDef } from '../../data/arts';
 import { BOSS_PATTERNS, getMonsterDef } from '../../data/monsters';
+import { getFieldDef } from '../../data/fields';
 import { MONSTER_STATE_FACTORIES } from './skillHandlers/registry';
 import { getAshArmorEmberReduction } from '../ashArmorUtils';
 import { SEONGHWA_GEOMBEOP_ART_ID } from './baehwagyoEffects';
+import { getOathDef, type OathEffect } from '../../data/oaths';
 import {
   calcCritDamageMultiplier, calcCritRate, calcDodge, calcDmgReduction, calcTierMultiplier,
-  calcStamina, calcEffectiveRegen, calcQiPerSec, calcCombatQiRatio,
+  calcStamina, calcEffectiveMaxStamina, calcEffectiveRegen, calcQiPerSec, calcCombatQiRatio,
   gatherEquipmentStats, gatherMasteryEffects, calcFullMaxHp, calcPlayerAttackInterval,
 } from '../combatCalc';
 import type {
@@ -134,6 +136,7 @@ export interface TickContext {
   readonly qiPerSec: number;
   readonly combatQiRatio: number;
   readonly qiMult: number;
+  readonly oathEffects: OathEffect;
 
   // log helpers
   logEvent(opts: LogEventOpts): void;
@@ -281,7 +284,20 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
   );
   const dmgReduction = calcDmgReduction(state) + (equipStats.bonusDmgReduction ?? 0);
   const tierMult = calcTierMultiplier(state.tier);
-  const maxStamina = calcStamina(stats.sim, tierMult);
+  // 맹세 forbid 합산 — 현재 필드 + 현재 적의 forbidOathIds 합집합
+  const oathForbids = (() => {
+    if (!state.oathSystem?.lockedAt) return [];
+    const fieldDef = state.currentField ? getFieldDef(state.currentField) : null;
+    const enemyMonDef = state.currentEnemy ? getMonsterDef(state.currentEnemy.id) : null;
+    return [
+      ...(fieldDef?.forbidOathIds ?? []),
+      ...(enemyMonDef?.forbidOathIds ?? []),
+    ];
+  })();
+  const oathEffects = computeOathEffects(state, oathForbids);
+  // UI(CombatBars/CharacterInfoTab/NeigongTab)와 같은 헬퍼 사용 — 페널티 적용 일관성 보장
+  let maxStamina = calcEffectiveMaxStamina(stats.sim, tierMult, state.oathSystem, oathForbids);
+  if (stamina > maxStamina) stamina = maxStamina;
   const effectiveRegen = calcEffectiveRegen(state);
   const qiPerSec = calcQiPerSec(state);
   const combatQiRatio = calcCombatQiRatio(state);
@@ -323,7 +339,7 @@ export function createTickContext(state: GameState, dt: number, isSimulating: bo
     isSimulating, dt, state, isBattling,
     equipStats, masteryEffects, critDmg, critRate, dodgeRate,
     dmgReduction, tierMult, maxStamina, effectiveRegen,
-    qiPerSec, combatQiRatio, qiMult,
+    qiPerSec, combatQiRatio, qiMult, oathEffects,
 
     // ── log helpers ──
     logEvent(opts) {
@@ -474,9 +490,58 @@ export function applyUltCooldownReset(ctx: TickContext): void {
   }
 }
 
+/**
+ * 맹세(盟誓) 효과 집계 — lockedAt 기준 snapshotIds 만 합산.
+ * 단일 게이트: lockedAt == null 이면 빈 객체 반환 → 모든 페널티 단락.
+ */
+export function computeOathEffects(state: GameState, forbidIds: string[] = []): OathEffect {
+  const locked = state.oathSystem?.lockedAt;
+  if (!locked) return {};
+  const eff: OathEffect = {};
+  for (const id of locked.snapshotIds) {
+    if (forbidIds.includes(id)) continue;  // forbidOathIds — 효과·보상 모두 제외
+    const def = getOathDef(id);
+    if (!def) continue;
+    const e = def.effect;
+    if (e.maxQiPenaltyPct) eff.maxQiPenaltyPct = (eff.maxQiPenaltyPct ?? 0) + e.maxQiPenaltyPct;
+    if (e.hpRegenPenaltyPct) eff.hpRegenPenaltyPct = (eff.hpRegenPenaltyPct ?? 0) + e.hpRegenPenaltyPct;
+    if (e.hpDrainPctPerSec) eff.hpDrainPctPerSec = (eff.hpDrainPctPerSec ?? 0) + e.hpDrainPctPerSec;
+    if (e.outDamagePenaltyPct) eff.outDamagePenaltyPct = (eff.outDamagePenaltyPct ?? 0) + e.outDamagePenaltyPct;
+    if (e.inDamageBonusPct) eff.inDamageBonusPct = (eff.inDamageBonusPct ?? 0) + e.inDamageBonusPct;
+  }
+  if (eff.maxQiPenaltyPct != null) eff.maxQiPenaltyPct = Math.min(eff.maxQiPenaltyPct, 1);
+  if (eff.hpRegenPenaltyPct != null) eff.hpRegenPenaltyPct = Math.min(eff.hpRegenPenaltyPct, 1);
+  if (eff.outDamagePenaltyPct != null) eff.outDamagePenaltyPct = Math.min(eff.outDamagePenaltyPct, 1);
+  return eff;
+}
+
+/**
+ * 회복의 단일 진입점 — 맹세 회복 페널티 + 외문수좌 playerRecoveryDebuff 적용 후 ctx.hp 갱신.
+ * 반환: 실제 적용된 회복량 (UI 표시용). fractional=true 면 floor 생략 (자연 회복용).
+ */
+export function applyHealing(
+  ctx: TickContext,
+  baseAmount: number,
+  opts?: { fractional?: boolean },
+): number {
+  if (baseAmount <= 0) return 0;
+  let healAmt = baseAmount;
+  const oathRecv = ctx.oathEffects?.hpRegenPenaltyPct ?? 0;
+  if (oathRecv > 0) healAmt *= 1 - oathRecv;
+  const recDebuff = ctx.bossPatternState?.playerRecoveryDebuff;
+  if (recDebuff && recDebuff.remainingSec > 0) healAmt *= 1 - recDebuff.pct;
+  if (!opts?.fractional) healAmt = Math.floor(healAmt);
+  if (healAmt <= 0) return 0;
+  ctx.hp = Math.min(ctx.hp + healAmt, ctx.maxHp);
+  return healAmt;
+}
+
 export function applyIncomingDamage(ctx: TickContext, damage: number): void {
   // 묵념 lv10+ 누적 임계 도달 시 받는 피해 곱연산 감소
   let finalDamage = damage;
+  // 맹세(盟誓) — 받는 피해 보너스 (락된 경우만, lockedAt == null 시 자동 단락)
+  const oathIn = ctx.oathEffects?.inDamageBonusPct ?? 0;
+  if (oathIn > 0) finalDamage = Math.floor(finalDamage * (1 + oathIn));
   const buff = ctx.baehwagyoMukneomDmgReductBuff;
   if (buff) {
     if (buff.expiresAtSec > ctx.combatElapsed) {
@@ -527,12 +592,8 @@ export function handleDodge(ctx: TickContext, eName: string, customMsg?: string)
   }
   const healPct = ctx.masteryEffects?.dodgeHealPercent;
   if (healPct) {
-    let healAmt = Math.floor(ctx.maxHp * healPct / 100);
-    // 외문수좌 인프라 — playerRecoveryDebuff 적용
-    const recDebuffDodge = ctx.bossPatternState?.playerRecoveryDebuff;
-    if (recDebuffDodge && recDebuffDodge.remainingSec > 0) healAmt = Math.floor(healAmt * (1 - recDebuffDodge.pct));
-    ctx.hp = Math.min(ctx.hp + healAmt, ctx.maxHp);
-    if (!ctx.isSimulating) {
+    const healAmt = applyHealing(ctx, Math.floor(ctx.maxHp * healPct / 100));
+    if (healAmt > 0 && !ctx.isSimulating) {
       ctx.floatingTexts = [...ctx.floatingTexts, { id: ctx.nextFloatingId++, text: `+${healAmt}`, type: 'heal' as const, timestamp: Date.now() }];
       if (ctx.floatingTexts.length > 15) ctx.floatingTexts = ctx.floatingTexts.slice(-15);
     }

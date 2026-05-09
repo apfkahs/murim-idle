@@ -33,6 +33,7 @@ export interface FieldDef {
   sequential?: boolean;      // true이면 몬스터를 순서대로 배치 (랜덤 아님)
   totalMonsterSlots?: number; // 총 몬스터 슬롯 수 (미구현 슬롯은 ??? 표시)
   firstEntryEvent?: FieldFirstEntryEvent; // 첫 진입 시 발동하는 서사 이벤트
+  forbidOathIds?: string[];               // 이 필드에서 무효화되는 맹세 ID 목록
 }
 
 export const FIELDS: FieldDef[] = [

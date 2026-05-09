@@ -50,15 +50,15 @@
 
 | 영역 | 파일 |
 |------|------|
-| **데이터** | `data/arts.ts`, `monsters.ts`, `materials.ts`, `equipment.ts`, `fields.ts`, `achievements.ts`, `tiers.ts`, `balance.ts` |
+| **데이터** | `data/arts.ts`, `monsters.ts`, `materials.ts`, `equipment.ts`, `fields.ts`, `achievements.ts`, `tiers.ts`, `balance.ts`, `oaths.ts` (맹세 시스템 카탈로그·보상 계산) |
 | **게임 로직** | `utils/gameLoop.ts` (오케스트레이터), `utils/combat/tickContext.ts` (공유 상태), `utils/combat/damageCalc.ts` (데미지 계산), `utils/combat/playerCombat.ts` (플레이어 공격), `utils/combat/enemyCombat.ts` (적 공격/보스), `utils/combat/battleRewards.ts` (처치 보상), `utils/combat/skillHandlers/*` (몬스터별 스킬 핸들러/훅 레지스트리), `utils/combat/druzeUtils.ts` (드루즈 단죄 DoT 유틸), `utils/combatCalc.ts` (전투 수식), `utils/artUtils.ts` (무공 유틸) |
-| **스토어** | `store/gameStore.ts` (진입점), `store/slices/` (artsSlice, combatSlice, inventorySlice, progressSlice, saveSlice), `store/types.ts`, `store/initialState.ts`, `store/utils/sliceHelpers.ts` (공유 헬퍼) |
-| **UI (탭)** | `components/ArtsTab.tsx`, `BattleTab.tsx`, `NeigongTab.tsx`, `InventoryTab.tsx`, `EquipmentTab.tsx`, `EncyclopediaTab.tsx`, `AchievementTab.tsx` + 서브: `arts/` (ArtGradeBar, MasteryPanel, artsUtils), `battle/` (BattleScreen, BattleLog, battleLogAdapter, BattleScene, CombatBars, CombatStatusCard, SkillTimeline, BattleLogTabs, CharacterInfoTab, CombatStatsTab, CollapsibleCard, BattleResultScreen, FieldNavigation, FieldDetailScreen), `encyclopedia/` |
+| **스토어** | `store/gameStore.ts` (진입점), `store/slices/` (artsSlice, combatSlice, inventorySlice, progressSlice, saveSlice, **oathSlice** (toggleOath/lockOathsForField/unlockOaths/clearAllOaths + `isOathEnabledInField` 셀렉터)), `store/types.ts`, `store/initialState.ts`, `store/utils/sliceHelpers.ts` (공유 헬퍼) |
+| **UI (탭)** | `components/ArtsTab.tsx`, `BattleTab.tsx`, `NeigongTab.tsx`, `InventoryTab.tsx`, `EquipmentTab.tsx`, `EncyclopediaTab.tsx`, `AchievementTab.tsx`, **`OathTab.tsx`** + 서브: `arts/` (ArtGradeBar, MasteryPanel, artsUtils), `battle/` (BattleScreen, BattleLog, battleLogAdapter, BattleScene, CombatBars, CombatStatusCard, SkillTimeline, BattleLogTabs, CharacterInfoTab, CombatStatsTab, CollapsibleCard, BattleResultScreen, FieldNavigation, FieldDetailScreen), `encyclopedia/` |
 | **UI (모달)** | `components/EnlightenmentModal.tsx`, `OfflineResultModal.tsx`, `SaveSlotModal.tsx`, `SeonghwaRevealModal.tsx` (성화 개봉 연출) |
 | **유틸(기타)** | `utils/format.ts` (포맷팅), `utils/combatVerdict.ts` (TTK 종합 판정) |
 | **타입** | `types/index.ts` |
-| **스타일** | `styles/variables.css`, `layout.css`, `components.css`, `battle.css`, `battle-log.css`, `battle-v2.css`, `field.css`, `arts.css`, `modals.css`, `misc.css`, `inventory.css`, `equipment.css`, `reveal.css` (성화 개봉 연출 키프레임) |
-| **테스트** | `testAdapter.ts` (테스트 인터페이스), `scripts/test-*.ts` (밸런스 테스트) |
+| **스타일** | `styles/variables.css`, `layout.css`, `components.css`, `battle.css`, `battle-log.css`, `battle-v2.css`, `field.css`, `arts.css`, `modals.css`, `misc.css`, `inventory.css`, `equipment.css`, `reveal.css` (성화 개봉 연출 키프레임), **`oath.css`** |
+| **테스트** | `testAdapter.ts` (테스트 인터페이스), `scripts/test-*.ts` (밸런스 테스트, `test-oath-balance.ts` 포함) |
 | **에셋** | `assets/index.ts` (에셋 매핑, 이미지 폴더는 .claudeignore 제외) |
 
 ## 자주 수정하는 파일 (최근 30커밋 기준, 정기 갱신 필요)

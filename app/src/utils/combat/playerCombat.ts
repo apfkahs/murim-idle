@@ -148,6 +148,14 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
           let fcCrit = false;
           if (Math.random() < ctx.critRate) { fcDmg *= ctx.critDmg / 100; fcCrit = true; }
           fcDmg = Math.floor(fcDmg * (ctx.bossPatternState?.playerAtkDebuffMult ?? 1));
+          // 맹세(盟誓) — 출력 데미지 페널티 (lockedAt 시 적용)
+          {
+            const oathOut = ctx.oathEffects?.outDamagePenaltyPct ?? 0;
+            if (oathOut > 0) {
+              fcDmg = Math.floor(fcDmg * (1 - oathOut));
+              if (fcDmg < 1) fcDmg = 1;
+            }
+          }
           // 6-D: 철벽 감소 (finisher 경로)
           if (ctx.bossPatternState && (ctx.bossPatternState.cheolbyeokStacks ?? 0) > 0) {
             const fcMonPattern = BOSS_PATTERNS[ctx.currentEnemy!.id] ?? null;
@@ -524,6 +532,15 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
         damage = Math.floor(damage * ctx.bossPatternState.playerAtkDebuffMult);
       }
 
+      // 맹세(盟誓) — 출력 데미지 페널티 (lockedAt 시 적용, 율법/철칙과 곱연산 별도)
+      {
+        const oathOut = ctx.oathEffects?.outDamagePenaltyPct ?? 0;
+        if (oathOut > 0 && damage > 0) {
+          damage = Math.floor(damage * (1 - oathOut));
+          if (damage < 1) damage = 1;
+        }
+      }
+
       // [A] 몬스터 passive_dodge 체크 (페이즈 게이팅 포함)
       const monPattern = BOSS_PATTERNS[ctx.currentEnemy!.id] ?? null;
       const monDodgeSkill = monPattern?.skills.find(s => {
@@ -714,7 +731,13 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
             if (absorbed > 0 && ctx.stamina > 0) {
               const burnedQi = Math.min(absorbed, ctx.stamina);
               ctx.stamina -= burnedQi;
-              const burstDmg = Math.floor(burnedQi * X * 2);
+              let burstDmg = Math.floor(burnedQi * X * 2);
+              // 맹세(盟誓) — 출력 데미지 페널티
+              const oathOutBurst = ctx.oathEffects?.outDamagePenaltyPct ?? 0;
+              if (oathOutBurst > 0 && burstDmg > 0) {
+                burstDmg = Math.floor(burstDmg * (1 - oathOutBurst));
+                if (burstDmg < 1) burstDmg = 1;
+              }
               if (burstDmg > 0 && ctx.currentEnemy) {
                 ctx.currentEnemy.hp -= burstDmg;
                 ctx.currentBattleDamageDealt += burstDmg;

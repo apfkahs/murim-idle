@@ -13,7 +13,7 @@ import { BALANCE_PARAMS } from '../data/balance';
 import { getMonsterDef, BOSS_PATTERNS } from '../data/monsters';
 import { getFieldDef, generateExploreOrder } from '../data/fields';
 import { calcFullMaxHp, spawnEnemy, calcPlayerAttackInterval } from './combatCalc';
-import { createTickContext, applyBattleReset, buildResult, createBossPatternState, applyBattleStartSkills, flattenEntryForDeathLog } from './combat/tickContext';
+import { createTickContext, applyBattleReset, buildResult, createBossPatternState, applyBattleStartSkills, flattenEntryForDeathLog, applyHealing } from './combat/tickContext';
 import { buildAchievementContext, ACHIEVEMENTS } from './combat/damageCalc';
 import { executePlayerAttackPhase } from './combat/playerCombat';
 import { executeEnemyAttackPhase } from './combat/enemyCombat';
@@ -44,11 +44,8 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   // 2) HP 자동회복 (전투 외)
   if (!ctx.isBattling) {
     ctx.maxHp = calcFullMaxHp(ctx.state);
-    let naturalHeal = ctx.maxHp * 0.05 * dt;
-    // 외문수좌 인프라 — playerRecoveryDebuff 적용 (전투 외에서도 잔존 디버프가 있으면 곱셈)
-    const recDebuffNat = ctx.bossPatternState?.playerRecoveryDebuff;
-    if (recDebuffNat && recDebuffNat.remainingSec > 0) naturalHeal *= 1 - recDebuffNat.pct;
-    ctx.hp = Math.min(ctx.hp + naturalHeal, ctx.maxHp);
+    // applyHealing 단일 진입점 — 맹세 hpRegenPenaltyPct + 외문수좌 playerRecoveryDebuff 적용
+    applyHealing(ctx, ctx.maxHp * 0.05 * dt, { fractional: true });
 
     if (ctx.pendingHuntRetry && ctx.hp >= ctx.maxHp && ctx.huntTarget && ctx.currentField) {
       const retryMon = getMonsterDef(ctx.huntTarget);
@@ -159,6 +156,14 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       }
     }
 
+    // 맹세(盟誓) — HP drain (전투 중에만 발동, currentEnemy != null 가드)
+    {
+      const oathDrain = ctx.oathEffects?.hpDrainPctPerSec ?? 0;
+      if (oathDrain > 0 && ctx.currentEnemy) {
+        ctx.hp = Math.max(0, ctx.hp - ctx.maxHp * oathDrain * dt);
+      }
+    }
+
     // pre-combat: DoT 데미지 (기존 스태미나 기반)
     if (ctx.bossPatternState && ctx.currentEnemy) {
       const dotPattern = BOSS_PATTERNS[ctx.currentEnemy.id];
@@ -241,13 +246,16 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
     // pre-combat: 장비 DoT (적에게 적용된 독)
     if (ctx.equipmentDotOnEnemy.length > 0 && ctx.currentEnemy) {
+      const oathOutDot = ctx.oathEffects?.outDamagePenaltyPct ?? 0;
       const remaining: typeof ctx.equipmentDotOnEnemy = [];
       for (const dot of ctx.equipmentDotOnEnemy) {
         const newRemaining = dot.remainingSec - dt;
         if (newRemaining <= 0) {
           // 만료
         } else {
-          const tickDmg = dot.damagePerTick * dot.stacks * dt;
+          let tickDmg = dot.damagePerTick * dot.stacks * dt;
+          // 맹세(盟誓) — 출력 데미지 페널티
+          if (oathOutDot > 0) tickDmg *= 1 - oathOutDot;
           ctx.currentEnemy = { ...ctx.currentEnemy };
           ctx.currentEnemy.hp -= tickDmg;
           // 1초 경계를 넘을 때 플로팅 텍스트 표시

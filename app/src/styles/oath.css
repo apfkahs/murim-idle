@@ -1,0 +1,250 @@
+/* styles/oath.css — 맹세(盟誓) 탭 */
+
+/* ── 탭 컨테이너 ────────────────────────────────────────────────────────────── */
+.oath-tab {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── 상태 배너 ──────────────────────────────────────────────────────────────── */
+.oath-banner {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.oath-banner--locked {
+  background: rgba(251, 191, 36, 0.10);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  color: rgba(251, 191, 36, 0.9);
+}
+
+.oath-banner--disabled {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+.oath-banner-icon {
+  margin-right: 4px;
+}
+
+/* ── 요약 패널 ──────────────────────────────────────────────────────────────── */
+.oath-summary {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.oath-summary-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.oath-summary-count {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.oath-summary-sep {
+  color: var(--text-dim);
+}
+
+.oath-summary-tier {
+  color: var(--gold);
+  font-size: 12px;
+}
+
+.oath-summary-boost {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--green);
+  flex-wrap: wrap;
+}
+
+.oath-summary-empty {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* ── 카테고리 섹션 ──────────────────────────────────────────────────────────── */
+.oath-category {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.oath-category-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.oath-category-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+}
+
+.oath-category-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.oath-category-badge {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--gold);
+  background: rgba(255, 215, 0, 0.08);
+  border: 1px solid rgba(255, 215, 0, 0.18);
+  border-radius: 4px;
+  padding: 1px 7px;
+}
+
+/* ── 카드 목록 ──────────────────────────────────────────────────────────────── */
+.oath-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── 개별 카드 ──────────────────────────────────────────────────────────────── */
+.oath-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.oath-card--active {
+  border-color: rgba(255, 215, 0, 0.30);
+  background: rgba(255, 215, 0, 0.06);
+}
+
+.oath-card--forbid {
+  opacity: 0.42;
+  filter: grayscale(0.6);
+}
+
+.oath-card--dim {
+  opacity: 0.50;
+}
+
+.oath-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.oath-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.oath-card-radio {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+
+.oath-card--active .oath-card-radio {
+  color: var(--gold);
+}
+
+.oath-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.oath-card-hanja {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.oath-card-weight {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.oath-card-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.oath-card-flavor {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.oath-card-forbid-label {
+  font-size: 11px;
+  color: var(--grey);
+  margin-top: 2px;
+}
+
+/* ── 토글 버튼 ──────────────────────────────────────────────────────────────── */
+.oath-card-btn {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.oath-card-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--text-primary);
+}
+
+.oath-card-btn--active {
+  border-color: rgba(255, 215, 0, 0.25);
+  background: rgba(255, 215, 0, 0.08);
+  color: var(--gold);
+}
+
+.oath-card-btn--active:hover:not(:disabled) {
+  background: rgba(255, 215, 0, 0.14);
+}
+
+.oath-card-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}

@@ -1,4 +1,4 @@
-import { useGameStore, getMonsterRevealLevel, calcStamina, calcTierMultiplier } from '../../store/gameStore';
+import { useGameStore, getMonsterRevealLevel, calcEffectiveMaxStamina, calcTierMultiplier } from '../../store/gameStore';
 import { getMonsterDef, BOSS_PATTERNS } from '../../data/monsters';
 import CollapsibleCard from './CollapsibleCard';
 
@@ -16,6 +16,7 @@ export default function CombatBars() {
   const stamina = useGameStore(s => s.stamina);
   const stats = useGameStore(s => s.stats);
   const tier = useGameStore(s => s.tier);
+  const oathSystem = useGameStore(s => s.oathSystem);
   const currentEnemy = useGameStore(s => s.currentEnemy);
   const killCounts = useGameStore(s => s.killCounts);
   const bossPatternState = useGameStore(s => s.bossPatternState);
@@ -29,7 +30,7 @@ export default function CombatBars() {
   const reveal = getMonsterRevealLevel(kills);
   const enemyName = reveal >= 1 ? (monDef?.name ?? currentEnemy.id) : '???';
 
-  const maxStamina = calcStamina(stats.sim, calcTierMultiplier(tier));
+  const maxStamina = calcEffectiveMaxStamina(stats.sim, calcTierMultiplier(tier), oathSystem);
   const hpPct = maxHp > 0 ? Math.max(0, (hp / maxHp) * 100) : 0;
   const staminaPct = maxStamina > 0 ? Math.max(0, (stamina / maxStamina) * 100) : 0;
   const enemyHpPct = currentEnemy.maxHp > 0 ? Math.max(0, (currentEnemy.hp / currentEnemy.maxHp) * 100) : 0;

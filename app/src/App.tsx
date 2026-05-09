@@ -11,14 +11,16 @@ import SaveSlotModal from './components/SaveSlotModal';
 import OfflineResultModal from './components/OfflineResultModal';
 import EnlightenmentModal from './components/EnlightenmentModal';
 import SeonghwaRevealModal from './components/SeonghwaRevealModal';
+import OathTab from './components/OathTab';
 
-type TabId = 'neigong' | 'arts' | 'equipment' | 'inventory' | 'battle' | 'encyclopedia';
+type TabId = 'neigong' | 'arts' | 'oath' | 'equipment' | 'inventory' | 'battle' | 'encyclopedia';
 
 const SPEED_CYCLE = [0.5, 1, 2] as const;
 
 const TABS: { id: TabId; icon: string; label: string }[] = [
   { id: 'neigong', icon: '☯', label: '내공/경맥' },
   { id: 'arts', icon: '⚔', label: '무공/능력' },
+  { id: 'oath', icon: '誓', label: '맹세' },
   { id: 'equipment', icon: '🛡', label: '장비' },
   { id: 'inventory', icon: '📜', label: '전낭' },
   { id: 'battle', icon: '⛰', label: '전장' },
@@ -184,6 +186,7 @@ export default function App() {
       <main ref={contentRef} className="app-content">
         {activeTab === 'neigong' && <NeigongTab />}
         {activeTab === 'arts' && <ArtsTab />}
+        {activeTab === 'oath' && <OathTab />}
         {activeTab === 'equipment' && <EquipmentTab />}
         {activeTab === 'inventory' && <InventoryTab />}
         {activeTab === 'battle' && <BattleTab />}
