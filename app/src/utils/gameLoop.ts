@@ -396,8 +396,18 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
 
   const result = buildResult(ctx, { achievements, achievementCount, artPoints, tutorialFlags, repeatableAchCounts });
 
-  // 안전장치: pendingAutoExplore 소비 직후 oathSystem.lockedAt이 없으면 재잠금
-  // (combatSlice dismissBattleResult 버그로 unlock이 누락된 엣지케이스 대비)
+  // 안전장치: pendingAutoExplore 소비 직후 oathSystem.lockedAt이 없으면 재잠금.
+  // 근본 버그(combatSlice.dismissBattleResult가 death+autoExplore 분기에서 unlockOaths를 호출)는
+  // 수정됐지만, 미래 regression 대비용 방어 코드.
+  //
+  // 조건 해설:
+  //   state.pendingAutoExplore = true  → 이번 tick 시작 시 재시작 대기 상태였음
+  //   !ctx.pendingAutoExplore          → 이번 tick 안에서 pendingAutoExplore가 소비됨 (재탐험 개시)
+  //   !state.oathSystem?.lockedAt      → 그럼에도 oath 잠금이 없음 → 비정상 상태
+  //
+  // 주의: fieldDef?.boss 체크는 "보스가 있는 필드" 기준. 실제 잠금 트리거("보스가 있는 필드 탐험 시작")와
+  //       미묘하게 다름 — bossKillCounts > 0 조건으로 인해 해당 보스를 한 번도 처치하지 않은 상태에서는
+  //       발동하지 않음. 근본 버그가 수정된 현재는 실용적 영향 없음.
   if (state.pendingAutoExplore && !ctx.pendingAutoExplore && ctx.currentField && !state.oathSystem?.lockedAt) {
     const fieldDef = getFieldDef(ctx.currentField);
     if (fieldDef?.boss && (ctx.bossKillCounts[fieldDef.boss] ?? 0) > 0) {

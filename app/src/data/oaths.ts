@@ -318,8 +318,8 @@ export const OATH_TIER_LABELS: Record<number, string> = {
 // ─────────────────────────────────────────────
 // 티어 2 추가 드랍 레지스트리
 // ─────────────────────────────────────────────
-// excludeFromDropBonus: true 재료이므로 확률은 고정값.
 // extraDropTableUnlocked (weightSum >= 5) 조건 충족 시에만 롤.
+// 적용 배율: extraMult = max(1, oathDropMult - 1.4) — 무모한 도전(ws≥10)부터 실질 보너스.
 
 export const OATH_TIER2_EXTRA_DROPS: Record<string, { materialId: string; chance: number }[]> = {
   baehwa_hwabosa: [

@@ -179,7 +179,7 @@ function runSim(monster: MonsterTarget, oathCase: OathCase): SimResult {
 
 console.log('\n=== 배화교 드롭 시뮬레이션 (N=100,000회/케이스/몬스터) ===\n');
 console.log('* 숙련도 dropRateMultiplier=1 고정 (equippedArts=[])');
-console.log('* hayan_jae / huimihan_janbul: excludeFromDropBonus=true → effectiveMultiplier 항상 1');
+console.log('* 배화교 재료(hayan_jae/huimihan_janbul 등)는 oathDropMult 정상 적용');
 console.log('* 사망 페널티 미반영 (skipRewards=false 고정)\n');
 
 // ── 1. 이론 dropMult 표 ──────────────────────────────────────
@@ -269,17 +269,17 @@ for (const monster of MONSTERS) {
   const janbul0 = (r0.huimihanJanbul / r0.n * 100).toFixed(3);
   const janbul3 = (r3.huimihanJanbul / r3.n * 100).toFixed(3);
 
-  const hayanDiff = Math.abs(parseFloat(hayan0) - parseFloat(hayan3));
-  const hayanFixed = hayanDiff < 0.5;
+  const hayanDiff = parseFloat(hayan3) - parseFloat(hayan0);
+  const hayanIncreased = hayanDiff > 1.0; // oathDropMult ×6.8 → 케이스3 비율이 유의미하게 증가해야 함
 
   console.log(`[${monster.name}]`);
   console.log(`  하얀 재  — 케이스0: ${hayan0}%  케이스3: ${hayan3}%  → ` +
-              `${hayanFixed ? '맹세 배율 무시 확인 (고정)' : '변동 감지 — 검토 필요'}`);
+              `${hayanIncreased ? '맹세 배율 정상 적용 확인 (증가)' : '증가 없음 — 검토 필요'}`);
   if (base.huimihanJanbul > 0) {
-    const janbulDiff = Math.abs(parseFloat(janbul0) - parseFloat(janbul3));
-    const janbulFixed = janbulDiff < 0.5;
+    const janbulDiff = parseFloat(janbul3) - parseFloat(janbul0);
+    const janbulIncreased = janbulDiff > 0.5;
     console.log(`  희미한 잔불 — 케이스0: ${janbul0}%  케이스3: ${janbul3}%  → ` +
-                `${janbulFixed ? '맹세 배율 무시 확인 (고정)' : '변동 감지 — 검토 필요'}`);
+                `${janbulIncreased ? '맹세 배율 정상 적용 확인 (증가)' : '증가 없음 — 검토 필요'}`);
   }
 
   // OATH_TIER2_EXTRA_DROPS (ws>=5 조건)
@@ -295,8 +295,8 @@ for (const monster of MONSTERS) {
 }
 
 console.log('── 이론 정리 ─────────────────────────────────────────────');
-console.log('excludeFromDropBonus=true 재료 처리 경로 (battleRewards.ts 308행):');
+console.log('배화교 재료 드랍 경로 (battleRewards.ts):');
 console.log('  const effectiveMultiplier = matDef?.excludeFromDropBonus ? 1 : dropRateMultiplier;');
-console.log('→ hayan_jae / huimihan_janbul 은 맹세 dropMult 증가와 무관하게 base chance 고정.');
-console.log('→ OATH_TIER2_EXTRA_DROPS (taoreuneun_bulggot_pyeon) 는 ws≥5 조건에서만 롤되며,');
-console.log('  별도 경로(oathExtraDropTableUnlocked 게이트)로 롤 → chance 고정, dropMult 미적용.');
+console.log('→ hayan_jae / huimihan_janbul 등은 excludeFromDropBonus 없음 → oathDropMult 정상 적용.');
+console.log('→ OATH_TIER2_EXTRA_DROPS (taoreuneun_bulggot_pyeon) 는 ws≥5 조건에서만 발동,');
+console.log('  extraMult = max(1, oathDropMult - 1.4) 적용 (무모한 도전 ws≥10 이상부터 실질 보너스).');

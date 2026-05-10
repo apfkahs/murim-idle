@@ -312,7 +312,7 @@ export function processEnemyDeath(ctx: TickContext): void {
     const extras = OATH_TIER2_EXTRA_DROPS[monDef.id];
     if (extras) {
       for (const ed of extras) {
-        if (Math.random() < ed.chance * extraMult) {
+        if (Math.random() < Math.min(ed.chance * extraMult, 1)) {
           ctx.materials[ed.materialId] = (ctx.materials[ed.materialId] ?? 0) + 1;
           ctx.sessionDrops[ed.materialId] = (ctx.sessionDrops[ed.materialId] ?? 0) + 1;
           if (!ctx.obtainedMaterials.includes(ed.materialId)) {

@@ -4,18 +4,17 @@
  * 목적: calcOathBoost()의 이론값과 실제 시뮬레이션 드롭률이 일치하는지 검증
  *
  * 테스트 대상:
- *   - 배화교 호위 (baehwa_howi): chance 0.035/0.07 (excludeFromDropBonus=true), 0.00167 (=true)
- *   - 야산 늑대 (wolf): chance 0.12 (제외 없음), 0.025 (제외 없음)
- *   - 야산 곰 (bear): chance 0.20 (제외 없음), 0.05 (제외 없음)
+ *   - 배화교 호위 (baehwa_howi): chance 0.035/0.07/0.00167 (모두 oathDropMult 적용)
+ *   - 야산 늑대 (wolf): chance 0.12/0.025
+ *   - 야산 곰 (bear): chance 0.20/0.05
  *   - 배화교 화보사 (baehwa_hwabosa): OATH_TIER2_EXTRA_DROPS 보유
  *   - 배화교 경보사 (baehwa_gyeongbosa): OATH_TIER2_EXTRA_DROPS 보유
  *
  * 전제:
- *   - proficiency 보정은 0으로 고정 (diff < 2 → dropRateMultiplier_prof = 1)
- *   - 시뮬레이션은 순수 oathDropMult만 적용
- *   - 판정: Math.random() < Math.min(chance * effectiveMultiplier, 1)
- *   - excludeFromDropBonus=true 재료는 effectiveMultiplier=1 (oathDropMult 미적용)
- *   - OATH_TIER2_EXTRA_DROPS: Math.random() < ed.chance (배율 없음, 고정값)
+ *   - proficiency 보정 없음 (dropRateMultiplier = oathDropMult)
+ *   - 일반 드랍: Math.random() < Math.min(chance * oathDropMult, 1)
+ *     단, excludeFromDropBonus=true 재료는 effectiveMultiplier=1 (shinseonghan_bul, huimihan_seonghwa)
+ *   - OATH_TIER2_EXTRA_DROPS: extraMult = max(1, oathDropMult - 1.4), ws≥5 조건 충족 시에만 발동
  */
 
 import { calcOathBoost, calcOathFlatBonuses, OATH_TIER2_EXTRA_DROPS } from '../src/data/oaths.js';
@@ -63,29 +62,29 @@ const MONSTER_CASES: MonsterTestCase[] = [
     monsterId: 'baehwa_howi',
     monsterName: '배화교 호위',
     materialDrops: [
-      { materialId: 'huimihan_janbul',  chance: 0.035   }, // excludeFromDropBonus=true
-      { materialId: 'hayan_jae',        chance: 0.07    }, // excludeFromDropBonus=true
-      { materialId: 'waebeopse_basic',  chance: 0.00167 }, // excludeFromDropBonus=true
+      { materialId: 'huimihan_janbul',  chance: 0.035   },
+      { materialId: 'hayan_jae',        chance: 0.07    },
+      { materialId: 'waebeopse_basic',  chance: 0.00167 },
     ],
   },
   {
     monsterId: 'baehwa_hwabosa',
     monsterName: '배화교 화보사',
     materialDrops: [
-      { materialId: 'huimihan_janbul',   chance: 0.07              }, // excludeFromDropBonus=true
-      { materialId: 'hayan_jae',         chance: 0.15              }, // excludeFromDropBonus=true
-      { materialId: 'simbeop_guide_basic', chance: 0.07 / 23       }, // excludeFromDropBonus=true
-      { materialId: 'waebeopse_basic',   chance: 0.00167           }, // excludeFromDropBonus=true
+      { materialId: 'huimihan_janbul',    chance: 0.07        },
+      { materialId: 'hayan_jae',          chance: 0.15        },
+      { materialId: 'simbeop_guide_basic', chance: 0.07 / 23  },
+      { materialId: 'waebeopse_basic',    chance: 0.00167     },
     ],
   },
   {
     monsterId: 'baehwa_gyeongbosa',
     monsterName: '배화교 경보사',
     materialDrops: [
-      { materialId: 'huimihan_janbul',   chance: 0.095             }, // excludeFromDropBonus=true
-      { materialId: 'hayan_jae',         chance: 0.20              }, // excludeFromDropBonus=true
-      { materialId: 'simbeop_guide_basic', chance: 0.095 / 15      }, // excludeFromDropBonus=true
-      { materialId: 'waebeopse_basic',   chance: 0.00167           }, // excludeFromDropBonus=true
+      { materialId: 'huimihan_janbul',    chance: 0.095       },
+      { materialId: 'hayan_jae',          chance: 0.20        },
+      { materialId: 'simbeop_guide_basic', chance: 0.095 / 15 },
+      { materialId: 'waebeopse_basic',    chance: 0.00167     },
     ],
   },
 ];
@@ -119,11 +118,12 @@ function simulate(chance: number, dropMult: number, excluded: boolean, n: number
   return hits;
 }
 
-/** OATH_TIER2_EXTRA_DROPS 시뮬레이션 (고정 chance, 배율 없음) */
-function simulateExtraDrop(chance: number, n: number): number {
+/** OATH_TIER2_EXTRA_DROPS 시뮬레이션 (extraMult = max(1, oathDropMult - 1.4)) */
+function simulateExtraDrop(chance: number, extraMult: number, n: number): number {
+  const threshold = Math.min(chance * extraMult, 1);
   let hits = 0;
   for (let i = 0; i < n; i++) {
-    if (Math.random() < chance) hits++;
+    if (Math.random() < threshold) hits++;
   }
   return hits;
 }
@@ -228,100 +228,114 @@ for (const mc of MONSTER_CASES) {
 }
 
 // ── OATH_TIER2_EXTRA_DROPS 시뮬레이션 ─────────────────────────────────────
+// extraMult = max(1, oathDropMult - 1.4)
+// ws=0: extraDropTableUnlocked=false → 미발동
+// ws=5: extraMult = max(1, 1.6-1.4) = 1   (기본 확률만)
+// ws=10: extraMult = max(1, 2.7-1.4) = 1.3
+// ws=18: extraMult = max(1, 5.3-1.4) = 3.9
 
 console.log('=== 맹세 티어2 추가 드롭 (OATH_TIER2_EXTRA_DROPS) 시뮬레이션 ===');
-console.log('(고정 chance, 배율 없음 — extraDropTableUnlocked = true 일 때만 발동)');
-console.log('(weightSum=0,5는 extraDropTableUnlocked=false → 미발동 → 검증 대상 아님)');
+console.log('(extraMult = max(1, oathDropMult − 1.4) — ws≥5 조건 충족 시에만 발동)');
+console.log('(ws=0: 미발동, ws=5: extraMult=1.0, ws=10: ×1.3, ws=18: ×3.9)');
 console.log('');
 
 const extraCasesLabel =
-  'monsterId              | materialId                    | theory  | actual  | error%  | 95%CI   | 판정';
+  'monsterId              | materialId                    | ws | extraMult | theory  | actual  | 95%CI   | 판정';
 const extraCasesSep =
-  '-----------------------|-------------------------------|---------|---------|---------|---------|------';
+  '-----------------------|-------------------------------|----|-----------|---------|---------|---------+------';
 console.log(extraCasesLabel);
 console.log(extraCasesSep);
 
+const EXTRA_WS_CASES = [5, 10, 18] as const; // ws=0은 미발동
+
 for (const [monsterId, extras] of Object.entries(OATH_TIER2_EXTRA_DROPS)) {
   for (const ed of extras) {
-    // extraDropTableUnlocked이 true인 케이스(ws=5,10,18)에서만 발동
-    // 모두 동일 고정 chance이므로 대표 1회만 측정
-    const theory = ed.chance;
-    const hits = simulateExtraDrop(ed.chance, N);
-    const actual = hits / N;
-    const ciRadius = ci95(theory, N);
-    const errorPct = theory > 0 ? Math.abs(actual - theory) / theory * 100 : 0;
-    const inCI = Math.abs(actual - theory) <= ciRadius;
-    const verdict = inCI ? '[OK]' : '[!!]';
+    for (const ws of EXTRA_WS_CASES) {
+      const { dropMult } = calcOathBoost(ws);
+      const extraMult = Math.max(1, dropMult - 1.4);
+      const theory = Math.min(ed.chance * extraMult, 1);
+      const hits = simulateExtraDrop(ed.chance, extraMult, N);
+      const actual = hits / N;
+      const ciRadius = ci95(theory, N);
+      const errorPct = theory > 0 ? Math.abs(actual - theory) / theory * 100 : 0;
+      const inCI = Math.abs(actual - theory) <= ciRadius;
+      const verdict = inCI ? '[OK]' : '[!!]';
 
-    totalChecks++;
-    if (inCI) {
-      passedChecks++;
-    } else {
-      failedChecks.push(`EXTRA:${monsterId}/${ed.materialId}`);
+      totalChecks++;
+      if (inCI) {
+        passedChecks++;
+      } else {
+        failedChecks.push(`EXTRA:${monsterId}/${ed.materialId}/ws=${ws}`);
+      }
+
+      const midLabel = monsterId.substring(0, 22).padEnd(22);
+      const matLabel = ed.materialId.substring(0, 29).padEnd(29);
+      const wsLabel = String(ws).padStart(2);
+      const multLabel = extraMult.toFixed(2).padStart(9);
+      const theoryLabel = pct(theory).padEnd(7);
+      const actualLabel = pct(actual).padEnd(7);
+      const ciLabel = ('±' + pct(ciRadius)).padEnd(7);
+      const errorLabel = errorPct.toFixed(2) + '%';
+
+      console.log(
+        `${midLabel} | ${matLabel} | ${wsLabel} | ${multLabel} | ${theoryLabel} | ${actualLabel} | ${ciLabel} | ${verdict} (err ${errorLabel})`
+      );
     }
-
-    const midLabel = monsterId.substring(0, 22).padEnd(22);
-    const matLabel = ed.materialId.substring(0, 29).padEnd(29);
-    const theoryLabel = pct(theory).padEnd(7);
-    const actualLabel = pct(actual).padEnd(7);
-    const errorLabel = errorPct.toFixed(2).padEnd(7) + '%';
-    const ciLabel = ('±' + pct(ciRadius)).padEnd(7);
-
-    console.log(
-      `${midLabel} | ${matLabel} | ${theoryLabel} | ${actualLabel} | ${errorLabel} | ${ciLabel} | ${verdict}`
-    );
+    console.log('');
   }
 }
 
 console.log('');
 
-// ── excludeFromDropBonus 동작 명시 검증 ────────────────────────────────────
+// ── 배화교 재료 oathDropMult 적용 검증 ────────────────────────────────────
+// 배화교 드랍 재료(huimihan_janbul 등)는 excludeFromDropBonus 플래그를 제거했으므로
+// oathDropMult가 정상 적용됨. wolf/torn_paper와 동일하게 weightSum 증가 시 드랍률 상승 확인.
 
-console.log('=== excludeFromDropBonus 동작 검증 ===');
-console.log('(excl=true 재료는 weightSum이 달라져도 드롭률 변화 없음을 확인)');
+console.log('=== 배화교 재료 oathDropMult 적용 검증 ===');
+console.log('(배화교 재료도 oathDropMult 적용 — weightSum 증가 시 드랍률 상승 확인)');
 console.log('');
 
-// baehwa_howi / huimihan_janbul (excl=true, chance=0.035)
-const exclChance = 0.035;
-const exclMatName = 'huimihan_janbul';
-console.log(`몬스터: baehwa_howi, 재료: ${exclMatName} (chance=${exclChance}, excl=true)`);
+const baehwaChance = 0.035;
+const baehwaMatName = 'huimihan_janbul';
+console.log(`몬스터: baehwa_howi, 재료: ${baehwaMatName} (chance=${baehwaChance}, excl=false)`);
 console.log('weightSum | dropMult | effectiveMult | theory  | actual  | 변화?');
 console.log('----------|----------|---------------|---------|---------|------');
 
-const exclResults: number[] = [];
+const baehwaResults: number[] = [];
 for (const ws of WEIGHT_SUM_CASES) {
   const { dropMult } = calcOathBoost(ws);
-  const effectiveMult = 1; // excludeFromDropBonus=true → 무조건 1
-  const theory = Math.min(exclChance * effectiveMult, 1);
-  const hits = simulate(exclChance, dropMult, true, N);
+  const excluded = false; // 배화교 재료는 excludeFromDropBonus 없음
+  const effectiveMult = dropMult;
+  const theory = Math.min(baehwaChance * effectiveMult, 1);
+  const hits = simulate(baehwaChance, dropMult, excluded, N);
   const actual = hits / N;
-  exclResults.push(actual);
+  baehwaResults.push(actual);
   const wsLabel = String(ws).padStart(8);
   const dmLabel = fmt(dropMult, 3).padEnd(8);
-  const emLabel = fmt(effectiveMult, 1).padEnd(13);
+  const emLabel = fmt(effectiveMult, 3).padEnd(13);
   const thLabel = pct(theory).padEnd(7);
   const acLabel = pct(actual).padEnd(7);
-  console.log(`${wsLabel} | ${dmLabel} | ${emLabel} | ${thLabel} | ${acLabel} | 고정`);
+  console.log(`${wsLabel} | ${dmLabel} | ${emLabel} | ${thLabel} | ${acLabel} | 증가`);
 }
-const exclVariance = Math.max(...exclResults) - Math.min(...exclResults);
+const baehwaVariance = Math.max(...baehwaResults) - Math.min(...baehwaResults);
 console.log('');
-console.log(`  → 실제 드롭률 최대변동폭: ${pct(exclVariance)} (랜덤 노이즈 범위 내면 정상)`);
+console.log(`  → 실제 드롭률 최대변동폭: ${pct(baehwaVariance)} (oathDropMult 적용 시 유의미한 증가여야 정상)`);
 console.log('');
 
-// non-excl 재료(torn_paper, chance=0.12)와 비교
-const nonExclChance = 0.12;
-console.log(`비교: wolf / torn_paper (chance=${nonExclChance}, excl=false)`);
+// wolf / torn_paper와 비교 (동일 패턴)
+const wolfChance = 0.12;
+console.log(`비교: wolf / torn_paper (chance=${wolfChance}, excl=false)`);
 console.log('weightSum | dropMult | effectiveMult | theory  | actual  | 변화?');
 console.log('----------|----------|---------------|---------|---------|------');
 
-const nonExclResults: number[] = [];
+const wolfResults: number[] = [];
 for (const ws of WEIGHT_SUM_CASES) {
   const { dropMult } = calcOathBoost(ws);
   const effectiveMult = dropMult;
-  const theory = Math.min(nonExclChance * effectiveMult, 1);
-  const hits = simulate(nonExclChance, dropMult, false, N);
+  const theory = Math.min(wolfChance * effectiveMult, 1);
+  const hits = simulate(wolfChance, dropMult, false, N);
   const actual = hits / N;
-  nonExclResults.push(actual);
+  wolfResults.push(actual);
   const wsLabel = String(ws).padStart(8);
   const dmLabel = fmt(dropMult, 3).padEnd(8);
   const emLabel = fmt(effectiveMult, 3).padEnd(13);
