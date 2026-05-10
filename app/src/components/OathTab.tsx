@@ -102,6 +102,7 @@ export default function OathTab() {
   const flatBonuses = calcOathFlatBonuses(weightSum);
   const profBoostPct = Math.round((profMult - 1) * 100);
   const dropBoostPct = Math.round((dropMult - 1) * 100);
+  const extraDropBoostPct = Math.max(0, dropBoostPct - 140);
 
   // forbid (마을에선 표시 안 함)
   const fieldDef = currentField ? getFieldDef(currentField) : null;
@@ -164,7 +165,7 @@ export default function OathTab() {
             {flatBonuses.extraDropTableUnlocked && (
               <>
                 <span className="oath-summary-sep">·</span>
-                <span>추가 드랍 해금</span>
+                <span>추가 드랍 해금{extraDropBoostPct > 0 ? ` (+${extraDropBoostPct}%)` : ''}</span>
               </>
             )}
             {flatBonuses.monsterRankBonus > 0 && (
@@ -177,6 +178,12 @@ export default function OathTab() {
         ) : (
           <div className="oath-summary-empty">
             활성 맹세 없음 — 서약하면 부스트가 발동합니다
+          </div>
+        )}
+        {flatBonuses.extraDropTableUnlocked && (
+          <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+            추가 드랍 아이템은 무모한 도전(가중치 10) 이상부터 드랍률 보너스가 적용됩니다.
+            적용 배율 = 전체 드랍률 보너스 − 140%
           </div>
         )}
       </div>

@@ -5,6 +5,7 @@ import { getMonsterDef, getGradeName, BOSS_PATTERNS } from '../../data/monsters'
 import { ARTS } from '../../data/arts';
 import { EQUIPMENT } from '../../data/equipment';
 import { MATERIALS } from '../../data/materials';
+import { OATH_TIER2_EXTRA_DROPS, OATH_TIER_LABELS } from '../../data/oaths';
 import { getEnemyImage, getEnemyEmoji } from '../../assets/index';
 import { ALL_MONSTERS, getDocRevealLevel, getNextThreshold } from './encyclopediaUtils';
 
@@ -671,6 +672,47 @@ export function MonsterDetailScreen({ monsterId, onBack }: {
           </table>
         )}
       </div>
+
+      {/* 맹세 추가 드랍 */}
+      {(() => {
+        const oathDrops = OATH_TIER2_EXTRA_DROPS[monsterId];
+        if (!oathDrops || oathDrops.length === 0) return null;
+        return (
+          <div className="card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <div className="card-label" style={{ margin: 0 }}>맹세 추가 드랍</div>
+              <span style={{ fontSize: 10, color: 'var(--accent-gold)', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: 3, padding: '1px 5px' }}>{OATH_TIER_LABELS[2]} 이상</span>
+            </div>
+            {reveal < 5 ? (
+              <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: 0, letterSpacing: 1 }}>???</p>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ color: 'var(--text-dim)', textAlign: 'left' }}>
+                    <th style={{ paddingBottom: 6, fontWeight: 400 }}>이름</th>
+                    <th style={{ paddingBottom: 6, fontWeight: 400 }}>종류</th>
+                    <th style={{ paddingBottom: 6, fontWeight: 400, textAlign: 'right' }}>확률</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {oathDrops.map((d, i) => {
+                    const mat = MATERIALS.find(m => m.id === d.materialId);
+                    return (
+                      <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td style={{ padding: '6px 0' }}>{mat?.name ?? d.materialId}</td>
+                        <td style={{ padding: '6px 0', color: 'var(--text-dim)' }}>재료</td>
+                        <td style={{ padding: '6px 0', textAlign: 'right' }}>
+                          {reveal >= 6 ? formatChance(d.chance) : QM}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 해금 진행도 */}
       {nextThreshold !== null ? (

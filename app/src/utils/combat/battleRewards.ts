@@ -12,9 +12,8 @@ import {
   getOathDef, calcOathBoost, calcOathFlatBonuses, OATH_TIER2_EXTRA_DROPS,
 } from '../../data/oaths';
 import {
-  getMaxEquippedArtGrade, getArtGradeInfo, getProfStarInfo,
+  getArtGradeInfo, getProfStarInfo,
   PROF_TABLE, getGradeTableForArt, getArtGradeInfoFromTable,
-  getProficiencyGrade,
 } from '../artUtils';
 import { spawnEnemy, calcPlayerAttackInterval } from '../combatCalc';
 import { PROF_LABEL } from './damageCalc';
@@ -229,24 +228,7 @@ export function processEnemyDeath(ctx: TickContext): void {
     }
   }
 
-  // 드랍률 보정: 장착 무공 숙련도 평균 vs 몬스터 등급
-  const profTypes = new Set<ProficiencyType>();
-  for (const aId of [...ctx.equippedArts, ...(ctx.equippedSimbeop ? [ctx.equippedSimbeop] : [])]) {
-    const aDef = getArtDef(aId);
-    if (aDef?.proficiencyType) profTypes.add(aDef.proficiencyType);
-  }
-  let dropRateMultiplier = 1;
-  if (profTypes.size > 0 && monDef.grade >= 1) {
-    let gradeSum = 0;
-    for (const pt of profTypes) gradeSum += getProficiencyGrade(ctx.proficiency[pt] ?? 0);
-    const avgGrade = gradeSum / profTypes.size;
-    const diff = monDef.grade - avgGrade;
-    if (diff >= 2) {
-      dropRateMultiplier = 1 + Math.min((diff - 1) * 0.5, 2.0);
-    }
-  }
-  // 맹세(盟誓) 드랍률 곱연산 — excludeFromDropBonus 재료는 하단 effectiveMultiplier 가드로 1 사용
-  dropRateMultiplier *= oathDropMult;
+  const dropRateMultiplier = oathDropMult;
 
   // 드롭
   const drops: string[] = [];
@@ -323,12 +305,14 @@ export function processEnemyDeath(ctx: TickContext): void {
   }
 
   // 맹세(盟誓) 티어 2 추가 드랍 — extraDropTableUnlocked(weightSum ≥ 5) 시에만 롤
-  // 대상 재료는 모두 excludeFromDropBonus: true 이므로 chance 는 고정값 (oathDropMult 미적용)
+  // extraMult: 무모한 도전(ws≥10) 이상에서 드랍률 보너스 적용.
+  // ws=5~9 구간에서 이미 받은 +140% 를 차감하고 남은 보너스만 적용 (최소 배율 1).
   if (!skipRewards && oathExtraDropTableUnlocked) {
+    const extraMult = Math.max(1, oathDropMult - 1.4);
     const extras = OATH_TIER2_EXTRA_DROPS[monDef.id];
     if (extras) {
       for (const ed of extras) {
-        if (Math.random() < ed.chance) {
+        if (Math.random() < ed.chance * extraMult) {
           ctx.materials[ed.materialId] = (ctx.materials[ed.materialId] ?? 0) + 1;
           ctx.sessionDrops[ed.materialId] = (ctx.sessionDrops[ed.materialId] ?? 0) + 1;
           if (!ctx.obtainedMaterials.includes(ed.materialId)) {

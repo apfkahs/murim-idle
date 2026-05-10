@@ -394,5 +394,23 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     ctx.fieldUnlocks.yasan = true;
   }
 
-  return buildResult(ctx, { achievements, achievementCount, artPoints, tutorialFlags, repeatableAchCounts });
+  const result = buildResult(ctx, { achievements, achievementCount, artPoints, tutorialFlags, repeatableAchCounts });
+
+  // 안전장치: pendingAutoExplore 소비 직후 oathSystem.lockedAt이 없으면 재잠금
+  // (combatSlice dismissBattleResult 버그로 unlock이 누락된 엣지케이스 대비)
+  if (state.pendingAutoExplore && !ctx.pendingAutoExplore && ctx.currentField && !state.oathSystem?.lockedAt) {
+    const fieldDef = getFieldDef(ctx.currentField);
+    if (fieldDef?.boss && (ctx.bossKillCounts[fieldDef.boss] ?? 0) > 0) {
+      result.oathSystem = {
+        activeOathIds: state.oathSystem?.activeOathIds ?? [],
+        lockedAt: {
+          fieldId: ctx.currentField,
+          lockedAtTimestamp: Date.now(),
+          snapshotIds: [...(state.oathSystem?.activeOathIds ?? [])],
+        },
+      };
+    }
+  }
+
+  return result;
 }
