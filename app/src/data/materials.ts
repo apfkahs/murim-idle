@@ -6,7 +6,7 @@ export interface MaterialDef {
   id: string;
   name: string;
   description: string;
-  excludeFromDropBonus?: boolean;  // 숙련도 차이 드랍률 보정 제외 여부
+  excludeFromDropBonus?: boolean;  // 맹세(盟誓) 드랍률(oathDropMult) 배율 제외 여부
   consumable?: boolean;            // true이면 소비 아이템으로 취급
 }
 
@@ -156,13 +156,11 @@ export const MATERIALS: MaterialDef[] = [
     id: 'huimihan_janbul',
     name: '희미한 잔불',
     description: '행자의 옷깃에서 떨어진 미세한 불씨. 아직 꺼지지 않은 성화의 숨결이 깃들어 있다.',
-    excludeFromDropBonus: true,
   },
   {
     id: 'taoreuneun_bulggot_pyeon',
     name: '타오르는 불꽃 파편',
     description: '배화교 내문 수좌의 손끝에서 타오르던 불꽃이 응결된 파편. 잔불보다 거칠고 깊은 열기를 품고 있다.',
-    excludeFromDropBonus: true,
   },
   {
     id: 'shinseonghan_bul_ui_jeongsu',
@@ -180,7 +178,6 @@ export const MATERIALS: MaterialDef[] = [
     id: 'hayan_jae',
     name: '하얀 재',
     description: '배화교 의식이 끝난 뒤 제단에 남은 새하얀 재. 성화의 기운이 다 타버린 흔적이지만, 서른 줌을 모으면 희미하게나마 그 불길을 되살릴 수 있다고 전해진다.',
-    excludeFromDropBonus: true,
   },
   {
     id: 'huimihan_seonghwa',
@@ -194,26 +191,22 @@ export const MATERIALS: MaterialDef[] = [
     id: 'simbeop_guide_basic',
     name: '초급 심법 지침서',
     description: '배화교 외문 사제들이 처음 호흡을 익힐 때 펼쳐 보던 얇은 책자. T1 심법 노드를 잔불 없이 열어 올리는 데 쓸 수 있다.',
-    excludeFromDropBonus: true,
   },
   {
     id: 'waebeopse_basic',
     name: '초급 외법서',
     description: '배화교 외문 수련자들이 몸을 움직이기 앞서 펼쳐 보던 낡은 보법 지침서. 성화보법 개방 노드를 한 단계 높이는 데 쓸 수 있다.',
-    excludeFromDropBonus: true,
   },
   {
     id: 'hot_ash',
     name: '뜨거운 재',
     description: '아직 온기가 식지 않은 잿덩이. 손바닥에 한 줌 흩뿌리면 하얀 재 서른 줌이 흩어져 나온다.',
-    excludeFromDropBonus: true,
     consumable: true,
   },
   {
     id: 'bahwagyo_sword_manual',
     name: '배화교 검법 비전서',
     description: '성화의 결을 검신에 옮겨 묶는 비결이 담긴 비전서. 배화교 비급 트리에서 성화검법(sword-main) 노드의 첫 단계를 잔불 대신 이 비전서 한 권으로 열 수 있다.',
-    excludeFromDropBonus: true,
   },
 ];
 
