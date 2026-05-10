@@ -149,12 +149,13 @@ export function seonghwaEffects(nodeLevels: Record<string, number>): MasteryEffe
   }
 
   // bonusDodge 는 기존 집계에서 % 단위 (ex 5 = +5%p). 본 스펙은 0.10=10% → × 100 환산.
+  // bonusAtkSpeed 1.5 = (BASE 2.5 - 1.5 = 1.0초)로 줄여, floorAS(1.5→1.2)가 실제 클램프 역할을 하도록.
   const result: MasteryEffects = {
     bonusDodge: dodge * 100,
     dodgeCounterChance: counter,
     dodgeCounterMultiplier: 1.4,
     minAtkSpeedOverride: floorAS,
-    bonusAtkSpeed: 1.0,
+    bonusAtkSpeed: 1.5,
     dodgeCounterEnabled: true,
   };
 

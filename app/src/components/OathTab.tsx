@@ -14,18 +14,18 @@ import { getMonsterDef } from '../data/monsters';
 
 // ── 카테고리 메타 ─────────────────────────────────────────────────────────────
 
-const CATEGORY_ORDER: OathCategory[] = ['maxQi', 'recovery', 'output', 'incoming'];
+const CATEGORY_ORDER: OathCategory[] = ['maxQi', 'maxHp', 'output', 'incoming'];
 
 const CATEGORY_LABELS: Record<string, string> = {
   maxQi: '최대 내력',
-  recovery: '회복력',
+  maxHp: '최대 체력',
   output: '출력 데미지',
   incoming: '받는 피해',
 };
 
 const CATEGORY_DESC: Record<string, string> = {
   maxQi: '내력 상한을 줄인다',
-  recovery: '회복을 제약한다',
+  maxHp: '체력 상한을 줄인다',
   output: '출력 데미지를 줄인다',
   incoming: '받는 피해를 늘린다',
 };

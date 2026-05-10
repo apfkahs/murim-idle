@@ -178,7 +178,15 @@ location.reload();
 | **원인** | 자동 저장 주기가 30초라 30초 이내 새로고침 시 재료 감소가 localStorage에 반영되지 않음. `beforeunload`의 `saveGame`도 브라우저/새로고침 타이밍에 따라 신뢰 불가. 결과적으로 pendingReveal 모달이 끝나기 전 새로고침하면 메모리 상태만 소실되어 재료 복구, 이미 set된 장비/잔불은 다음 자동 저장 시점 상태가 남아있을 수 있어 보상만 챙기는 악용 가능 |
 | **해결법** | `useConsumable`/`useConsumableBatch`의 `set(...)` 직후 `(get() as GameStore).saveGame()`을 호출하여 소비·보상 상태를 즉시 localStorage에 flush ([inventorySlice.ts](app/src/store/slices/inventorySlice.ts)) |
 
-### 4-5. `exclusiveGroup` 무공 스왑 시 해제된 무공의 초식이 완전 삭제
+### 4-5. 자동 답파 사망 재시작 시 맹세 드롭 보너스 미적용
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 맹세를 켜고 자동 답파 중 사망 후 HP 회복으로 재시작되면 드롭률/숙련도 보너스가 전혀 적용되지 않음 |
+| **원인** | `dismissBattleResult`의 `death + autoExplore` 분기에서 `unlockOaths()`를 먼저 호출해 `lockedAt = null`로 만든 뒤 `pendingAutoExplore = true`를 설정. `gameLoop.ts`의 `pendingAutoExplore` 경로는 맹세 재잠금 로직이 없으므로, 재탐험 전 구간 내내 `oathSystem.lockedAt === null`이 되어 `processEnemyDeath`가 보너스를 무시함 |
+| **해결법** | `death + autoExplore` 분기에서 `unlockOaths()` 호출 제거. 맹세 잠금을 HP 회복 대기 기간 내내 유지하면 `pendingAutoExplore` 재시작 시에도 기존 잠금이 살아있어 드롭 보너스 정상 적용. 이후 탐험 종료 시 `dismissBattleResult`가 `unlockOaths()`를 호출하므로 잠금 해제 흐름 유지 ([combatSlice.ts](app/src/store/slices/combatSlice.ts)) |
+
+### 4-6. `exclusiveGroup` 무공 스왑 시 해제된 무공의 초식이 완전 삭제
 
 | 항목 | 내용 |
 |------|------|

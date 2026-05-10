@@ -4,8 +4,8 @@
  * 목적: PR3(맹세 시스템 페널티 파이프라인) 도입 후 식화심법(재의 묵념)이
  *       외문수좌 P2 단계에서 얼마나 회복하는지 baseline 을 기록한다.
  *
- *  - 맹세 미사용(lockedAt=null) → applyHealing 의 hpRegenPenaltyPct 게이트가
- *    단락되어, 회복량은 PR3 이전과 동일해야 한다.
+ *  - 맹세 회복 페널티는 폐지됨(maxHp 페널티로 교체) → applyHealing은 외문수좌
+ *    playerRecoveryDebuff 만 적용. lockedAt 여부와 회복량은 무관.
  *  - playerRecoveryDebuff 가 외문수좌 P2 진입 시점에 잔존 시 적용됨.
  *
  * 측정 방식:
@@ -126,5 +126,5 @@ const totalGain = samples[samples.length - 1].hp - samples[0].hp;
 console.log(`\n[종합] 30초간 총 HP 변화: ${totalGain >= 0 ? '+' : ''}${totalGain}`);
 console.log(`        (양수=회복 우세, 음수=피해 우세)`);
 
-console.log('\n[기록] 본 baseline 은 PR3 도입 후 lockedAt=null 상태에서의 P2 회복량.');
-console.log('       이후 맹세 활성화 시 hpRegenPenaltyPct 적용으로 회복이 비례 감소해야 한다.');
+console.log('\n[기록] 본 baseline 은 외문수좌 P2 회복량. 맹세 회복 페널티는 폐지되었으므로');
+console.log('       lockedAt 여부와 무관하게 동일한 회복량이 측정되어야 한다.');

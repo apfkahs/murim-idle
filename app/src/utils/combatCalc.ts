@@ -5,7 +5,8 @@
 import { BALANCE_PARAMS } from '../data/balance';
 import { getArtDef, type MasteryEffects } from '../data/arts';
 import { getEquipmentDef, type EquipSlot, type EquipStats } from '../data/equipment';
-import { type MonsterDef } from '../data/monsters';
+import { getMonsterDef, type MonsterDef } from '../data/monsters';
+import { getFieldDef } from '../data/fields';
 import { getProfDamageValue, getGradeTableForArt, getArtGradeInfoFromTable } from './artUtils';
 import { applyBaehwagyoArtEffects, isSikhwaEquipped, getSikhwaQiCoeff, SIKHWA_NODES } from './combat/baehwagyoEffects';
 import { TAMSIK_WEAPON_ID, getTamsikWeaponStats } from './tamsikUtils';
@@ -66,13 +67,32 @@ export function calcMaxHp(che: number, hpBonus: number = 0, tierMult: number = 1
   return Math.floor(B.HP_BASE + che * B.STAT_K_CHE * tierMult + hpBonus);
 }
 
-/** 장비·심득 bonusHpPercent까지 반영한 최종 maxHp */
+/** 장비·심득 bonusHpPercent + 맹세 maxHpPenaltyPct까지 반영한 최종 maxHp */
 export function calcFullMaxHp(state: GameState): number {
   const eqStats = gatherEquipmentStats(state);
   const masteryEffects = gatherMasteryEffects(state);
   const tierMult = calcTierMultiplier(state.tier);
   const base = calcMaxHp(state.stats.che, eqStats.bonusHp ?? 0, tierMult);
-  return Math.floor(base * (1 + (eqStats.bonusHpPercent ?? 0) + (masteryEffects.bonusHpPercent ?? 0)));
+  let result = Math.floor(base * (1 + (eqStats.bonusHpPercent ?? 0) + (masteryEffects.bonusHpPercent ?? 0)));
+
+  // 맹세 maxHp 페널티 — lockedAt 게이트, currentField + currentEnemy forbid 합집합 제외
+  const locked = state.oathSystem?.lockedAt;
+  if (locked) {
+    const fieldDef = state.currentField ? getFieldDef(state.currentField) : null;
+    const enemyMonDef = state.currentEnemy ? getMonsterDef(state.currentEnemy.id) : null;
+    const forbidIds = [
+      ...(fieldDef?.forbidOathIds ?? []),
+      ...(enemyMonDef?.forbidOathIds ?? []),
+    ];
+    let penalty = 0;
+    for (const id of locked.snapshotIds) {
+      if (forbidIds.includes(id)) continue;
+      const def = getOathDef(id);
+      if (def?.effect.maxHpPenaltyPct) penalty += def.effect.maxHpPenaltyPct;
+    }
+    if (penalty > 0) result = Math.floor(result * (1 - Math.min(penalty, 0.99)));
+  }
+  return Math.max(1, result);
 }
 
 /** STAMINA = STAM_BASE + 심 × K_SIM × tierMult */

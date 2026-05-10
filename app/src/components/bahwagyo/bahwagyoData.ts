@@ -159,7 +159,7 @@ const mindNodes: SkillNodeDef[] = [
     branch: 'mind',
     requiresRoot: true,
     description: '꺼진 불의 재 위에 잠시 숨을 얹는다. 몸은 그만큼 다시 살아난다.',
-    functional: '불씨가 자동 소각될 때 남은 불씨 스택 수에 비례해 체력을 회복한다.',
+    functional: '불씨가 자동 소각될 때 소각된 불씨 수에 비례해 체력을 회복한다.',
     effectSummary: '레벨당 최대 체력 +0.01%p/스택 (1Lv = 0.2%/스택, 최대 20스택 참조)',
     baseMax: 30,
     expandedMax: [45, 50],

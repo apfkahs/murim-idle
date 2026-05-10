@@ -504,19 +504,17 @@ export function computeOathEffects(state: GameState, forbidIds: string[] = []): 
     if (!def) continue;
     const e = def.effect;
     if (e.maxQiPenaltyPct) eff.maxQiPenaltyPct = (eff.maxQiPenaltyPct ?? 0) + e.maxQiPenaltyPct;
-    if (e.hpRegenPenaltyPct) eff.hpRegenPenaltyPct = (eff.hpRegenPenaltyPct ?? 0) + e.hpRegenPenaltyPct;
-    if (e.hpDrainPctPerSec) eff.hpDrainPctPerSec = (eff.hpDrainPctPerSec ?? 0) + e.hpDrainPctPerSec;
     if (e.outDamagePenaltyPct) eff.outDamagePenaltyPct = (eff.outDamagePenaltyPct ?? 0) + e.outDamagePenaltyPct;
     if (e.inDamageBonusPct) eff.inDamageBonusPct = (eff.inDamageBonusPct ?? 0) + e.inDamageBonusPct;
+    // maxHpPenaltyPct는 calcFullMaxHp가 직접 snapshotIds를 순회해 적용 — 여기서는 누적하지 않음
   }
   if (eff.maxQiPenaltyPct != null) eff.maxQiPenaltyPct = Math.min(eff.maxQiPenaltyPct, 1);
-  if (eff.hpRegenPenaltyPct != null) eff.hpRegenPenaltyPct = Math.min(eff.hpRegenPenaltyPct, 1);
   if (eff.outDamagePenaltyPct != null) eff.outDamagePenaltyPct = Math.min(eff.outDamagePenaltyPct, 1);
   return eff;
 }
 
 /**
- * 회복의 단일 진입점 — 맹세 회복 페널티 + 외문수좌 playerRecoveryDebuff 적용 후 ctx.hp 갱신.
+ * 회복의 단일 진입점 — 외문수좌 playerRecoveryDebuff 적용 후 ctx.hp 갱신.
  * 반환: 실제 적용된 회복량 (UI 표시용). fractional=true 면 floor 생략 (자연 회복용).
  */
 export function applyHealing(
@@ -526,8 +524,6 @@ export function applyHealing(
 ): number {
   if (baseAmount <= 0) return 0;
   let healAmt = baseAmount;
-  const oathRecv = ctx.oathEffects?.hpRegenPenaltyPct ?? 0;
-  if (oathRecv > 0) healAmt *= 1 - oathRecv;
   const recDebuff = ctx.bossPatternState?.playerRecoveryDebuff;
   if (recDebuff && recDebuff.remainingSec > 0) healAmt *= 1 - recDebuff.pct;
   if (!opts?.fractional) healAmt = Math.floor(healAmt);

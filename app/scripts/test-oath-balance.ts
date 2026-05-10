@@ -73,64 +73,63 @@ const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    label: '사방 봉인 — 4카테고리 1단계 티어1 끝 (w=4)',
-    ids: ['oath_qi_1', 'oath_recv_1', 'oath_out_1', 'oath_in_1'],
-    expectedWeightSum: 4,
-    expectedProfMult: 1.40,
-    expectedTier: 1,
-    expectedRankBonus: 0,
-    expectedExtraDrop: false,
-    penaltyChecks: [
-      { oathId: 'oath_qi_1',    field: 'maxQiPenaltyPct',     expectedTotal: 0.33 },
-      { oathId: 'oath_recv_1',  field: 'hpRegenPenaltyPct',   expectedTotal: 0.50 },
-      { oathId: 'oath_out_1',   field: 'outDamagePenaltyPct', expectedTotal: 0.20 },
-      { oathId: 'oath_in_1',    field: 'inDamageBonusPct',    expectedTotal: 0.30 },
-    ],
-  },
-  {
-    label: '협객의 맹약 — 중급 조합 티어2 (w=6)',
-    ids: ['oath_qi_2', 'oath_recv_1', 'oath_out_2', 'oath_in_1'],
-    expectedWeightSum: 6,
-    expectedProfMult: 1.80,
+    label: '사방 봉인 — 4카테고리 1단계 티어2 진입 (w=5)',
+    ids: ['oath_qi_1', 'oath_hp_1', 'oath_out_1', 'oath_in_1'],
+    expectedWeightSum: 5,
+    expectedProfMult: 1.60,
     expectedTier: 2,
     expectedRankBonus: 0,
     expectedExtraDrop: true,
     penaltyChecks: [
-      { oathId: 'oath_qi_2',   field: 'maxQiPenaltyPct',     expectedTotal: 0.66 },
-      { oathId: 'oath_recv_1', field: 'hpRegenPenaltyPct',   expectedTotal: 0.50 },
-      { oathId: 'oath_out_2',  field: 'outDamagePenaltyPct', expectedTotal: 0.40 },
-      { oathId: 'oath_in_1',   field: 'inDamageBonusPct',    expectedTotal: 0.30 },
+      { oathId: 'oath_qi_1',  field: 'maxQiPenaltyPct',     expectedTotal: 0.33 },
+      { oathId: 'oath_hp_1',  field: 'maxHpPenaltyPct',     expectedTotal: 0.30 },
+      { oathId: 'oath_out_1', field: 'outDamagePenaltyPct', expectedTotal: 0.20 },
+      { oathId: 'oath_in_1',  field: 'inDamageBonusPct',    expectedTotal: 0.30 },
+    ],
+  },
+  {
+    label: '협객의 맹약 — 중급 조합 티어2 (w=7)',
+    ids: ['oath_qi_2', 'oath_hp_1', 'oath_out_2', 'oath_in_1'],
+    expectedWeightSum: 7,
+    expectedProfMult: 2.00,
+    expectedTier: 2,
+    expectedRankBonus: 0,
+    expectedExtraDrop: true,
+    penaltyChecks: [
+      { oathId: 'oath_qi_2',  field: 'maxQiPenaltyPct',     expectedTotal: 0.66 },
+      { oathId: 'oath_hp_1',  field: 'maxHpPenaltyPct',     expectedTotal: 0.30 },
+      { oathId: 'oath_out_2', field: 'outDamagePenaltyPct', expectedTotal: 0.40 },
+      { oathId: 'oath_in_1',  field: 'inDamageBonusPct',    expectedTotal: 0.30 },
     ],
   },
   {
     label: '광인의 맹약 — 무모한 도전 티어3 진입 (w=10)',
-    ids: ['oath_qi_3', 'oath_recv_2', 'oath_out_3', 'oath_in_2'],
+    ids: ['oath_qi_3', 'oath_hp_2', 'oath_out_3', 'oath_in_1'],
     expectedWeightSum: 10,
     expectedProfMult: 2.70,
     expectedTier: 3,
     expectedRankBonus: 1,
     expectedExtraDrop: true,
     penaltyChecks: [
-      { oathId: 'oath_qi_3',   field: 'maxQiPenaltyPct',     expectedTotal: 0.95 },
-      { oathId: 'oath_recv_2', field: 'hpRegenPenaltyPct',   expectedTotal: 1.00 },
-      { oathId: 'oath_out_3',  field: 'outDamagePenaltyPct', expectedTotal: 0.60 },
-      { oathId: 'oath_in_2',   field: 'inDamageBonusPct',    expectedTotal: 0.80 },
+      { oathId: 'oath_qi_3',  field: 'maxQiPenaltyPct',     expectedTotal: 0.95 },
+      { oathId: 'oath_hp_2',  field: 'maxHpPenaltyPct',     expectedTotal: 0.60 },
+      { oathId: 'oath_out_3', field: 'outDamagePenaltyPct', expectedTotal: 0.60 },
+      { oathId: 'oath_in_1',  field: 'inDamageBonusPct',    expectedTotal: 0.30 },
     ],
   },
   {
     label: '절대의 맹세 — 최대 조합 티어4 (w=25)',
-    ids: ['oath_qi_4', 'oath_recv_3', 'oath_out_5', 'oath_in_4'],
+    ids: ['oath_qi_4', 'oath_hp_4', 'oath_out_3', 'oath_in_4'],
     expectedWeightSum: 25,
     expectedProfMult: 8.80,
     expectedTier: 4,
     expectedRankBonus: 2,
     expectedExtraDrop: true,
     penaltyChecks: [
-      { oathId: 'oath_qi_4',   field: 'maxQiPenaltyPct',     expectedTotal: 1.00 },
-      { oathId: 'oath_recv_3', field: 'hpRegenPenaltyPct',   expectedTotal: 1.00 },
-      { oathId: 'oath_recv_3', field: 'hpDrainPctPerSec',    expectedTotal: 0.008 },
-      { oathId: 'oath_out_5',  field: 'outDamagePenaltyPct', expectedTotal: 0.95 },
-      { oathId: 'oath_in_4',   field: 'inDamageBonusPct',    expectedTotal: 5.00 },
+      { oathId: 'oath_qi_4',  field: 'maxQiPenaltyPct',     expectedTotal: 1.00 },
+      { oathId: 'oath_hp_4',  field: 'maxHpPenaltyPct',     expectedTotal: 0.98 },
+      { oathId: 'oath_out_3', field: 'outDamagePenaltyPct', expectedTotal: 0.60 },
+      { oathId: 'oath_in_4',  field: 'inDamageBonusPct',    expectedTotal: 5.00 },
     ],
   },
 ];
@@ -184,26 +183,6 @@ for (const sc of SCENARIOS) {
       `actual ${actual}`,
     );
   }
-}
-
-// 추가: oath_recv_3 drain 검증 (maxHp=1000 기준)
-console.log('\n[oath_recv_3 드레인 생존 시간 검증]');
-{
-  const drainDef = getOathDef('oath_recv_3');
-  const drainRate = drainDef?.effect.hpDrainPctPerSec ?? 0;
-  const mockMaxHp = 1000;
-  const drainPerSec = mockMaxHp * drainRate;
-  const timeToZero = drainRate > 0 ? mockMaxHp / drainPerSec : Infinity;
-  assert(
-    `drainRate 0.8%/s → maxHp=1000 기준 drain=${drainPerSec}/s`,
-    approxEq(drainPerSec, 8.0),
-    `actual ${drainPerSec}`,
-  );
-  assert(
-    `drain만으로 사망까지 ${timeToZero}초 (= 1/0.008 × 1)`,
-    approxEq(timeToZero, 125.0),
-    `actual ${timeToZero}`,
-  );
 }
 
 // ─────────────────────────────────────────────
@@ -288,10 +267,10 @@ console.log('\n─── [3] 몬테카를로 10,000회 ───\n');
 
 // 그룹별 멤버 목록 (exclusiveGroup별 최대 1개 선택)
 const GROUP_MEMBERS: Record<string, string[]> = {
-  oath_maxqi:    ['oath_qi_1',   'oath_qi_2',   'oath_qi_3',   'oath_qi_4'],
-  oath_recovery: ['oath_recv_1', 'oath_recv_2', 'oath_recv_3'],
-  oath_output:   ['oath_out_1',  'oath_out_2',  'oath_out_3',  'oath_out_4', 'oath_out_5'],
-  oath_incoming: ['oath_in_1',   'oath_in_2',   'oath_in_3',   'oath_in_4'],
+  oath_maxqi:    ['oath_qi_1',  'oath_qi_2',  'oath_qi_3',  'oath_qi_4'],
+  oath_maxhp:    ['oath_hp_1',  'oath_hp_2',  'oath_hp_3',  'oath_hp_4'],
+  oath_output:   ['oath_out_1', 'oath_out_2', 'oath_out_3', 'oath_out_4', 'oath_out_5'],
+  oath_incoming: ['oath_in_1',  'oath_in_2',  'oath_in_3',  'oath_in_4'],
 };
 const GROUPS = Object.keys(GROUP_MEMBERS);
 
@@ -364,11 +343,11 @@ for (const tier of [1, 2, 3, 4] as const) {
   console.log(`    티어 ${tier}: ${count.toLocaleString('ko-KR')}회 (${pct}%)`);
 }
 
-// 티어1 조합이 가장 많아야 함 (4그룹 각 50% 선택 → 빈 조합 포함 낮은 weightSum 多)
+// 저난이도(티어1+티어2) 조합이 다수여야 함 (입문 접근성)
 assert(
-  '티어1 조합 비율 > 40% (저난이도 입문 접근성)',
-  tierCounts[1] / total > 0.40,
-  `실제 ${((tierCounts[1] / total) * 100).toFixed(1)}%`,
+  '티어1+티어2 조합 비율 > 60% (저난이도 입문 접근성)',
+  (tierCounts[1] + tierCounts[2]) / total > 0.60,
+  `실제 ${(((tierCounts[1] + tierCounts[2]) / total) * 100).toFixed(1)}%`,
 );
 
 // 티어4 조합도 존재해야 함 (극한 도전 가능)

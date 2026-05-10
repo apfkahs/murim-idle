@@ -44,7 +44,7 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
   // 2) HP 자동회복 (전투 외)
   if (!ctx.isBattling) {
     ctx.maxHp = calcFullMaxHp(ctx.state);
-    // applyHealing 단일 진입점 — 맹세 hpRegenPenaltyPct + 외문수좌 playerRecoveryDebuff 적용
+    // applyHealing 단일 진입점 — 외문수좌 playerRecoveryDebuff 적용
     applyHealing(ctx, ctx.maxHp * 0.05 * dt, { fractional: true });
 
     if (ctx.pendingHuntRetry && ctx.hp >= ctx.maxHp && ctx.huntTarget && ctx.currentField) {
@@ -153,14 +153,6 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         ctx.bossPatternState.playerRecoveryDebuff = newSec <= 0
           ? undefined
           : { ...debuff, remainingSec: newSec };
-      }
-    }
-
-    // 맹세(盟誓) — HP drain (전투 중에만 발동, currentEnemy != null 가드)
-    {
-      const oathDrain = ctx.oathEffects?.hpDrainPctPerSec ?? 0;
-      if (oathDrain > 0 && ctx.currentEnemy) {
-        ctx.hp = Math.max(0, ctx.hp - ctx.maxHp * oathDrain * dt);
       }
     }
 

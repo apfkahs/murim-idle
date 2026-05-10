@@ -258,6 +258,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
       let artDefForBonuses: ReturnType<typeof getArtDef> | null = null;
       let artMasteryIdsForBonuses: string[] = [];
       let qiManifestBonus = 0;
+      let qiDmg = 0;
 
       // 절초 판정
       const ultCandidates = ctx.equippedArts.filter(artId => {
@@ -399,10 +400,10 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
             normalGradeMult = getSwordGradeMult(mainLv);
           }
 
-          // ── 검기 발현 — 검법 일반 공격 시 무기 공격력(bonusAtk)에 합산 ──
+          // ── 검기 발현 — 검법 일반 공격 시 별도 데미지 인스턴스로 후속 적용 ──
           // 발동: 검법 art + qiLv≥1 + 슬라이더 Y>0 + 현재 stamina ≥ maxStamina×50%.
-          // 차감: maxStamina×Y 만큼 stamina 소모. 추가 피해: floor(burned × X).
-          // 합산 위치: calcAttackDamage 의 bonusAtk 인자 자리 → 분산/grade/치명타/적 디버프 모두 무기 공격력과 동일하게 적용.
+          // 차감: maxStamina×Y 만큼 stamina 소모(회피 판정 전이라 회피 시에도 차감됨).
+          // 추가 피해: floor(burned × X). gradeMult/치명타/철벽 등 미적용 정타 — 평타 본체 hp 차감 직후 별도 인스턴스로 처리(아래 L713 직후 블록 참조).
           if (chosen.id === SEONGHWA_GEOMBEOP_ART_ID) {
             const qiLv = ctx.state.bahwagyo.nodeLevels[SWORD_NODES.qiManifest] ?? 0;
             const drainRate = ctx.state.bahwagyo.swordQiDrainRate ?? 0;
@@ -419,7 +420,7 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
 
           damage = calcAttackDamage(
             normalBaseDmg, normalProfCoeff, getProfDamageValue(normalProf),
-            normalGradeMult, (ctx.equipStats.bonusAtk ?? 0) + qiManifestBonus,
+            normalGradeMult, ctx.equipStats.bonusAtk ?? 0,
           );
 
           if (chosen.def.normalMessages && chosen.def.normalMessages.length > 0) {
@@ -716,9 +717,27 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
         if (damage > ctx.currentBattleMaxOutgoingHit) ctx.currentBattleMaxOutgoingHit = damage;
         if (isCritical) ctx.currentBattleCritCount += 1;
 
+        // ── 검법 일반 공격 후속: 검기 발현 별도 데미지 인스턴스 ──
+        // 평타 본체 hp 차감 직후 처리. 회피 가드 안쪽이라 회피 시 자동 차단.
+        // 분산·치명타·철벽·dmgReduction·살기 등 평타 본체 보정은 미적용(정타). 맹세 페널티만 적용.
+        if (!isUlt && qiManifestBonus > 0 && ctx.currentEnemy) {
+          qiDmg = qiManifestBonus;
+          const oathOutQi = ctx.oathEffects?.outDamagePenaltyPct ?? 0;
+          if (oathOutQi > 0 && qiDmg > 0) {
+            qiDmg = Math.floor(qiDmg * (1 - oathOutQi));
+            if (qiDmg < 1) qiDmg = 1;
+          }
+          if (qiDmg > 0) {
+            ctx.currentEnemy.hp -= qiDmg;
+            ctx.currentBattleDamageDealt += qiDmg;
+            ctx.sessionTotalDamage += qiDmg;
+            if (qiDmg > ctx.currentBattleMaxOutgoingHit) ctx.currentBattleMaxOutgoingHit = qiDmg;
+          }
+        }
+
         // ── 검법 절초 후속: 내력폭발(sword-ult lv10) ──
         // 절초 데미지 적용 직후 별도 2단 데미지로 처리. 치명타·회피카운터 미적용(정타).
-        // (검기 발현은 일반 공격 분기에서 calcAttackDamage 의 bonusAtk 인자로 합산되므로 여기서 발동하지 않음)
+        // (검기 발현은 위 블록(평타 분기)에서 별도 인스턴스로 처리되므로 절초 분기에서는 발동하지 않음)
         if (isUlt && artDefForBonuses?.id === SEONGHWA_GEOMBEOP_ART_ID) {
           const ultLv = ctx.state.bahwagyo.nodeLevels[SWORD_NODES.ult] ?? 0;
           const qiLv = ctx.state.bahwagyo.nodeLevels[SWORD_NODES.qiManifest] ?? 0;
@@ -732,6 +751,10 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
               const burnedQi = Math.min(absorbed, ctx.stamina);
               ctx.stamina -= burnedQi;
               let burstDmg = Math.floor(burnedQi * X * 2);
+              // 단독 장착이 아니면 50% 감쇠 (검법 단독 빌드 차등)
+              if (ctx.equippedArts.length !== 1) {
+                burstDmg = Math.floor(burstDmg * 0.5);
+              }
               // 맹세(盟誓) — 출력 데미지 페널티
               const oathOutBurst = ctx.oathEffects?.outDamagePenaltyPct ?? 0;
               if (oathOutBurst > 0 && burstDmg > 0) {
@@ -917,10 +940,10 @@ export function executePlayerAttackPhase(ctx: TickContext): void {
         } else if (!isUlt && damage > 0) {
           ctx.logEvent({ side: 'outgoing', actor: 'player', name: attackName, value: damage, valueTier: 'normal' });
         }
-        if (!isUlt && qiManifestBonus > 0 && !enemyGenericDodge) {
+        if (!isUlt && qiDmg > 0 && !enemyGenericDodge) {
           ctx.logEvent({
             side: 'outgoing', actor: 'player', name: '검기(劍氣)', subName: '· 검기 발현',
-            tag: 'special', value: qiManifestBonus, valueTier: 'special',
+            tag: 'special', value: qiDmg, valueTier: 'special',
           });
         }
         if (isCounterHit) {

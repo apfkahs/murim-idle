@@ -10,13 +10,12 @@
 // 타입 정의
 // ─────────────────────────────────────────────
 
-export type OathCategory = 'maxQi' | 'recovery' | 'output' | 'incoming' | 'future';
+export type OathCategory = 'maxQi' | 'maxHp' | 'output' | 'incoming' | 'future';
 
 export interface OathEffect {
   // 자원
   maxQiPenaltyPct?: number;       // 0..1, 최대 내력 곱연산 감소 (effectiveMax = base × (1 - pct))
-  hpRegenPenaltyPct?: number;     // 0..1, HP 회복 곱연산 감소 (자연 + 스킬 회복 모두)
-  hpDrainPctPerSec?: number;      // maxHp 대비 매초 감소 비율. 전투 중에만 발동
+  maxHpPenaltyPct?: number;       // 0..0.99, 최대 체력 곱연산 감소 (effectiveMax = base × (1 - pct), 즉사 방지로 0.99 cap)
 
   // 데미지
   outDamagePenaltyPct?: number;   // 0..1, 출력 데미지 곱연산 감소. 0 미만 클램프(최소 1)
@@ -94,42 +93,54 @@ export const OATHS: Record<string, OathDef> = {
     exclusiveGroup: 'oath_maxqi',
   },
 
-  // ── 2. 회복력 (exclusiveGroup: oath_recovery) ──────────────────────
+  // ── 2. 최대 체력 (exclusiveGroup: oath_maxhp) ──────────────────────
 
-  oath_recv_1: {
-    id: 'oath_recv_1',
-    name: '침묵의 맹세',
-    nameHanja: '沈默之盟',
-    flavor: '숨이 잦아드니 회복은 더디고, 한 호흡이 곧 한 시(時)와 같다.',
-    description: '자연 회복 + 스킬 회복 -50%',
-    category: 'recovery',
-    weight: 1,
-    effect: { hpRegenPenaltyPct: 0.5 },
-    exclusiveGroup: 'oath_recovery',
-  },
-
-  oath_recv_2: {
-    id: 'oath_recv_2',
-    name: '폐기의 맹세',
-    nameHanja: '廢氣之盟',
-    flavor: '기를 폐(廢)하여 호흡을 멎게 하니, 회복의 길이 닫힌다.',
-    description: '자연 회복 + 스킬 회복 -100%',
-    category: 'recovery',
+  oath_hp_1: {
+    id: 'oath_hp_1',
+    name: '박체의 맹세',
+    nameHanja: '薄體之盟',
+    flavor: '몸을 야위게 거두니, 한 합(合)이 무겁게 닿는다.',
+    description: '최대 체력 -30%',
+    category: 'maxHp',
     weight: 2,
-    effect: { hpRegenPenaltyPct: 1.0 },
-    exclusiveGroup: 'oath_recovery',
+    effect: { maxHpPenaltyPct: 0.30 },
+    exclusiveGroup: 'oath_maxhp',
   },
 
-  oath_recv_3: {
-    id: 'oath_recv_3',
-    name: '침몰의 맹세',
-    nameHanja: '沈沒之盟',
-    flavor: '지나는 시간마다 명(命)이 한 줌씩 가라앉는다.',
-    description: '회복 -100% + 최대 HP의 0.8%/초 drain (전투 중)',
-    category: 'recovery',
-    weight: 4,
-    effect: { hpRegenPenaltyPct: 1.0, hpDrainPctPerSec: 0.008 },
-    exclusiveGroup: 'oath_recovery',
+  oath_hp_2: {
+    id: 'oath_hp_2',
+    name: '약체의 맹세',
+    nameHanja: '弱體之盟',
+    flavor: '살이 마르고 뼈가 드러나니, 검 한 자루도 천근(千斤)이라.',
+    description: '최대 체력 -60%',
+    category: 'maxHp',
+    weight: 3,
+    effect: { maxHpPenaltyPct: 0.60 },
+    exclusiveGroup: 'oath_maxhp',
+  },
+
+  oath_hp_3: {
+    id: 'oath_hp_3',
+    name: '누신의 맹세',
+    nameHanja: '陋身之盟',
+    flavor: '몸이 누(陋)하니 한 점의 살(殺)도 깊이 새겨진다.',
+    description: '최대 체력 -90%',
+    category: 'maxHp',
+    weight: 5,
+    effect: { maxHpPenaltyPct: 0.90 },
+    exclusiveGroup: 'oath_maxhp',
+  },
+
+  oath_hp_4: {
+    id: 'oath_hp_4',
+    name: '잔명의 맹세',
+    nameHanja: '殘命之盟',
+    flavor: '한 줄기 명(命)만 남겨두니, 적의 한 수에도 흩어지기 직전이다.',
+    description: '최대 체력 -98%',
+    category: 'maxHp',
+    weight: 9,
+    effect: { maxHpPenaltyPct: 0.98 },
+    exclusiveGroup: 'oath_maxhp',
   },
 
   // ── 3. 출력 데미지 (exclusiveGroup: oath_output) ───────────────────

@@ -36,7 +36,7 @@ export function applyAshMukneom(ctx: TickContext, burnedStacks: number): void {
   if (perStack) {
     const cap = eff?.emberBurnHpRecoveryStackCap ?? 20;
     const stacks = Math.min(burnedStacks, cap);
-    // applyHealing 단일 진입점 — 맹세 hpRegenPenaltyPct + 외문수좌 playerRecoveryDebuff 적용
+    // applyHealing 단일 진입점 — 외문수좌 playerRecoveryDebuff 적용
     const heal = applyHealing(ctx, Math.floor(ctx.maxHp * stacks * perStack));
     if (heal > 0 && !ctx.isSimulating) {
       ctx.floatingTexts = [...ctx.floatingTexts, {

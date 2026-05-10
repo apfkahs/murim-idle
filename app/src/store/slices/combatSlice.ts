@@ -317,8 +317,8 @@ export const createCombatSlice: StateCreator<GameStore, [], [], CombatSlice> = (
         });
         return;
       } else if (result?.type === 'death') {
-        // 사망 + 자동 답파: HP 회복 후 재탐험 예약 (재탐험 시 재잠금됨)
-        (get() as GameStore).unlockOaths();
+        // 사망 + 자동 답파: HP 회복 후 재탐험 예약
+        // unlockOaths 미호출 — 잠금 유지해야 pendingAutoExplore 재시작 시 드롭 보너스 적용됨
         set({
           battleResult: null,
           pendingHuntRetry: false,
