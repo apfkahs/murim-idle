@@ -282,14 +282,18 @@ for (const monster of MONSTERS) {
                 `${janbulIncreased ? '맹세 배율 정상 적용 확인 (증가)' : '증가 없음 — 검토 필요'}`);
   }
 
-  // OATH_TIER2_EXTRA_DROPS (ws>=5 조건)
+  // OATH_TIER2_EXTRA_DROPS — extraMult 배율 적용 검증
+  // ws=7: extraMult=max(1, 2.0-1.4)=1.0 (배율 없음), ws=21: extraMult=max(1, 6.8-1.4)=5.4
   const extras = EXTRA_DROPS_MAP[monster.id];
   if (extras) {
     const extra0 = (r0.taoreuneunBulggotPyeon / r0.n * 100).toFixed(4);
-    const extra1 = allResults.find(r => r.monsterId === monster.id && r.caseLabel === CASES[1].label)!;
-    const extra1Pct = (extra1.taoreuneunBulggotPyeon / extra1.n * 100).toFixed(4);
-    console.log(`  추가 드롭(ws=0 없음, ws=7부터 활성): ` +
-                `ws=0→${extra0}%  ws=7→${extra1Pct}%`);
+    const r1 = allResults.find(r => r.monsterId === monster.id && r.caseLabel === CASES[1].label)!;
+    const extra1Pct = (r1.taoreuneunBulggotPyeon / r1.n * 100).toFixed(4);
+    const extra3Pct = (r3.taoreuneunBulggotPyeon / r3.n * 100).toFixed(4);
+    // ws=21 실측치가 ws=7 실측치보다 유의미하게 높으면 extraMult 정상 적용
+    const extraMultApplied = parseFloat(extra3Pct) > parseFloat(extra1Pct) * 2.0;
+    console.log(`  추가 드롭 — ws=0(미발동): ${extra0}%  ws=7(×1.0): ${extra1Pct}%  ws=21(×5.4): ${extra3Pct}%`);
+    console.log(`             → ${extraMultApplied ? 'extraMult 배율 적용 확인' : '배율 미적용 — 검토 필요'}`);
   }
   console.log();
 }

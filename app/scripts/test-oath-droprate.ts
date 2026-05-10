@@ -28,6 +28,9 @@ const N = 100_000;
 
 const WEIGHT_SUM_CASES = [0, 5, 10, 18] as const;
 
+// OATH_TIER2_EXTRA_DROPS 검증 케이스: ws=0은 미발동이므로 제외
+const EXTRA_WS_CASES = [5, 10, 18] as const;
+
 // ── 재료 데이터 (인라인 정의, data에서 추출) ─────────────────────────────────
 
 interface DropEntry {
@@ -242,11 +245,9 @@ console.log('');
 const extraCasesLabel =
   'monsterId              | materialId                    | ws | extraMult | theory  | actual  | 95%CI   | 판정';
 const extraCasesSep =
-  '-----------------------|-------------------------------|----|-----------|---------|---------|---------+------';
+  '-----------------------|-------------------------------|----|-----------|---------|---------|---------|---------';
 console.log(extraCasesLabel);
 console.log(extraCasesSep);
-
-const EXTRA_WS_CASES = [5, 10, 18] as const; // ws=0은 미발동
 
 for (const [monsterId, extras] of Object.entries(OATH_TIER2_EXTRA_DROPS)) {
   for (const ed of extras) {
