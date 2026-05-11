@@ -5,7 +5,7 @@ import type { TickContext } from '../../tickContext';
 import type { BossPatternDef } from '../../../../data/monsters';
 import { BOSS_PATTERNS, getMonsterDef } from '../../../../data/monsters';
 import { calcEnemyDamage } from '../../damageCalc';
-import { handleDodge, rollDodgeCounter } from '../../tickContext';
+import { handleDodge, rollDodgeCounter, applyIncomingDamage } from '../../tickContext';
 import {
   applyEmberStack, consumeEmberStacks, getEmberStacks,
 } from '../../emberUtils';
@@ -184,10 +184,7 @@ function applyGeombosaAttack(
       effectiveExternalDmgRed,
     );
     dmg = Math.floor(dmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-    ctx.hp -= dmg;
-    ctx.currentBattleDamageTaken += dmg;
-    ctx.currentBattleHitTakenCount += 1;
-    if (dmg > ctx.currentBattleMaxIncomingHit) ctx.currentBattleMaxIncomingHit = dmg;
+    applyIncomingDamage(ctx, dmg);
     ctx.logEvent({
       side: 'incoming', actor: 'enemy',
       name, tag: 'hit', value: dmg, valueTier: dmg > ctx.maxHp * 0.25 ? 'hit-heavy' : 'normal',

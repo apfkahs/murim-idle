@@ -13,7 +13,7 @@ import type { TickContext } from '../../tickContext';
 import type { BossPatternDef } from '../../../../data/monsters';
 import { getMonsterDef } from '../../../../data/monsters';
 import { calcEnemyDamage } from '../../damageCalc';
-import { handleDodge } from '../../tickContext';
+import { handleDodge, applyIncomingDamage } from '../../tickContext';
 import { calcStamina } from '../../../combatCalc';
 import { applyEmberStack, getEmberStacks, consumeEmberStacks } from '../../emberUtils';
 import { applyOemunBurnSnapshot } from '../../druzeUtils';
@@ -335,10 +335,7 @@ function inResolveOemunSuja(
       dmg = Math.floor(dmg * 1.5);
       st.shellDodgeBuffStacks = Math.max(0, st.shellDodgeBuffStacks - 1);
     }
-    ctx.hp -= dmg;
-    ctx.currentBattleDamageTaken += dmg;
-    ctx.currentBattleHitTakenCount += 1;
-    if (dmg > ctx.currentBattleMaxIncomingHit) ctx.currentBattleMaxIncomingHit = dmg;
+    applyIncomingDamage(ctx, dmg);
     ctx.logEvent({
       side: 'incoming', actor: 'enemy',
       name, tag: 'hit', value: dmg,
@@ -473,10 +470,7 @@ function inResolveOemunSuja(
         dmg = Math.floor(dmg * 1.5);
         st.shellDodgeBuffStacks = Math.max(0, st.shellDodgeBuffStacks - 1);
       }
-      ctx.hp -= dmg;
-      ctx.currentBattleDamageTaken += dmg;
-      ctx.currentBattleHitTakenCount += 1;
-      if (dmg > ctx.currentBattleMaxIncomingHit) ctx.currentBattleMaxIncomingHit = dmg;
+      applyIncomingDamage(ctx, dmg);
       st.descentGauge = Math.max(0, st.descentGauge - 100);
       ctx.logLaw({
         lawFlavor: '*외문수좌가 두 손을 가슴 위로 모은다. 그의 입에서 한 줄의 청원이 흘러나오자, 머리 위로 거대한 그림자가 드리워진다.*',

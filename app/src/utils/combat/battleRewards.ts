@@ -305,10 +305,10 @@ export function processEnemyDeath(ctx: TickContext): void {
   }
 
   // 맹세(盟誓) 티어 2 추가 드랍 — extraDropTableUnlocked(weightSum ≥ 5) 시에만 롤
-  // extraMult: 무모한 도전(ws≥10) 이상에서 드랍률 보너스 적용.
-  // ws=5~9 구간에서 이미 받은 +140% 를 차감하고 남은 보너스만 적용 (최소 배율 1).
+  // extraMult: ws≥5 에서 이미 받은 기본 드랍 배율(+93.3%, 기존 +140%의 2/3)을 차감하고
+  // 남은 보너스만 적용 (최소 배율 1). 무모한 도전(ws≥10)부터 실질 보너스.
   if (!skipRewards && oathExtraDropTableUnlocked) {
-    const extraMult = Math.max(1, oathDropMult - 1.4);
+    const extraMult = Math.max(1, oathDropMult - 0.933);
     const extras = OATH_TIER2_EXTRA_DROPS[monDef.id];
     if (extras) {
       for (const ed of extras) {

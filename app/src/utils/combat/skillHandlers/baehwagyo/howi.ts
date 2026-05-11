@@ -3,7 +3,7 @@ import type { TickContext } from '../../tickContext';
 import type { BossPatternDef, BossSkillDef } from '../../../../data/monsters';
 import { BOSS_PATTERNS, getMonsterDef } from '../../../../data/monsters';
 import { calcEnemyDamage } from '../../damageCalc';
-import { handleDodge, rollDodgeCounter } from '../../tickContext';
+import { handleDodge, rollDodgeCounter, applyIncomingDamage } from '../../tickContext';
 import { applyEmberStack, getEmberStacks } from '../../emberUtils';
 import {
   PRE_SKILL_LOOP_HOOKS, SKILL_HANDLERS, IN_ATTACK_RESOLVE_HOOKS, MONSTER_STATE_FACTORIES,
@@ -159,7 +159,7 @@ function applyHwachangBranch(
       const logs = frenzy ? (hwachangSkill.hwachangFrenzySingleLogs ?? []) : (hwachangSkill.hwachangSingleLogs ?? []);
       let dmg = calcEnemyDamage(ctx.currentEnemy.attackPower, mult * monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
       dmg = Math.floor(dmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-      ctx.hp -= dmg;
+      applyIncomingDamage(ctx, dmg);
       const emberHit = Math.random() < (hwachangSkill.hwachangSingleEmberChance ?? 0.70);
       const chips: { kind: 'fire'; label: string; count: number }[] = emberHit ? [{ kind: 'fire', label: '불씨', count: 1 }] : [];
       if (emberHit) {
@@ -190,7 +190,7 @@ function applyHwachangBranch(
       } else {
         let dmg = calcEnemyDamage(ctx.currentEnemy.attackPower, mult * monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
         dmg = Math.floor(dmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-        ctx.hp -= dmg;
+        applyIncomingDamage(ctx, dmg);
         const emberHit = Math.random() < (hwachangSkill.hwachangDoubleEmberChance ?? 0.60);
         if (emberHit) {
           ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, 1);

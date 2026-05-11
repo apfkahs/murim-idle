@@ -280,11 +280,11 @@ export function getExclusiveGroupMembers(group: string): OathDef[] {
 export function calcOathBoost(weightSum: number): { profMult: number; dropMult: number } {
   let boost = 0;
   let remaining = weightSum;
-  const tier1 = Math.min(remaining, 4);  boost += tier1 * 0.10; remaining -= tier1;
-  const tier2 = Math.min(remaining, 5);  boost += tier2 * 0.20; remaining -= tier2;
-  const tier3 = Math.min(remaining, 8);  boost += tier3 * 0.30; remaining -= tier3;
-  /* tier4 */                             boost += remaining * 0.50;
-  const capped = Math.min(boost, 10.0);  // 캡 +1000% (11배)
+  const tier1 = Math.min(remaining, 4);  boost += tier1 * 0.067; remaining -= tier1;
+  const tier2 = Math.min(remaining, 5);  boost += tier2 * 0.133; remaining -= tier2;
+  const tier3 = Math.min(remaining, 8);  boost += tier3 * 0.20;  remaining -= tier3;
+  /* tier4 */                             boost += remaining * 0.333;
+  const capped = Math.min(boost, 6.67);  // 캡 +667% (기존 1000%의 2/3)
   return { profMult: 1 + capped, dropMult: 1 + capped };
 }
 
@@ -319,7 +319,7 @@ export const OATH_TIER_LABELS: Record<number, string> = {
 // 티어 2 추가 드랍 레지스트리
 // ─────────────────────────────────────────────
 // extraDropTableUnlocked (weightSum >= 5) 조건 충족 시에만 롤.
-// 적용 배율: extraMult = max(1, oathDropMult - 1.4) — 무모한 도전(ws≥10)부터 실질 보너스.
+// 적용 배율: extraMult = max(1, oathDropMult - 0.933) — 무모한 도전(ws≥10)부터 실질 보너스.
 
 export const OATH_TIER2_EXTRA_DROPS: Record<string, { materialId: string; chance: number }[]> = {
   baehwa_hwabosa: [

@@ -160,7 +160,8 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
     if (ctx.bossPatternState && ctx.currentEnemy) {
       const dotPattern = BOSS_PATTERNS[ctx.currentEnemy.id];
       if (dotPattern?.dotDamagePerStack && ctx.bossPatternState.bossStamina > 0) {
-        const dotDmg = dotPattern.dotDamagePerStack * ctx.bossPatternState.bossStamina * dt * (1 - ctx.dmgReduction / 100);
+        const oathIn = ctx.oathEffects?.inDamageBonusPct ?? 0;
+        const dotDmg = dotPattern.dotDamagePerStack * ctx.bossPatternState.bossStamina * dt * (1 - ctx.dmgReduction / 100) * (1 + oathIn);
         ctx.hp -= dotDmg;
       }
     }
@@ -183,15 +184,17 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
         } else {
           const updatedDot = { ...dot, remainingSec: newRemaining };
           if (dot.type === 'bleed' || dot.type === 'poison') {
-            const tickDmg = (dot.damagePerTick + dot.damagePerStack * (dot.stacks - 1)) * dt * (1 - ctx.dmgReduction / 100);
+            const oathIn = ctx.oathEffects?.inDamageBonusPct ?? 0;
+            const tickDmg = (dot.damagePerTick + dot.damagePerStack * (dot.stacks - 1)) * dt * (1 - ctx.dmgReduction / 100) * (1 + oathIn);
             ctx.hp -= tickDmg;
           } else if (dot.type === 'stamina_drain') {
             const drainAmt = (dot.damagePerTick + dot.damagePerStack * (dot.stacks - 1)) * dt;
             ctx.stamina = Math.max(0, ctx.stamina - drainAmt);
           } else if (dot.type === 'druze') {
             // 드루즈 단죄 — 틱별 ±10% 분산, 치명타/회피 없음, dmgReduction만 적용
+            const oathIn = ctx.oathEffects?.inDamageBonusPct ?? 0;
             const variance = 0.9 + Math.random() * 0.2;
-            const tickDmg = dot.damagePerTick * variance * dt * (1 - ctx.dmgReduction / 100);
+            const tickDmg = dot.damagePerTick * variance * dt * (1 - ctx.dmgReduction / 100) * (1 + oathIn);
             ctx.hp -= tickDmg;
           }
           // slow: 데미지 없음, playerCombat에서 공속 반영
@@ -330,8 +333,10 @@ export function simulateTick(state: GameState, dt: number, isSimulating: boolean
       if (ctx.battleMode === 'explore') {
         ctx.battleResult = {
           type: 'death',
-          drops: [],
-          message: '패배... 보상이 없습니다.',
+          drops: ctx.explorePendingRewards.drops,
+          proficiencyGains: ctx.explorePendingRewards.proficiencyGains,
+          materialDrops: ctx.explorePendingRewards.materialDrops,
+          message: '패배... 그러나 여기까지 얻은 것은 모두 챙겼다.',
           deathLog,
           recentBattleLog,
         };

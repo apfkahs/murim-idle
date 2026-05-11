@@ -1896,8 +1896,8 @@ export const BAEHWAGYO_MONSTERS: MonsterDef[] = [
     hp: 8500, attackPower: 350, attackInterval: 2.3, regen: 0, baseProficiency: 4,
     drops: [],
     materialDrops: [
-      { materialId: 'huimihan_janbul', chance: 0.07 },
-      { materialId: 'hayan_jae', chance: 0.15 },
+      { materialId: 'huimihan_janbul', chance: 0.047 },
+      { materialId: 'hayan_jae', chance: 0.10 },
       { materialId: 'simbeop_guide_basic', chance: 0.07 / 23 },
       { materialId: 'waebeopse_basic', chance: 0.00167 },
     ],

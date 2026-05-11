@@ -15,7 +15,7 @@ import type { TickContext } from '../../tickContext';
 import type { BossPatternDef } from '../../../../data/monsters';
 import { BOSS_PATTERNS, getMonsterDef } from '../../../../data/monsters';
 import { calcEnemyDamage } from '../../damageCalc';
-import { handleDodge } from '../../tickContext';
+import { handleDodge, applyIncomingDamage } from '../../tickContext';
 import { applyEmberStack } from '../../emberUtils';
 import { applyDruzeSnapshot, applyAbsoluteSnapshot } from '../../druzeUtils';
 import {
@@ -313,10 +313,7 @@ function resolveNormal(
     effectiveExternalDmgRed,
   );
   dmg = Math.floor(dmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-  ctx.hp -= dmg;
-  ctx.currentBattleDamageTaken += dmg;
-  ctx.currentBattleHitTakenCount += 1;
-  if (dmg > ctx.currentBattleMaxIncomingHit) ctx.currentBattleMaxIncomingHit = dmg;
+  applyIncomingDamage(ctx, dmg);
   ctx.logEvent({
     side: 'incoming', actor: 'enemy',
     name: '경전 낭송', tag: 'hit',
@@ -356,10 +353,7 @@ function resolveSuppression(
     effectiveExternalDmgRed,
   );
   dmg = Math.floor(dmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-  ctx.hp -= dmg;
-  ctx.currentBattleDamageTaken += dmg;
-  ctx.currentBattleHitTakenCount += 1;
-  if (dmg > ctx.currentBattleMaxIncomingHit) ctx.currentBattleMaxIncomingHit = dmg;
+  applyIncomingDamage(ctx, dmg);
   ctx.logEvent({
     side: 'incoming', actor: 'enemy',
     name: '억압', tag: 'hit',
