@@ -335,11 +335,11 @@ function inResolveOemunSuja(
       dmg = Math.floor(dmg * 1.5);
       st.shellDodgeBuffStacks = Math.max(0, st.shellDodgeBuffStacks - 1);
     }
-    applyIncomingDamage(ctx, dmg);
+    const actualDmg = applyIncomingDamage(ctx, dmg);
     ctx.logEvent({
       side: 'incoming', actor: 'enemy',
-      name, tag: 'hit', value: dmg,
-      valueTier: dmg > ctx.maxHp * 0.25 ? 'hit-heavy' : 'normal',
+      name, tag: 'hit', value: actualDmg,
+      valueTier: actualDmg > ctx.maxHp * 0.25 ? 'hit-heavy' : 'normal',
       chips,
     });
     if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
@@ -470,7 +470,7 @@ function inResolveOemunSuja(
         dmg = Math.floor(dmg * 1.5);
         st.shellDodgeBuffStacks = Math.max(0, st.shellDodgeBuffStacks - 1);
       }
-      applyIncomingDamage(ctx, dmg);
+      const actualAscensionDmg = applyIncomingDamage(ctx, dmg);
       st.descentGauge = Math.max(0, st.descentGauge - 100);
       ctx.logLaw({
         lawFlavor: '*외문수좌가 두 손을 가슴 위로 모은다. 그의 입에서 한 줄의 청원이 흘러나오자, 머리 위로 거대한 그림자가 드리워진다.*',
@@ -481,7 +481,7 @@ function inResolveOemunSuja(
       ctx.logEvent({
         side: 'incoming', actor: 'enemy',
         name: '성화의 강림', tag: 'special',
-        value: dmg, valueTier: dmg > ctx.maxHp * 0.5 ? 'super-crit' : 'hit-heavy',
+        value: actualAscensionDmg, valueTier: actualAscensionDmg > ctx.maxHp * 0.5 ? 'super-crit' : 'hit-heavy',
       });
       if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
       return true;

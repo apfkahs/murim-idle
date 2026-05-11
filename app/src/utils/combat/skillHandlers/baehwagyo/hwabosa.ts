@@ -260,13 +260,13 @@ function applyHwabosaAttack(
       effectiveExternalDmgRed,
     );
     dmg = Math.floor(dmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-    applyIncomingDamage(ctx, dmg);
+    const actualDmg = applyIncomingDamage(ctx, dmg);
     ctx.logEvent({
       side: 'incoming', actor: 'enemy',
-      name, tag: 'hit', value: dmg, valueTier: dmg > ctx.maxHp * 0.25 ? 'hit-heavy' : 'normal',
+      name, tag: 'hit', value: actualDmg, valueTier: actualDmg > ctx.maxHp * 0.25 ? 'hit-heavy' : 'normal',
       chips,
     });
-    return dmg;
+    return actualDmg;
   };
 
   // 피해 스킬 여부 (묵상 nextAttackBonus 소모 트리거)

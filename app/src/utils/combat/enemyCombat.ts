@@ -101,12 +101,12 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
   if (stackSmashSkill && ctx.bossPatternState && (ctx.bossPatternState.stackCount ?? 0) >= (stackSmashSkill.stackTriggerCount ?? 3)) {
     ctx.bossPatternState.stackCount = 0;
     const smashDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, stackSmashSkill.stackSmashMultiplier ?? 4, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0);
-    applyIncomingDamage(ctx, smashDmg);
-    const smashMsg = `${stackSmashSkill.logMessages[0]} ${smashDmg} 피해! 회피불가!`;
+    const actualSmashDmg = applyIncomingDamage(ctx, smashDmg);
+    const smashMsg = `${stackSmashSkill.logMessages[0]} ${actualSmashDmg} 피해! 회피불가!`;
     ctx.logEvent({
       side: 'incoming', actor: 'enemy',
       name: stackSmashSkill.displayName ?? '강타',
-      tag: 'hit', value: smashDmg, valueTier: 'hit-heavy',
+      tag: 'hit', value: actualSmashDmg, valueTier: 'hit-heavy',
     });
     ctx.logFlavor(stackSmashSkill.logMessages[0], 'right', { actor: 'enemy' });
     ctx.lastEnemyAttack = { enemyName: eName, attackMessage: smashMsg };
@@ -126,14 +126,14 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       if (!cs.undodgeable && Math.random() < ctx.dodgeRate) {
         handleDodge(ctx, eName);
       } else {
-        applyIncomingDamage(ctx, csDmg);
+        const actualCsDmg = applyIncomingDamage(ctx, csDmg);
         if (cs.stunAfterHit) ctx.playerStunTimer = cs.stunAfterHit;
         const chargeLogMsg = chargeSkillDef?.logMessages[1] ?? chargeSkillDef?.logMessages[0] ?? '강력한 일격!';
-        const chargeMsg = `${eName}: ${chargeLogMsg} ${csDmg} 피해!${cs.stunAfterHit ? ' 기절!' : ''}`;
+        const chargeMsg = `${eName}: ${chargeLogMsg} ${actualCsDmg} 피해!${cs.stunAfterHit ? ' 기절!' : ''}`;
         ctx.logEvent({
           side: 'incoming', actor: 'enemy',
           name: chargeSkillDef?.displayName ?? eName,
-          tag: 'hit', value: csDmg, valueTier: 'hit-heavy',
+          tag: 'hit', value: actualCsDmg, valueTier: 'hit-heavy',
         });
         ctx.logFlavor(chargeLogMsg, 'right', { actor: 'enemy' });
         if (cs.stunAfterHit) ctx.logFlavor('기절!', 'left', { actor: 'player', minor: true });
@@ -474,16 +474,16 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
       } else if (skill.type === 'freeze_attack') {
         const dmg = calcEnemyDamage(ctx.currentEnemy.attackPower, skill.damageMultiplier ?? 1, ctx.dmgReduction, skill.fixedDamage, ctx.equipStats.bonusFixedDmgReduction ?? 0);
         if (skill.undodgeable || Math.random() >= ctx.dodgeRate) {
-          applyIncomingDamage(ctx, dmg);
+          const actualFreezeDmg = applyIncomingDamage(ctx, dmg);
           if (skill.freezeAttacks && ctx.bossPatternState) {
             ctx.bossPatternState.playerFreezeLeft = skill.freezeAttacks;
           }
           const freezeSuffix = skill.freezeAttacks ? ' 빙결!' : '';
-          const attackMsg = `${eName}: ${logMsg} ${dmg} 피해!${freezeSuffix}`;
+          const attackMsg = `${eName}: ${logMsg} ${actualFreezeDmg} 피해!${freezeSuffix}`;
           ctx.logEvent({
             side: 'incoming', actor: 'enemy',
             name: skill.displayName ?? eName,
-            tag: 'hit', value: dmg, valueTier: 'hit-heavy',
+            tag: 'hit', value: actualFreezeDmg, valueTier: 'hit-heavy',
           });
           ctx.logFlavor(logMsg, 'right', { actor: 'enemy' });
           if (skill.freezeAttacks) ctx.logFlavor('빙결!', 'left', { actor: 'player', minor: true });
@@ -538,15 +538,15 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         const skillDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, skill.damageMultiplier ?? 1, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0);
 
         if (skill.undodgeable || Math.random() >= ctx.dodgeRate) {
-          applyIncomingDamage(ctx, skillDmg);
+          const actualSkillDmg = applyIncomingDamage(ctx, skillDmg);
           ctx.logEvent({
             side: 'incoming', actor: 'enemy',
             name: skill.displayName ?? eName,
-            tag: 'hit', value: skillDmg,
-            valueTier: skillDmg >= (ctx.maxHp * 0.25) ? 'hit-heavy' : 'normal',
+            tag: 'hit', value: actualSkillDmg,
+            valueTier: actualSkillDmg >= (ctx.maxHp * 0.25) ? 'hit-heavy' : 'normal',
           });
           ctx.logFlavor(logMsg, 'right', { actor: 'enemy' });
-          ctx.lastEnemyAttack = { enemyName: eName, attackMessage: `${eName}: ${logMsg} ${skillDmg} 피해!` };
+          ctx.lastEnemyAttack = { enemyName: eName, attackMessage: `${eName}: ${logMsg} ${actualSkillDmg} 피해!` };
           if (!ctx.isSimulating) {
             ctx.enemyAnim = 'attack';
           }
@@ -654,10 +654,10 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
             } else {
               let vmhDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, tier.hitMultipliers[i] * monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
               vmhDmg = Math.floor(vmhDmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-              applyIncomingDamage(ctx, vmhDmg);
+              const actualVmhDmg = applyIncomingDamage(ctx, vmhDmg);
               ctx.logEvent({
                 side: 'incoming', actor: 'enemy',
-                name: `${i + 1}타`, tag: 'hit', value: vmhDmg, valueTier: 'normal',
+                name: `${i + 1}타`, tag: 'hit', value: actualVmhDmg, valueTier: 'normal',
               });
               attackLanded = true;
             }
@@ -699,8 +699,8 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         } else {
           let rfDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, rfMult * monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
           rfDmg = Math.floor(rfDmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-          applyIncomingDamage(ctx, rfDmg);
-          damages.push(rfDmg);
+          const actualRfDmg = applyIncomingDamage(ctx, rfDmg);
+          damages.push(actualRfDmg);
         }
       }
       const total = damages.reduce((a, b) => a + b, 0);
@@ -729,13 +729,13 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         // 임계치 충족: 회피불가 + 철포삼 무시
         csDmg = Math.floor(csDmg * (1 - ctx.dmgReduction / 100));
         csDmg = Math.floor(csDmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-        applyIncomingDamage(ctx, csDmg);
-        const csMsg = `${eName}: ${condStrikeSkill.logMessages[0]} ${csDmg} 피해! (회피불가!)`;
+        const actualCsHeavyDmg = applyIncomingDamage(ctx, csDmg);
+        const csMsg = `${eName}: ${condStrikeSkill.logMessages[0]} ${actualCsHeavyDmg} 피해! (회피불가!)`;
         ctx.logEvent({
           side: 'incoming', actor: 'enemy',
           name: condStrikeSkill.displayName ?? '비열한 일격',
-          tag: 'hit', value: csDmg,
-          valueTier: csDmg > ctx.maxHp * 0.25 ? 'hit-heavy' : 'normal',
+          tag: 'hit', value: actualCsHeavyDmg,
+          valueTier: actualCsHeavyDmg > ctx.maxHp * 0.25 ? 'hit-heavy' : 'normal',
         });
         ctx.logFlavor(condStrikeSkill.logMessages[0] + ' (회피불가)', 'right', { actor: 'enemy' });
         ctx.lastEnemyAttack = { enemyName: eName, attackMessage: csMsg };
@@ -749,12 +749,12 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           csDmg = Math.floor(csDmg * (1 - ctx.dmgReduction / 100) * (1 - effectiveExternalDmgRed));
           csDmg = Math.max(0, csDmg - (ctx.equipStats.bonusFixedDmgReduction ?? 0));
           csDmg = Math.floor(csDmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-          applyIncomingDamage(ctx, csDmg);
-          const csMsg = `${eName}: ${condStrikeSkill.logMessages[0]} ${csDmg} 피해!`;
+          const actualCsNormalDmg = applyIncomingDamage(ctx, csDmg);
+          const csMsg = `${eName}: ${condStrikeSkill.logMessages[0]} ${actualCsNormalDmg} 피해!`;
           ctx.logEvent({
             side: 'incoming', actor: 'enemy',
             name: condStrikeSkill.displayName ?? '비열한 일격',
-            tag: 'hit', value: csDmg, valueTier: 'normal',
+            tag: 'hit', value: actualCsNormalDmg, valueTier: 'normal',
           });
           ctx.logFlavor(condStrikeSkill.logMessages[0], 'right', { actor: 'enemy' });
           ctx.lastEnemyAttack = { enemyName: eName, attackMessage: csMsg };
@@ -793,8 +793,8 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
         const takenMult = 1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0);
         incomingDmg = Math.floor(incomingDmg * takenMult);
         emberExtra = Math.floor(emberExtra * takenMult);
-        applyIncomingDamage(ctx, incomingDmg);
-        if (incomingDmg > 0 && monDef) {
+        const actualIncomingDmg = applyIncomingDamage(ctx, incomingDmg);
+        if (actualIncomingDmg > 0 && monDef) {
           if (monCritLog) ctx.logFlavor(monCritLog, 'right', { actor: 'enemy', minor: true });
           if (conditionalPassiveTriggered && condPassiveSkill) {
             const cpMsg = condPassiveSkill.logMessages[Math.floor(Math.random() * condPassiveSkill.logMessages.length)];
@@ -804,18 +804,18 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           if (emberStk > 0 && emberBonusMult > 1) {
             const emberLogs = monDef.emberAttackLogs ?? DEFAULT_EMBER_ATTACK_LOGS;
             const msgBase = emberLogs[Math.floor(Math.random() * emberLogs.length)];
-            const attackMsg = `${msgBase} ${incomingDmg} 피해. (+${emberExtra})`;
+            const attackMsg = `${msgBase} ${actualIncomingDmg} 피해. (+${emberExtra})`;
             ctx.logEvent({
               side: 'incoming', actor: 'enemy', name: eName,
-              tag: 'hit', value: incomingDmg, valueTier: 'normal',
+              tag: 'hit', value: actualIncomingDmg, valueTier: 'normal',
             });
             ctx.logFlavor(msgBase, 'right', { actor: 'enemy', minor: true });
             ctx.lastEnemyAttack = { enemyName: eName, attackMessage: attackMsg };
           } else {
-            const attackMsg = getMonsterAttackMsg(monDef, incomingDmg);
+            const attackMsg = getMonsterAttackMsg(monDef, actualIncomingDmg);
             ctx.logEvent({
               side: 'incoming', actor: 'enemy', name: eName,
-              tag: 'hit', value: incomingDmg, valueTier: 'normal',
+              tag: 'hit', value: actualIncomingDmg, valueTier: 'normal',
             });
             ctx.logFlavor(attackMsg, 'right', { actor: 'enemy', minor: true });
             ctx.lastEnemyAttack = { enemyName: eName, attackMessage: attackMsg };
@@ -959,11 +959,11 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           const dmsg = dblSkill.logMessages[Math.floor(Math.random() * dblSkill.logMessages.length)];
           if (Math.random() >= ctx.dodgeRate) {
             const dmg2 = calcEnemyDamage(ctx.currentEnemy.attackPower, dblSkill.hitMultiplier ?? 1, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0);
-            applyIncomingDamage(ctx, dmg2);
+            const actualDmg2 = applyIncomingDamage(ctx, dmg2);
             ctx.logEvent({
               side: 'incoming', actor: 'enemy',
               name: dblSkill.displayName ?? '연격',
-              tag: 'hit', value: dmg2, valueTier: 'normal',
+              tag: 'hit', value: actualDmg2, valueTier: 'normal',
             });
             ctx.logFlavor(dmsg, 'right', { actor: 'enemy', minor: true });
           } else {
@@ -992,10 +992,10 @@ export function executeEnemyAttackPhase(ctx: TickContext): void {
           for (let i = 0; i < hitCount; i++) {
             if (Math.random() >= ctx.dodgeRate) {
               const tDmg = calcEnemyDamage(ctx.currentEnemy.attackPower, tripleSkill.hitMultiplier ?? 1, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0);
-              applyIncomingDamage(ctx, tDmg);
+              const actualTDmg = applyIncomingDamage(ctx, tDmg);
               ctx.logEvent({
                 side: 'incoming', actor: 'enemy',
-                name: `연격 ${i + 1}타`, tag: 'hit', value: tDmg, valueTier: 'normal',
+                name: `연격 ${i + 1}타`, tag: 'hit', value: actualTDmg, valueTier: 'normal',
               });
             } else {
               ctx.currentBattleDodgeCount += 1;

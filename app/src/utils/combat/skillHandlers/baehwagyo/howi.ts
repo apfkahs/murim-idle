@@ -159,7 +159,7 @@ function applyHwachangBranch(
       const logs = frenzy ? (hwachangSkill.hwachangFrenzySingleLogs ?? []) : (hwachangSkill.hwachangSingleLogs ?? []);
       let dmg = calcEnemyDamage(ctx.currentEnemy.attackPower, mult * monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
       dmg = Math.floor(dmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-      applyIncomingDamage(ctx, dmg);
+      const actualHwachangDmg = applyIncomingDamage(ctx, dmg);
       const emberHit = Math.random() < (hwachangSkill.hwachangSingleEmberChance ?? 0.70);
       const chips: { kind: 'fire'; label: string; count: number }[] = emberHit ? [{ kind: 'fire', label: '불씨', count: 1 }] : [];
       if (emberHit) {
@@ -170,7 +170,7 @@ function applyHwachangBranch(
       ctx.logEvent({
         side: 'incoming', actor: 'enemy',
         name: hwachangSkill.displayName ?? '화창격',
-        tag: 'hit', value: dmg, valueTier: 'normal',
+        tag: 'hit', value: actualHwachangDmg, valueTier: 'normal',
         chips,
       });
       if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
@@ -190,13 +190,13 @@ function applyHwachangBranch(
       } else {
         let dmg = calcEnemyDamage(ctx.currentEnemy.attackPower, mult * monAttackMult, ctx.dmgReduction, undefined, ctx.equipStats.bonusFixedDmgReduction ?? 0, effectiveExternalDmgRed);
         dmg = Math.floor(dmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-        applyIncomingDamage(ctx, dmg);
+        const actualDoubleDmg = applyIncomingDamage(ctx, dmg);
         const emberHit = Math.random() < (hwachangSkill.hwachangDoubleEmberChance ?? 0.60);
         if (emberHit) {
           ctx.bossPatternState.playerDotStacks = applyEmberStack(ctx.bossPatternState.playerDotStacks, 1);
           hitChips.push({ kind: 'fire', label: '불씨', count: 1 });
         }
-        ctx.logEvent({ side: 'incoming', actor: 'enemy', name: `${hi + 1}타`, tag: 'hit', value: dmg, valueTier: 'normal' });
+        ctx.logEvent({ side: 'incoming', actor: 'enemy', name: `${hi + 1}타`, tag: 'hit', value: actualDoubleDmg, valueTier: 'normal' });
       }
     }
     if (hitChips.length > 0) {

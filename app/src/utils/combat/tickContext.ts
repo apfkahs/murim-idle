@@ -532,7 +532,7 @@ export function applyHealing(
   return healAmt;
 }
 
-export function applyIncomingDamage(ctx: TickContext, damage: number): void {
+export function applyIncomingDamage(ctx: TickContext, damage: number): number {
   // 묵념 lv10+ 누적 임계 도달 시 받는 피해 곱연산 감소
   let finalDamage = damage;
   // 맹세(盟誓) — 받는 피해 보너스 (락된 경우만, lockedAt == null 시 자동 단락)
@@ -558,6 +558,7 @@ export function applyIncomingDamage(ctx: TickContext, damage: number): void {
   ctx.currentBattleDamageTaken += finalDamage;
   ctx.currentBattleHitTakenCount += 1;
   if (finalDamage > ctx.currentBattleMaxIncomingHit) ctx.currentBattleMaxIncomingHit = finalDamage;
+  return finalDamage;
 }
 
 /**

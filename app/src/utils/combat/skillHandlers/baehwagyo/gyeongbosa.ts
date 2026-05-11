@@ -313,11 +313,11 @@ function resolveNormal(
     effectiveExternalDmgRed,
   );
   dmg = Math.floor(dmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-  applyIncomingDamage(ctx, dmg);
+  const actualNormalDmg = applyIncomingDamage(ctx, dmg);
   ctx.logEvent({
     side: 'incoming', actor: 'enemy',
     name: '경전 낭송', tag: 'hit',
-    value: dmg, valueTier: dmg > ctx.maxHp * 0.25 ? 'hit-heavy' : 'normal',
+    value: actualNormalDmg, valueTier: actualNormalDmg > ctx.maxHp * 0.25 ? 'hit-heavy' : 'normal',
   });
   if (!ctx.isSimulating) ctx.enemyAnim = 'attack';
 }
@@ -353,11 +353,11 @@ function resolveSuppression(
     effectiveExternalDmgRed,
   );
   dmg = Math.floor(dmg * (1 + (ctx.equipStats.bonusDmgTakenPercent ?? 0)));
-  applyIncomingDamage(ctx, dmg);
+  const actualSuppressionDmg = applyIncomingDamage(ctx, dmg);
   ctx.logEvent({
     side: 'incoming', actor: 'enemy',
     name: '억압', tag: 'hit',
-    value: dmg, valueTier: dmg > ctx.maxHp * 0.25 ? 'hit-heavy' : 'normal',
+    value: actualSuppressionDmg, valueTier: actualSuppressionDmg > ctx.maxHp * 0.25 ? 'hit-heavy' : 'normal',
     chips: [{ kind: 'fire', label: '불씨', count: meta.suppression.playerEmberGain }],
   });
 
