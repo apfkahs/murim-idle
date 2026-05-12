@@ -414,15 +414,15 @@ export const SWORD_ULT_UNLOCK_THRESHOLD = 5;
 // sword-main: lv0→1 = 500 (오픈 비용 — 비전서 1개의 잔불 대체 결제 수단), lv1→2~lv8→9 는 지시서 표 그대로.
 // 비전서(`bahwagyo_sword_manual`) 사용 시 inventorySlice 가 무료로 0→1 처리하므로, 잔불 결제와 비전서 사용이 택 1.
 const SWORD_EMBER_COST_MAIN = [500, 180, 190, 200, 210, 220, 230, 240, 250];
-const SWORD_FLAME_COST_MAIN = [100, 30, 35, 40, 45, 50, 55, 60, 65, 200];      // 9→19 + 19→20 milestone
+const SWORD_FLAME_COST_MAIN = [100, 30, 35, 40, 45, 50, 55, 60, 65, 72, 200];  // 9→18 + 18→19 + 19→20 milestone
 
 // sword-ult: lv0→1 = 350 (오픈 비용), lv1→2~lv8→9 는 검법 메인과 동일 (180~250).
 const SWORD_EMBER_COST_ULT = [350, 180, 190, 200, 210, 220, 230, 240, 250];
-const SWORD_FLAME_COST_ULT = [100, 30, 35, 40, 45, 50, 55, 60, 65, 200];
+const SWORD_FLAME_COST_ULT = [100, 30, 35, 40, 45, 50, 55, 60, 65, 72, 200];
 
 // sword-qi-manifest: lv0→1 = 394 (오픈 비용, 기존 525의 3/4), lv1→2~lv8→9 는 지시서 표 그대로 (기존의 3/4).
 const SWORD_EMBER_COST_QI = [394, 186, 197, 206, 217, 227, 238, 248, 258];
-const SWORD_FLAME_COST_QI = [94, 29, 33, 38, 43, 47, 52, 56, 62, 225];
+const SWORD_FLAME_COST_QI = [94, 29, 33, 38, 43, 47, 52, 56, 62, 70, 225];
 
 interface SwordCostTable {
   ember: number[];

@@ -22,6 +22,8 @@ export default function CombatBars() {
   const bossPatternState = useGameStore(s => s.bossPatternState);
   const playerStunTimer = useGameStore(s => s.playerStunTimer);
   const equipmentDotOnEnemy = useGameStore(s => s.equipmentDotOnEnemy);
+  const baehwagyoAshOathBuffs = useGameStore(s => s.baehwagyoAshOathBuffs);
+  const combatElapsed = useGameStore(s => s.combatElapsed);
 
   if (!currentEnemy) return null;
 
@@ -124,6 +126,16 @@ export default function CombatBars() {
     allyChips.push({
       key: `pdot-${dot.id}`,
       label: `${label} x${dot.stacks} (${Math.ceil(dot.remainingSec)}s)`,
+    });
+  }
+  const activeAshBuffs = baehwagyoAshOathBuffs.filter(b => b.expiresAtSec > combatElapsed);
+  if (activeAshBuffs.length > 0) {
+    const totalMult = activeAshBuffs.reduce((m, b) => m * b.atkMult, 1);
+    const pctBonus = Math.round((totalMult - 1) * 100);
+    const minRemaining = Math.min(...activeAshBuffs.map(b => b.expiresAtSec - combatElapsed));
+    allyChips.push({
+      key: 'ash-maengse',
+      label: `재의 맹세 ×${activeAshBuffs.length} · ATK +${pctBonus}% · ${Math.ceil(minRemaining)}s`,
     });
   }
 
